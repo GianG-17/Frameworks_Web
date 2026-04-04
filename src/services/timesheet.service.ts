@@ -4,6 +4,7 @@
  */
 
 import { post, get } from './api';
+import { timesheetMockService } from './mock/timesheet.mock';
 
 export type PunchType = 'entrada' | 'saida_almoco' | 'retorno_almoco' | 'saida';
 
@@ -25,7 +26,9 @@ export interface DailySummary {
   deficit: number;
 }
 
-export const timesheetService = {
+const USE_MOCK = !import.meta.env.VITE_API_URL || import.meta.env.VITE_USE_MOCK === 'true';
+
+const realTimesheetService = {
   punch: (data: { type: PunchType; method: PunchRecord['method'] }) =>
     post<PunchRecord>('/timesheet/punch', data),
 
@@ -35,3 +38,5 @@ export const timesheetService = {
   history: (params: { startDate: string; endDate: string }) =>
     get<DailySummary[]>(`/timesheet/history?start=${params.startDate}&end=${params.endDate}`)
 };
+
+export const timesheetService = USE_MOCK ? timesheetMockService : realTimesheetService;

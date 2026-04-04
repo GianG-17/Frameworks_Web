@@ -3,19 +3,42 @@
   @description Página de login — credenciais (email + senha).
 -->
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import Button from '@/components/ui/Button.svelte';
+  import { authService } from '@/services/auth.service';
+  import { setUser } from '@/store/auth.store';
+  import { isValidEmail, isNotEmpty } from '@/utils/validators';
 
   let email = $state('');
   let password = $state('');
   let loading = $state(false);
   let errorMsg = $state('');
 
+  function validate(): string | null {
+    if (!isNotEmpty(email) || !isNotEmpty(password)) return 'Preencha todos os campos.';
+    if (!isValidEmail(email)) return 'E-mail inválido.';
+    return null;
+  }
+
   async function handleLogin() {
+    const validationError = validate();
+    if (validationError) {
+      errorMsg = validationError;
+      return;
+    }
+
     loading = true;
     errorMsg = '';
     try {
-      // TODO: chamar authService.login({ email, password })
-      console.log('Login:', { email, password });
+      const { token, user } = await authService.login({ email, password });
+
+      localStorage.setItem('auth_token', token);
+      document.cookie = `auth_token=${token}; path=/; SameSite=Lax`;
+
+      setUser(user);
+
+      const target = user.role === 'admin' ? '/admin/dashboard' : '/colaborador/registro';
+      await goto(target);
     } catch {
       errorMsg = 'Credenciais inválidas. Tente novamente.';
     } finally {

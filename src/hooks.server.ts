@@ -12,11 +12,18 @@
 import type { Handle } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
 
+function decodeToken(token: string): App.Locals['user'] {
+  try {
+    return JSON.parse(atob(token)) as App.Locals['user'];
+  } catch {
+    return null;
+  }
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
   const token = event.cookies.get('auth_token');
 
-  // TODO: validar JWT e popular event.locals.user
-  // event.locals.user = await validateToken(token);
+  event.locals.user = token ? decodeToken(token) : null;
 
   const { pathname } = event.url;
 

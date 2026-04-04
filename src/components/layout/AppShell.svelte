@@ -4,14 +4,24 @@
   Renderiza sidebar de navegação + área de conteúdo.
 -->
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import type { Snippet } from 'svelte';
-  import { isAdmin } from '@/store/auth.store';
+  import { isAdmin, user, clearUser } from '@/store/auth.store';
+  import { authService } from '@/services/auth.service';
 
   interface Props {
     children: Snippet;
   }
 
   let { children }: Props = $props();
+
+  async function handleLogout(): Promise<void> {
+    await authService.logout();
+    localStorage.removeItem('auth_token');
+    document.cookie = 'auth_token=; path=/; max-age=0';
+    clearUser();
+    await goto('/auth/login');
+  }
 </script>
 
 <div class="app-shell">
@@ -30,6 +40,13 @@
         <a href="/colaborador/historico">Histórico</a>
       {/if}
     </nav>
+
+    <div class="sidebar__footer">
+      {#if $user}
+        <span class="sidebar__user">{$user.name}</span>
+      {/if}
+      <button class="sidebar__logout" onclick={handleLogout}>Sair</button>
+    </div>
   </aside>
 
   <main class="content">
@@ -76,6 +93,36 @@
   }
 
   .sidebar__nav a:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
+
+  .sidebar__footer {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .sidebar__user {
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .sidebar__logout {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.7);
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 150ms ease;
+  }
+
+  .sidebar__logout:hover {
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
   }

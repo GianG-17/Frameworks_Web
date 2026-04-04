@@ -1,9 +1,5 @@
 import type { LoginCredentials, AuthResponse, QrCodePayload } from '../auth.service';
-import { MOCK_USERS, MOCK_PASSWORDS, encodeToken, decodeToken } from './data';
-
-function findUserByEmail(email: string): AuthResponse['user'] | undefined {
-  return MOCK_USERS.find((u) => u.email === email);
-}
+import { MOCK_USERS, MOCK_PASSWORDS, encodeToken, decodeToken, findUserByIdentifier } from './data';
 
 function simulateDelay<T>(value: T): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), 300));
@@ -11,8 +7,9 @@ function simulateDelay<T>(value: T): Promise<T> {
 
 export const authMockService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const user = findUserByEmail(credentials.email);
-    const expectedPassword = MOCK_PASSWORDS[credentials.email];
+    const user = findUserByIdentifier(credentials.identifier);
+    const normalizedKey = credentials.identifier.replace(/\D/g, '') || credentials.identifier;
+    const expectedPassword = MOCK_PASSWORDS[credentials.identifier] ?? MOCK_PASSWORDS[normalizedKey];
 
     if (!user || credentials.password !== expectedPassword) {
       throw { status: 401, message: 'Credenciais inválidas' };

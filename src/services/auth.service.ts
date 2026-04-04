@@ -7,7 +7,7 @@ import { post, get } from './api';
 import { authMockService } from './mock/auth.mock';
 
 export interface LoginCredentials {
-  email: string;
+  identifier: string;
   password: string;
 }
 
@@ -17,6 +17,7 @@ export interface AuthResponse {
     id: string;
     name: string;
     email: string;
+    cpf: string;
     role: 'admin' | 'colaborador';
   };
 }
@@ -30,7 +31,7 @@ const USE_MOCK = !import.meta.env.VITE_API_URL || import.meta.env.VITE_USE_MOCK 
 
 const realAuthService = {
   login: (credentials: LoginCredentials) =>
-    post<AuthResponse>('/auth/login', credentials),
+    post<AuthResponse>('/auth/login', credentials) as Promise<AuthResponse>,
 
   loginByQrCode: (payload: QrCodePayload) =>
     post<AuthResponse>('/auth/qrcode', payload),

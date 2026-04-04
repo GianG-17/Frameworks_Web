@@ -10,6 +10,7 @@ declare global {
         id: string;
         name: string;
         email: string;
+        cpf: string;
         role: 'admin' | 'colaborador';
       } | null;
     }

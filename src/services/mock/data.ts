@@ -6,20 +6,31 @@ export const MOCK_USERS: AuthResponse['user'][] = [
     id: 'usr_001',
     name: 'Ana Silva',
     email: 'ana@empresa.com',
+    cpf: '529.982.247-25',
     role: 'admin'
   },
   {
     id: 'usr_002',
     name: 'Carlos Souza',
     email: 'carlos@empresa.com',
+    cpf: '111.444.777-35',
     role: 'colaborador'
   }
 ];
 
 export const MOCK_PASSWORDS: Record<string, string> = {
   'ana@empresa.com': 'Senha123',
-  'carlos@empresa.com': 'Senha123'
+  '52998224725': 'Senha123',
+  'carlos@empresa.com': 'Senha123',
+  '11144477735': 'Senha123'
 };
+
+export function findUserByIdentifier(identifier: string): AuthResponse['user'] | undefined {
+  const normalized = identifier.replace(/\D/g, '');
+  return MOCK_USERS.find(
+    (u) => u.email === identifier || u.cpf.replace(/\D/g, '') === normalized
+  );
+}
 
 function buildPunch(
   userId: string,

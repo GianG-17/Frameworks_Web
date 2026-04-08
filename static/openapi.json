@@ -1,0 +1,340 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Ponto Digital API",
+    "version": "1.0.0",
+    "description": "API mock para desenvolvimento do sistema de ponto eletrônico. Implementada via SvelteKit `+server.ts`. Ative com `VITE_USE_MOCK=true`.\n\n**Credenciais de teste:**\n- Admin: `admin@teste.com` / `Senha123`\n- Colaborador: `carlos@teste.com` / `Senha123`"
+  },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "SvelteKit local (npm run dev)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Base64(JSON)"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "required": ["id", "name", "email", "cpf", "role"],
+        "properties": {
+          "id": { "type": "string", "example": "usr_002" },
+          "name": { "type": "string", "example": "Carlos Souza" },
+          "email": { "type": "string", "format": "email", "example": "carlos@teste.com" },
+          "cpf": { "type": "string", "example": "111.444.777-35" },
+          "role": { "type": "string", "enum": ["admin", "colaborador"], "example": "colaborador" }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "required": ["token", "user"],
+        "properties": {
+          "token": { "type": "string", "description": "Token de autenticação (Base64 do JSON do usuário)", "example": "eyJ..." },
+          "user": { "$ref": "#/components/schemas/User" }
+        }
+      },
+      "LoginCredentials": {
+        "type": "object",
+        "required": ["identifier", "password"],
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "description": "E-mail ou CPF do usuário",
+            "example": "carlos@teste.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "Senha123"
+          }
+        }
+      },
+      "QrCodePayload": {
+        "type": "object",
+        "required": ["code", "timestamp"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Código QR escaneado",
+            "example": "ponto-qr-2026-04-08"
+          },
+          "timestamp": {
+            "type": "integer",
+            "description": "Timestamp Unix em milissegundos do momento do scan",
+            "example": 1712620800000
+          }
+        }
+      },
+      "PunchRecord": {
+        "type": "object",
+        "required": ["id", "userId", "type", "timestamp", "method"],
+        "properties": {
+          "id": { "type": "string", "example": "punch_1712620800000" },
+          "userId": { "type": "string", "example": "usr_002" },
+          "type": {
+            "type": "string",
+            "enum": ["entrada", "saida_almoco", "retorno_almoco", "saida"],
+            "example": "entrada"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-04-08T08:00:00.000Z"
+          },
+          "latitude": { "type": "number", "nullable": true, "example": null },
+          "longitude": { "type": "number", "nullable": true, "example": null },
+          "method": {
+            "type": "string",
+            "enum": ["qrcode", "manual"],
+            "example": "manual"
+          }
+        }
+      },
+      "DailySummary": {
+        "type": "object",
+        "required": ["date", "punches", "totalHours", "overtime", "deficit"],
+        "properties": {
+          "date": { "type": "string", "format": "date", "example": "2026-04-08" },
+          "punches": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PunchRecord" }
+          },
+          "totalHours": { "type": "number", "description": "Horas trabalhadas (decimal)", "example": 8.5 },
+          "overtime": { "type": "number", "description": "Horas extras (decimal)", "example": 0.5 },
+          "deficit": { "type": "number", "description": "Horas faltantes (decimal)", "example": 0 }
+        }
+      },
+      "PunchRequest": {
+        "type": "object",
+        "required": ["type", "method"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["entrada", "saida_almoco", "retorno_almoco", "saida"],
+            "example": "entrada"
+          },
+          "method": {
+            "type": "string",
+            "enum": ["qrcode", "manual"],
+            "example": "manual"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string", "example": "Não autorizado" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "operationId": "loginUser",
+        "tags": ["Autenticação"],
+        "summary": "Autenticar com e-mail ou CPF e senha",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginCredentials" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login realizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Corpo da requisição inválido",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "401": {
+            "description": "Credenciais inválidas",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/auth/qrcode": {
+      "post": {
+        "operationId": "loginByQrCode",
+        "tags": ["Autenticação"],
+        "summary": "Autenticar via QR Code",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/QrCodePayload" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login via QR Code realizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload inválido",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "logoutUser",
+        "tags": ["Autenticação"],
+        "summary": "Encerrar sessão do usuário",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "204": { "description": "Sessão encerrada com sucesso" },
+          "401": {
+            "description": "Não autenticado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "getCurrentUser",
+        "tags": ["Autenticação"],
+        "summary": "Retornar dados do usuário autenticado",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Dados do usuário",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/timesheet/punch": {
+      "post": {
+        "operationId": "registerPunch",
+        "tags": ["Ponto"],
+        "summary": "Registrar batida de ponto",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PunchRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Batida registrada com sucesso",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PunchRecord" }
+              }
+            }
+          },
+          "400": {
+            "description": "Tipo de batida inválido",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "401": {
+            "description": "Não autenticado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/timesheet/today": {
+      "get": {
+        "operationId": "getTodaySummary",
+        "tags": ["Ponto"],
+        "summary": "Resumo de ponto do dia atual",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Resumo diário com todas as batidas do dia",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DailySummary" }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/timesheet/history": {
+      "get": {
+        "operationId": "getPunchHistory",
+        "tags": ["Ponto"],
+        "summary": "Histórico de ponto por período",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" },
+            "example": "2026-04-01"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" },
+            "example": "2026-04-08"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de resumos diários no período",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/DailySummary" }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parâmetros de data ausentes ou inválidos",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "401": {
+            "description": "Não autenticado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    }
+  }
+}

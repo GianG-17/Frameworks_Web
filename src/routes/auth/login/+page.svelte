@@ -70,12 +70,13 @@
 </svelte:head>
 
 <div class="login-page">
-  <div class="login-card">
+  <form class="login-card" onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
     <h1>Ponto Digital</h1>
     <p>Acesse sua conta</p>
 
     <div class="tabs">
       <button
+        type="button"
         class="tab"
         class:tab--active={activeTab === 'colaborador'}
         onclick={() => handleTabChange('colaborador')}
@@ -83,6 +84,7 @@
         Colaborador
       </button>
       <button
+        type="button"
         class="tab"
         class:tab--active={activeTab === 'admin'}
         onclick={() => handleTabChange('admin')}
@@ -119,10 +121,10 @@
       <input type="password" bind:value={password} placeholder="••••••••" />
     </label>
 
-    <Button variant="primary" {loading} onclick={handleLogin}>Entrar</Button>
+    <Button type="submit" variant="primary" {loading}>Entrar</Button>
 
     <a href="/auth/qrcode" class="qr-link">Registrar ponto via QR Code</a>
-  </div>
+  </form>
 </div>
 
 <style>

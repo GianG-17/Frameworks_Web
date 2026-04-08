@@ -1,5 +1,6 @@
 import type { AuthResponse } from '../auth.service';
 import type { PunchRecord, DailySummary } from '../timesheet.service';
+import type { Jornada, DiaSemana } from '../jornada.service';
 
 export const MOCK_USERS: AuthResponse['user'][] = [
   {
@@ -95,6 +96,58 @@ export const MOCK_HISTORY: Record<string, DailySummary[]> = {
   usr_001: generateHistory('usr_001', 7),
   usr_002: generateHistory('usr_002', 7)
 };
+
+function dia(
+  ativo: boolean,
+  entrada = '',
+  saida_almoco = '',
+  retorno_almoco = '',
+  saida = ''
+): DiaSemana {
+  return { ativo, entrada, saida_almoco, retorno_almoco, saida };
+}
+
+export const MOCK_JORNADAS: Jornada[] = [
+  {
+    id: 'jornada_001',
+    nome: 'Comercial 8h',
+    dias: {
+      segunda:  dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      terca:    dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      quarta:   dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      quinta:   dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      sexta:    dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      sabado:   dia(false),
+      domingo:  dia(false)
+    }
+  },
+  {
+    id: 'jornada_002',
+    nome: 'Meio Período Manhã',
+    dias: {
+      segunda:  dia(true,  '08:00', '10:00', '10:15', '12:00'),
+      terca:    dia(true,  '08:00', '10:00', '10:15', '12:00'),
+      quarta:   dia(true,  '08:00', '10:00', '10:15', '12:00'),
+      quinta:   dia(true,  '08:00', '10:00', '10:15', '12:00'),
+      sexta:    dia(true,  '08:00', '10:00', '10:15', '12:00'),
+      sabado:   dia(false),
+      domingo:  dia(false)
+    }
+  },
+  {
+    id: 'jornada_003',
+    nome: 'Turno Misto',
+    dias: {
+      segunda:  dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      terca:    dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      quarta:   dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      quinta:   dia(true,  '13:00', '15:30', '16:00', '20:00'),
+      sexta:    dia(true,  '13:00', '15:30', '16:00', '20:00'),
+      sabado:   dia(true,  '08:00', '10:00', '10:15', '12:00'),
+      domingo:  dia(false)
+    }
+  }
+];
 
 export function encodeToken(user: AuthResponse['user']): string {
   return btoa(JSON.stringify(user));

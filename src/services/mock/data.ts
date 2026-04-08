@@ -1,5 +1,6 @@
 import type { AuthResponse } from '../auth.service';
 import type { PunchRecord, DailySummary } from '../timesheet.service';
+import type { Jornada } from '../jornada.service';
 
 export const MOCK_USERS: AuthResponse['user'][] = [
   {
@@ -95,6 +96,33 @@ export const MOCK_HISTORY: Record<string, DailySummary[]> = {
   usr_001: generateHistory('usr_001', 7),
   usr_002: generateHistory('usr_002', 7)
 };
+
+export const MOCK_JORNADAS: Jornada[] = [
+  {
+    id: 'jornada_001',
+    nome: 'Comercial 8h',
+    entrada: '08:00',
+    saida_almoco: '12:00',
+    retorno_almoco: '13:00',
+    saida: '17:00'
+  },
+  {
+    id: 'jornada_002',
+    nome: 'Meio Período Manhã',
+    entrada: '08:00',
+    saida_almoco: '10:00',
+    retorno_almoco: '10:15',
+    saida: '12:00'
+  },
+  {
+    id: 'jornada_003',
+    nome: 'Turno Tarde',
+    entrada: '13:00',
+    saida_almoco: '15:30',
+    retorno_almoco: '16:00',
+    saida: '18:00'
+  }
+];
 
 export function encodeToken(user: AuthResponse['user']): string {
   return btoa(JSON.stringify(user));

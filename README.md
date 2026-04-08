@@ -140,3 +140,14 @@ npm run dev
 | Utils          | `camelCase.ts` ou `kebab-case.ts`   |
 | Rotas          | `kebab-case/` (padrão SvelteKit)    |
 | Variáveis CSS  | `--color-primary`, `--color-danger` |
+
+
+## Acessos teste
+
+  admin@teste.com: Senha123
+
+  123.456.789-00: Senha123
+
+  carlos@teste.com: Senha123
+
+  111.444.777-35: Senha123

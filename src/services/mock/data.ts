@@ -4,25 +4,34 @@ import type { PunchRecord, DailySummary } from '../timesheet.service';
 export const MOCK_USERS: AuthResponse['user'][] = [
   {
     id: 'usr_001',
-    name: 'Ana Silva',
-    email: 'ana@empresa.com',
-    cpf: '529.982.247-25',
+    name: 'Admin',
+    email: 'admin@teste.com',
+    cpf: '123.456.789-00',
     role: 'admin'
   },
   {
     id: 'usr_002',
     name: 'Carlos Souza',
-    email: 'carlos@empresa.com',
+    email: 'carlos@teste.com',
     cpf: '111.444.777-35',
+    role: 'colaborador'
+  },
+    {
+    id: 'usr_003',
+    name: 'teste',
+    email: 'teste@teste.com',
+    cpf: '222.555.888-46',
     role: 'colaborador'
   }
 ];
 
 export const MOCK_PASSWORDS: Record<string, string> = {
-  'ana@empresa.com': 'Senha123',
-  '52998224725': 'Senha123',
-  'carlos@empresa.com': 'Senha123',
-  '11144477735': 'Senha123'
+  'admin@teste.com': 'Senha123',
+  '12345678900': 'Senha123',
+  'carlos@teste.com': 'Senha123',
+  '11144477735': 'Senha123',
+  'teste@teste.com': 'Senha123',
+  '22255588846': 'Senha123'
 };
 
 export function findUserByIdentifier(identifier: string): AuthResponse['user'] | undefined {

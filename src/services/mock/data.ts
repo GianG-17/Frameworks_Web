@@ -1,6 +1,6 @@
 import type { AuthResponse } from '../auth.service';
 import type { PunchRecord, DailySummary } from '../timesheet.service';
-import type { Jornada } from '../jornada.service';
+import type { Jornada, DiaSemana } from '../jornada.service';
 
 export const MOCK_USERS: AuthResponse['user'][] = [
   {
@@ -97,30 +97,55 @@ export const MOCK_HISTORY: Record<string, DailySummary[]> = {
   usr_002: generateHistory('usr_002', 7)
 };
 
+function dia(
+  ativo: boolean,
+  entrada = '',
+  saida_almoco = '',
+  retorno_almoco = '',
+  saida = ''
+): DiaSemana {
+  return { ativo, entrada, saida_almoco, retorno_almoco, saida };
+}
+
 export const MOCK_JORNADAS: Jornada[] = [
   {
     id: 'jornada_001',
     nome: 'Comercial 8h',
-    entrada: '08:00',
-    saida_almoco: '12:00',
-    retorno_almoco: '13:00',
-    saida: '17:00'
+    dias: {
+      segunda:  dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      terca:    dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      quarta:   dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      quinta:   dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      sexta:    dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      sabado:   dia(false),
+      domingo:  dia(false)
+    }
   },
   {
     id: 'jornada_002',
     nome: 'Meio Período Manhã',
-    entrada: '08:00',
-    saida_almoco: '10:00',
-    retorno_almoco: '10:15',
-    saida: '12:00'
+    dias: {
+      segunda:  dia(true,  '08:00', '10:00', '10:15', '12:00'),
+      terca:    dia(true,  '08:00', '10:00', '10:15', '12:00'),
+      quarta:   dia(true,  '08:00', '10:00', '10:15', '12:00'),
+      quinta:   dia(true,  '08:00', '10:00', '10:15', '12:00'),
+      sexta:    dia(true,  '08:00', '10:00', '10:15', '12:00'),
+      sabado:   dia(false),
+      domingo:  dia(false)
+    }
   },
   {
     id: 'jornada_003',
-    nome: 'Turno Tarde',
-    entrada: '13:00',
-    saida_almoco: '15:30',
-    retorno_almoco: '16:00',
-    saida: '18:00'
+    nome: 'Turno Misto',
+    dias: {
+      segunda:  dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      terca:    dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      quarta:   dia(true,  '08:00', '12:00', '13:00', '17:00'),
+      quinta:   dia(true,  '13:00', '15:30', '16:00', '20:00'),
+      sexta:    dia(true,  '13:00', '15:30', '16:00', '20:00'),
+      sabado:   dia(true,  '08:00', '10:00', '10:15', '12:00'),
+      domingo:  dia(false)
+    }
   }
 ];
 

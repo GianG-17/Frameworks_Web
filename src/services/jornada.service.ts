@@ -6,13 +6,27 @@
 import { get, post, put, del } from './api';
 import { mockJornadaService } from './mock/jornada.mock';
 
-export interface Jornada {
-  id: string;
-  nome: string;
-  entrada: string;        // "HH:MM" — horário no formato 24h
+export type DiaSemanaKey =
+  | 'segunda'
+  | 'terca'
+  | 'quarta'
+  | 'quinta'
+  | 'sexta'
+  | 'sabado'
+  | 'domingo';
+
+export interface DiaSemana {
+  ativo: boolean;
+  entrada: string;        // "HH:MM"
   saida_almoco: string;
   retorno_almoco: string;
   saida: string;
+}
+
+export interface Jornada {
+  id: string;
+  nome: string;
+  dias: Record<DiaSemanaKey, DiaSemana>;
 }
 
 export type JornadaInput = Omit<Jornada, 'id'>;

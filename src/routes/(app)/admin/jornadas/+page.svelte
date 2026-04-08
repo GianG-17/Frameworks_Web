@@ -2,26 +2,18 @@
   import { onMount } from 'svelte';
   import Button from '@/components/ui/Button.svelte';
   import { jornadaService } from '@/services/jornada.service';
-  import type { Jornada, JornadaInput } from '@/services/jornada.service';
+  import type { Jornada, JornadaInput, DiaSemana, DiaSemanaKey } from '@/services/jornada.service';
 
-  // ── Estado principal ───────────────────────────────────────
-  let jornadas = $state<Jornada[]>([]);
-  let loading = $state(false);
-  let errorMsg = $state('');
-
-  // ── Estado do modal ────────────────────────────────────────
-  let modalOpen = $state(false);
-  let editingId = $state<string | null>(null);
-  let saving = $state(false);
-  let deleteConfirmId = $state<string | null>(null);
-
-  // ── Campos do formulário ───────────────────────────────────
-  let formNome = $state('');
-  let formEntrada = $state('');
-  let formSaidaAlmoco = $state('');
-  let formRetornoAlmoco = $state('');
-  let formSaida = $state('');
-  let errors = $state<Record<string, string>>({});
+  // ── Configuração dos dias ──────────────────────────────────
+  const DIAS_CONFIG: { key: DiaSemanaKey; label: string; abrev: string }[] = [
+    { key: 'segunda',  label: 'Segunda-feira', abrev: 'Seg' },
+    { key: 'terca',    label: 'Terça-feira',   abrev: 'Ter' },
+    { key: 'quarta',   label: 'Quarta-feira',  abrev: 'Qua' },
+    { key: 'quinta',   label: 'Quinta-feira',  abrev: 'Qui' },
+    { key: 'sexta',    label: 'Sexta-feira',   abrev: 'Sex' },
+    { key: 'sabado',   label: 'Sábado',        abrev: 'Sáb' },
+    { key: 'domingo',  label: 'Domingo',       abrev: 'Dom' }
+  ];
 
   // ── Helpers ────────────────────────────────────────────────
   function calcMinutes(start: string, end: string): number {
@@ -36,61 +28,127 @@
     return `${h}h ${String(m).padStart(2, '0')}min`;
   }
 
+  function diaPadrao(ativo: boolean): DiaSemana {
+    return { ativo, entrada: '', saida_almoco: '', retorno_almoco: '', saida: '' };
+  }
+
+  function diasPadrao(): Record<DiaSemanaKey, DiaSemana> {
+    return {
+      segunda:  diaPadrao(true),
+      terca:    diaPadrao(true),
+      quarta:   diaPadrao(true),
+      quinta:   diaPadrao(true),
+      sexta:    diaPadrao(true),
+      sabado:   diaPadrao(false),
+      domingo:  diaPadrao(false)
+    };
+  }
+
+  // ── Estado principal ───────────────────────────────────────
+  let jornadas = $state<Jornada[]>([]);
+  let loading = $state(false);
+  let errorMsg = $state('');
+
+  // ── Estado do modal ────────────────────────────────────────
+  let modalOpen = $state(false);
+  let editingId = $state<string | null>(null);
+  let saving = $state(false);
+  let deleteConfirmId = $state<string | null>(null);
+
+  // ── Campos do formulário ───────────────────────────────────
+  let formNome = $state('');
+  let mesmoHorario = $state(true);
+  let horarioUnico = $state({ entrada: '', saida_almoco: '', retorno_almoco: '', saida: '' });
+  let formDias = $state<Record<DiaSemanaKey, DiaSemana>>(diasPadrao());
+  let errors = $state<Record<string, string>>({});
+
   // ── Derivados ──────────────────────────────────────────────
   let jornadasComCalculo = $derived.by(() =>
-    jornadas.map((j) => ({
-      ...j,
-      totalMinutes:
-        calcMinutes(j.entrada, j.saida) - calcMinutes(j.saida_almoco, j.retorno_almoco),
-      almocoMinutes: calcMinutes(j.saida_almoco, j.retorno_almoco)
-    }))
+    jornadas.map((j) => {
+      const diasAtivos = DIAS_CONFIG.filter((d) => j.dias[d.key].ativo);
+      const minutosPorDia = diasAtivos.map((d) => {
+        const dia = j.dias[d.key];
+        return calcMinutes(dia.entrada, dia.saida) - calcMinutes(dia.saida_almoco, dia.retorno_almoco);
+      });
+      const totalSemana = minutosPorDia.reduce((a, b) => a + b, 0);
+      return { ...j, quantidadeDias: diasAtivos.length, totalSemana };
+    })
   );
 
-  let previewTotal = $derived.by(() => {
-    if (!formEntrada || !formSaidaAlmoco || !formRetornoAlmoco || !formSaida) return null;
-    const total =
-      calcMinutes(formEntrada, formSaida) - calcMinutes(formSaidaAlmoco, formRetornoAlmoco);
-    const almoco = calcMinutes(formSaidaAlmoco, formRetornoAlmoco);
+  let previewUnico = $derived.by(() => {
+    if (!mesmoHorario) return null;
+    const h = horarioUnico;
+    if (!h.entrada || !h.saida_almoco || !h.retorno_almoco || !h.saida) return null;
+    const total = calcMinutes(h.entrada, h.saida) - calcMinutes(h.saida_almoco, h.retorno_almoco);
+    const almoco = calcMinutes(h.saida_almoco, h.retorno_almoco);
     if (total <= 0 || almoco <= 0) return null;
     return { total, almoco };
   });
 
   // ── Validação ──────────────────────────────────────────────
+  function validarHorarioDia(
+    h: { entrada: string; saida_almoco: string; retorno_almoco: string; saida: string },
+    prefix: string
+  ): Record<string, string> {
+    const e: Record<string, string> = {};
+    if (!h.entrada)        e[`${prefix}_entrada`]        = 'Obrigatório';
+    if (!h.saida_almoco)   e[`${prefix}_saida_almoco`]   = 'Obrigatório';
+    if (!h.retorno_almoco) e[`${prefix}_retorno_almoco`] = 'Obrigatório';
+    if (!h.saida)          e[`${prefix}_saida`]          = 'Obrigatório';
+
+    if (h.entrada && h.saida_almoco && h.retorno_almoco && h.saida) {
+      const toMin = (t: string) => { const [hh, mm] = t.split(':').map(Number); return hh * 60 + mm; };
+      const [e1, e2, e3, e4] = [h.entrada, h.saida_almoco, h.retorno_almoco, h.saida].map(toMin);
+      if (e1 >= e2) e[`${prefix}_saida_almoco`]   = 'Deve ser depois da entrada';
+      if (e2 >= e3) e[`${prefix}_retorno_almoco`] = 'Deve ser depois da saída p/ almoço';
+      if (e3 >= e4) e[`${prefix}_saida`]          = 'Deve ser depois do retorno';
+    }
+    return e;
+  }
+
   function validate(): boolean {
     const e: Record<string, string> = {};
 
     if (!formNome.trim()) e.nome = 'Nome é obrigatório';
-    if (!formEntrada) e.entrada = 'Obrigatório';
-    if (!formSaidaAlmoco) e.saida_almoco = 'Obrigatório';
-    if (!formRetornoAlmoco) e.retorno_almoco = 'Obrigatório';
-    if (!formSaida) e.saida = 'Obrigatório';
 
-    if (formEntrada && formSaidaAlmoco && formRetornoAlmoco && formSaida) {
-      const toMin = (t: string) => {
-        const [h, m] = t.split(':').map(Number);
-        return h * 60 + m;
-      };
-      const [e1, e2, e3, e4] = [formEntrada, formSaidaAlmoco, formRetornoAlmoco, formSaida].map(
-        toMin
-      );
+    const diasAtivos = DIAS_CONFIG.filter((d) => formDias[d.key].ativo);
+    if (diasAtivos.length === 0) e.dias = 'Selecione ao menos um dia da semana';
 
-      if (e1 >= e2) e.saida_almoco = 'Deve ser depois da entrada';
-      if (e2 >= e3) e.retorno_almoco = 'Deve ser depois da saída p/ almoço';
-      if (e3 >= e4) e.saida = 'Deve ser depois do retorno do almoço';
+    if (mesmoHorario) {
+      Object.assign(e, validarHorarioDia(horarioUnico, 'horario'));
+    } else {
+      for (const d of diasAtivos) {
+        Object.assign(e, validarHorarioDia(formDias[d.key], d.key));
+      }
     }
 
     errors = e;
     return Object.keys(e).length === 0;
   }
 
-  // ── Ações CRUD ─────────────────────────────────────────────
+  // ── Ações do formulário ────────────────────────────────────
+  function handleToggleMesmoHorario() {
+    if (mesmoHorario) {
+      // Ao mudar para horários individuais, pré-preenche com os valores do horário único
+      for (const d of DIAS_CONFIG) {
+        if (formDias[d.key].ativo) {
+          formDias[d.key].entrada        = horarioUnico.entrada;
+          formDias[d.key].saida_almoco   = horarioUnico.saida_almoco;
+          formDias[d.key].retorno_almoco = horarioUnico.retorno_almoco;
+          formDias[d.key].saida          = horarioUnico.saida;
+        }
+      }
+    }
+    mesmoHorario = !mesmoHorario;
+  }
+
+  // ── CRUD ───────────────────────────────────────────────────
   function openCreate() {
     editingId = null;
     formNome = '';
-    formEntrada = '';
-    formSaidaAlmoco = '';
-    formRetornoAlmoco = '';
-    formSaida = '';
+    mesmoHorario = true;
+    horarioUnico = { entrada: '', saida_almoco: '', retorno_almoco: '', saida: '' };
+    formDias = diasPadrao();
     errors = {};
     modalOpen = true;
   }
@@ -98,10 +156,39 @@
   function openEdit(j: Jornada) {
     editingId = j.id;
     formNome = j.nome;
-    formEntrada = j.entrada;
-    formSaidaAlmoco = j.saida_almoco;
-    formRetornoAlmoco = j.retorno_almoco;
-    formSaida = j.saida;
+
+    // Detecta se todos os dias ativos têm o mesmo horário
+    const ativos = DIAS_CONFIG.filter((d) => j.dias[d.key].ativo);
+    const todasIguais =
+      ativos.length > 0 &&
+      ativos.every((d) => {
+        const dia = j.dias[d.key];
+        const ref = j.dias[ativos[0].key];
+        return (
+          dia.entrada === ref.entrada &&
+          dia.saida_almoco === ref.saida_almoco &&
+          dia.retorno_almoco === ref.retorno_almoco &&
+          dia.saida === ref.saida
+        );
+      });
+
+    mesmoHorario = todasIguais;
+    if (todasIguais && ativos.length > 0) {
+      const ref = j.dias[ativos[0].key];
+      horarioUnico = {
+        entrada:        ref.entrada,
+        saida_almoco:   ref.saida_almoco,
+        retorno_almoco: ref.retorno_almoco,
+        saida:          ref.saida
+      };
+    } else {
+      horarioUnico = { entrada: '', saida_almoco: '', retorno_almoco: '', saida: '' };
+    }
+
+    for (const d of DIAS_CONFIG) {
+      formDias[d.key] = { ...j.dias[d.key] };
+    }
+
     errors = {};
     modalOpen = true;
   }
@@ -115,13 +202,19 @@
     if (!validate()) return;
     saving = true;
     errorMsg = '';
-    const data: JornadaInput = {
-      nome: formNome.trim(),
-      entrada: formEntrada,
-      saida_almoco: formSaidaAlmoco,
-      retorno_almoco: formRetornoAlmoco,
-      saida: formSaida
-    };
+
+    const diasFinal = {} as Record<DiaSemanaKey, DiaSemana>;
+    for (const d of DIAS_CONFIG) {
+      if (!formDias[d.key].ativo) {
+        diasFinal[d.key] = diaPadrao(false);
+      } else if (mesmoHorario) {
+        diasFinal[d.key] = { ativo: true, ...horarioUnico };
+      } else {
+        diasFinal[d.key] = { ...formDias[d.key] };
+      }
+    }
+
+    const data: JornadaInput = { nome: formNome.trim(), dias: diasFinal };
     try {
       if (editingId) {
         const updated = await jornadaService.update(editingId, data);
@@ -188,42 +281,41 @@
             <div class="jornada-card__actions">
               <Button variant="outline" size="sm" onclick={() => openEdit(j)}>Editar</Button>
               {#if deleteConfirmId === j.id}
-                <Button variant="danger" size="sm" onclick={() => handleDelete(j.id)}
-                  >Confirmar</Button
-                >
-                <Button variant="secondary" size="sm" onclick={() => (deleteConfirmId = null)}
-                  >Cancelar</Button
-                >
+                <Button variant="danger" size="sm" onclick={() => handleDelete(j.id)}>Confirmar</Button>
+                <Button variant="secondary" size="sm" onclick={() => (deleteConfirmId = null)}>Cancelar</Button>
               {:else}
-                <Button variant="danger" size="sm" onclick={() => (deleteConfirmId = j.id)}
-                  >Excluir</Button
-                >
+                <Button variant="danger" size="sm" onclick={() => (deleteConfirmId = j.id)}>Excluir</Button>
               {/if}
             </div>
           </div>
 
-          <div class="jornada-card__times">
-            <div class="time-slot">
-              <span class="time-slot__label">Entrada</span>
-              <span class="time-slot__value">{j.entrada}</span>
-            </div>
-            <div class="time-slot">
-              <span class="time-slot__label">Saída Almoço</span>
-              <span class="time-slot__value">{j.saida_almoco}</span>
-            </div>
-            <div class="time-slot">
-              <span class="time-slot__label">Retorno</span>
-              <span class="time-slot__value">{j.retorno_almoco}</span>
-            </div>
-            <div class="time-slot">
-              <span class="time-slot__label">Saída</span>
-              <span class="time-slot__value">{j.saida}</span>
-            </div>
+          <div class="jornada-card__dias">
+            {#each DIAS_CONFIG as d}
+              {@const diaInfo = j.dias[d.key]}
+              <div class="dia-row" class:dia-row--folga={!diaInfo.ativo}>
+                <span class="dia-row__abrev">{d.abrev}</span>
+                {#if diaInfo.ativo}
+                  <span class="dia-row__horario">
+                    {diaInfo.entrada}–{diaInfo.saida_almoco}
+                    <span class="dia-row__sep">|</span>
+                    {diaInfo.retorno_almoco}–{diaInfo.saida}
+                  </span>
+                  <span class="dia-row__total">
+                    {formatMinutes(
+                      calcMinutes(diaInfo.entrada, diaInfo.saida) -
+                      calcMinutes(diaInfo.saida_almoco, diaInfo.retorno_almoco)
+                    )}
+                  </span>
+                {:else}
+                  <span class="dia-row__folga-label">Folga</span>
+                {/if}
+              </div>
+            {/each}
           </div>
 
           <div class="jornada-card__footer">
-            <span class="badge badge--blue">{formatMinutes(j.totalMinutes)} trabalhadas</span>
-            <span class="badge badge--muted">{formatMinutes(j.almocoMinutes)} almoço</span>
+            <span class="badge badge--blue">{j.quantidadeDias} dias/semana</span>
+            <span class="badge badge--muted">{formatMinutes(j.totalSemana)}/semana</span>
           </div>
         </div>
       {/each}
@@ -231,6 +323,7 @@
   {/if}
 </section>
 
+<!-- ── Modal ──────────────────────────────────────────────── -->
 {#if modalOpen}
   <div
     class="modal-backdrop"
@@ -241,54 +334,142 @@
     <div class="modal">
       <div class="modal__header">
         <h2 class="modal__title">{editingId ? 'Editar Jornada' : 'Nova Jornada'}</h2>
-        <button class="modal__close" onclick={closeModal} aria-label="Fechar">&times;</button>
+        <button type="button" class="modal__close" onclick={closeModal} aria-label="Fechar">&times;</button>
       </div>
 
       <form
-        class="modal__form"
-        onsubmit={(e) => {
-          e.preventDefault();
-          handleSave();
-        }}
+        class="modal__body"
+        onsubmit={(e) => { e.preventDefault(); handleSave(); }}
       >
+        <!-- Nome -->
         <div class="field" class:field--error={!!errors.nome}>
           <label for="nome">Nome da Jornada</label>
           <input id="nome" type="text" bind:value={formNome} placeholder="Ex: Comercial 8h" />
           {#if errors.nome}<span class="field__error">{errors.nome}</span>{/if}
         </div>
 
-        <div class="time-grid">
-          <div class="field" class:field--error={!!errors.entrada}>
-            <label for="entrada">Entrada</label>
-            <input id="entrada" type="time" bind:value={formEntrada} />
-            {#if errors.entrada}<span class="field__error">{errors.entrada}</span>{/if}
-          </div>
+        <!-- Toggle: mesmo horário -->
+        <label class="toggle-row">
+          <input
+            type="checkbox"
+            class="toggle-row__check"
+            checked={mesmoHorario}
+            onchange={handleToggleMesmoHorario}
+          />
+          <span class="toggle-row__label">Mesmo horário para todos os dias ativos</span>
+        </label>
 
-          <div class="field" class:field--error={!!errors.saida_almoco}>
-            <label for="saida_almoco">Saída Almoço</label>
-            <input id="saida_almoco" type="time" bind:value={formSaidaAlmoco} />
-            {#if errors.saida_almoco}<span class="field__error">{errors.saida_almoco}</span>{/if}
-          </div>
+        {#if mesmoHorario}
+          <!-- Horário único -->
+          <div class="horario-unico">
+            <div class="time-grid">
+              <div class="field" class:field--error={!!errors.horario_entrada}>
+                <label for="h_entrada">Entrada</label>
+                <input id="h_entrada" type="time" bind:value={horarioUnico.entrada} />
+                {#if errors.horario_entrada}<span class="field__error">{errors.horario_entrada}</span>{/if}
+              </div>
+              <div class="field" class:field--error={!!errors.horario_saida_almoco}>
+                <label for="h_saida_alm">Saída Almoço</label>
+                <input id="h_saida_alm" type="time" bind:value={horarioUnico.saida_almoco} />
+                {#if errors.horario_saida_almoco}<span class="field__error">{errors.horario_saida_almoco}</span>{/if}
+              </div>
+              <div class="field" class:field--error={!!errors.horario_retorno_almoco}>
+                <label for="h_retorno">Retorno Almoço</label>
+                <input id="h_retorno" type="time" bind:value={horarioUnico.retorno_almoco} />
+                {#if errors.horario_retorno_almoco}<span class="field__error">{errors.horario_retorno_almoco}</span>{/if}
+              </div>
+              <div class="field" class:field--error={!!errors.horario_saida}>
+                <label for="h_saida">Saída</label>
+                <input id="h_saida" type="time" bind:value={horarioUnico.saida} />
+                {#if errors.horario_saida}<span class="field__error">{errors.horario_saida}</span>{/if}
+              </div>
+            </div>
 
-          <div class="field" class:field--error={!!errors.retorno_almoco}>
-            <label for="retorno_almoco">Retorno Almoço</label>
-            <input id="retorno_almoco" type="time" bind:value={formRetornoAlmoco} />
-            {#if errors.retorno_almoco}
-              <span class="field__error">{errors.retorno_almoco}</span>
+            {#if previewUnico}
+              <div class="preview-bar">
+                <span>Total: <strong>{formatMinutes(previewUnico.total)}</strong></span>
+                <span>Almoço: <strong>{formatMinutes(previewUnico.almoco)}</strong></span>
+              </div>
             {/if}
           </div>
 
-          <div class="field" class:field--error={!!errors.saida}>
-            <label for="saida">Saída</label>
-            <input id="saida" type="time" bind:value={formSaida} />
-            {#if errors.saida}<span class="field__error">{errors.saida}</span>{/if}
+          <!-- Dias ativos (checkboxes compactos) -->
+          <div class="section-label">Dias ativos</div>
+          {#if errors.dias}<p class="field__error">{errors.dias}</p>{/if}
+          <div class="dias-chips">
+            {#each DIAS_CONFIG as d}
+              <label class="dia-chip" class:dia-chip--ativo={formDias[d.key].ativo}>
+                <input
+                  type="checkbox"
+                  checked={formDias[d.key].ativo}
+                  onchange={() => (formDias[d.key].ativo = !formDias[d.key].ativo)}
+                />
+                {d.abrev}
+              </label>
+            {/each}
           </div>
-        </div>
 
-        {#if previewTotal}
-          <div class="modal__preview">
-            <span>Total: <strong>{formatMinutes(previewTotal.total)}</strong></span>
-            <span>Almoço: <strong>{formatMinutes(previewTotal.almoco)}</strong></span>
+        {:else}
+          <!-- Horários individuais por dia -->
+          {#if errors.dias}<p class="field__error">{errors.dias}</p>{/if}
+          <div class="dias-individuais">
+            {#each DIAS_CONFIG as d}
+              <div class="dia-bloco" class:dia-bloco--inativo={!formDias[d.key].ativo}>
+                <label class="dia-bloco__toggle">
+                  <input
+                    type="checkbox"
+                    checked={formDias[d.key].ativo}
+                    onchange={() => (formDias[d.key].ativo = !formDias[d.key].ativo)}
+                  />
+                  <span class="dia-bloco__nome">{d.label}</span>
+                </label>
+
+                {#if formDias[d.key].ativo}
+                  <div class="time-grid dia-bloco__horarios">
+                    <div class="field" class:field--error={!!errors[`${d.key}_entrada`]}>
+                      <label for={`${d.key}_entrada`}>Entrada</label>
+                      <input
+                        id={`${d.key}_entrada`}
+                        type="time"
+                        value={formDias[d.key].entrada}
+                        oninput={(e) => { formDias[d.key].entrada = e.currentTarget.value; }}
+                      />
+                      {#if errors[`${d.key}_entrada`]}<span class="field__error">{errors[`${d.key}_entrada`]}</span>{/if}
+                    </div>
+                    <div class="field" class:field--error={!!errors[`${d.key}_saida_almoco`]}>
+                      <label for={`${d.key}_saida_alm`}>Saída Almoço</label>
+                      <input
+                        id={`${d.key}_saida_alm`}
+                        type="time"
+                        value={formDias[d.key].saida_almoco}
+                        oninput={(e) => { formDias[d.key].saida_almoco = e.currentTarget.value; }}
+                      />
+                      {#if errors[`${d.key}_saida_almoco`]}<span class="field__error">{errors[`${d.key}_saida_almoco`]}</span>{/if}
+                    </div>
+                    <div class="field" class:field--error={!!errors[`${d.key}_retorno_almoco`]}>
+                      <label for={`${d.key}_retorno`}>Retorno Almoço</label>
+                      <input
+                        id={`${d.key}_retorno`}
+                        type="time"
+                        value={formDias[d.key].retorno_almoco}
+                        oninput={(e) => { formDias[d.key].retorno_almoco = e.currentTarget.value; }}
+                      />
+                      {#if errors[`${d.key}_retorno_almoco`]}<span class="field__error">{errors[`${d.key}_retorno_almoco`]}</span>{/if}
+                    </div>
+                    <div class="field" class:field--error={!!errors[`${d.key}_saida`]}>
+                      <label for={`${d.key}_saida`}>Saída</label>
+                      <input
+                        id={`${d.key}_saida`}
+                        type="time"
+                        value={formDias[d.key].saida}
+                        oninput={(e) => { formDias[d.key].saida = e.currentTarget.value; }}
+                      />
+                      {#if errors[`${d.key}_saida`]}<span class="field__error">{errors[`${d.key}_saida`]}</span>{/if}
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            {/each}
           </div>
         {/if}
 
@@ -341,7 +522,7 @@
   /* ── Grid de cards ──────────────────────────────────────── */
   .jornadas__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 1rem;
   }
 
@@ -353,7 +534,7 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.875rem;
   }
 
   .jornada-card__header {
@@ -376,31 +557,56 @@
     flex-shrink: 0;
   }
 
-  /* ── Horários ───────────────────────────────────────────── */
-  .jornada-card__times {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.5rem;
-  }
-
-  .time-slot {
+  /* ── Tabela de dias no card ─────────────────────────────── */
+  .jornada-card__dias {
     display: flex;
     flex-direction: column;
-    gap: 0.125rem;
+    gap: 0.25rem;
   }
 
-  .time-slot__label {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: #94a3b8;
+  .dia-row {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr auto;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    padding: 0.25rem 0;
   }
 
-  .time-slot__value {
-    font-size: 0.9rem;
-    font-weight: 600;
+  .dia-row--folga {
+    opacity: 0.4;
+  }
+
+  .dia-row__abrev {
+    font-weight: 700;
     color: #334155;
+    font-size: 0.75rem;
+  }
+
+  .dia-row__horario {
+    color: #475569;
     font-variant-numeric: tabular-nums;
+  }
+
+  .dia-row__sep {
+    color: #94a3b8;
+    margin: 0 0.25rem;
+  }
+
+  .dia-row__total {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #2563eb;
+    background: #eff6ff;
+    padding: 0.125rem 0.4rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .dia-row__folga-label {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    grid-column: 2 / -1;
   }
 
   /* ── Footer do card ─────────────────────────────────────── */
@@ -408,6 +614,8 @@
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
+    padding-top: 0.25rem;
+    border-top: 1px solid #f1f5f9;
   }
 
   .badge {
@@ -417,15 +625,8 @@
     border-radius: 999px;
   }
 
-  .badge--blue {
-    background: #eff6ff;
-    color: #2563eb;
-  }
-
-  .badge--muted {
-    background: #f1f5f9;
-    color: #64748b;
-  }
+  .badge--blue  { background: #eff6ff; color: #2563eb; }
+  .badge--muted { background: #f1f5f9; color: #64748b; }
 
   /* ── Modal ──────────────────────────────────────────────── */
   .modal-backdrop {
@@ -443,7 +644,10 @@
     background: #fff;
     border-radius: 0.75rem;
     width: 100%;
-    max-width: 480px;
+    max-width: 520px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   }
 
@@ -453,6 +657,7 @@
     align-items: center;
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0;
   }
 
   .modal__title {
@@ -477,11 +682,22 @@
     background: #f1f5f9;
   }
 
-  .modal__form {
+  .modal__body {
     padding: 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .modal__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    margin-top: auto;
+    border-top: 1px solid #e2e8f0;
   }
 
   /* ── Campos ─────────────────────────────────────────────── */
@@ -492,16 +708,17 @@
   }
 
   .field label {
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: #0f172a;
   }
 
-  .field input {
+  .field input[type='text'],
+  .field input[type='time'] {
     border: 1.5px solid #cbd5e1;
     border-radius: 0.5rem;
     padding: 0.5rem 0.75rem;
-    font-size: 1rem;
+    font-size: 0.9rem;
     outline: none;
     transition: border-color 150ms;
     color: #0f172a;
@@ -524,30 +741,138 @@
   .time-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
+    gap: 0.625rem;
   }
 
-  /* ── Preview live ───────────────────────────────────────── */
-  .modal__preview {
+  /* ── Toggle mesmo horário ───────────────────────────────── */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .toggle-row__check {
+    width: 1rem;
+    height: 1rem;
+    accent-color: #2563eb;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .toggle-row__label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #334155;
+  }
+
+  /* ── Horário único ──────────────────────────────────────── */
+  .horario-unico {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    background: #f8fafc;
+    border-radius: 0.5rem;
+    padding: 1rem;
+  }
+
+  .preview-bar {
     display: flex;
     gap: 1.5rem;
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     color: #64748b;
-    background: #f8fafc;
-    padding: 0.625rem 0.875rem;
-    border-radius: 0.5rem;
   }
 
-  .modal__preview strong {
+  .preview-bar strong {
     color: #0f172a;
   }
 
-  /* ── Footer do modal ────────────────────────────────────── */
-  .modal__footer {
+  /* ── Label de seção ─────────────────────────────────────── */
+  .section-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+  }
+
+  /* ── Chips de dias ──────────────────────────────────────── */
+  .dias-chips {
     display: flex;
-    justify-content: flex-end;
+    gap: 0.375rem;
+    flex-wrap: wrap;
+  }
+
+  .dia-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 999px;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    user-select: none;
+    transition: all 150ms;
+  }
+
+  .dia-chip input[type='checkbox'] {
+    display: none;
+  }
+
+  .dia-chip--ativo {
+    background: #eff6ff;
+    border-color: #2563eb;
+    color: #2563eb;
+  }
+
+  /* ── Blocos de dia individual ───────────────────────────── */
+  .dias-individuais {
+    display: flex;
+    flex-direction: column;
     gap: 0.5rem;
-    padding: 1rem 1.5rem;
-    border-top: 1px solid #e2e8f0;
+  }
+
+  .dia-bloco {
+    border: 1.5px solid #e2e8f0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .dia-bloco--inativo {
+    opacity: 0.6;
+  }
+
+  .dia-bloco__toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    cursor: pointer;
+    background: #f8fafc;
+    user-select: none;
+  }
+
+  .dia-bloco__toggle input[type='checkbox'] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: #2563eb;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .dia-bloco__nome {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #334155;
+  }
+
+  .dia-bloco__horarios {
+    padding: 0.875rem;
+    background: #fff;
   }
 </style>

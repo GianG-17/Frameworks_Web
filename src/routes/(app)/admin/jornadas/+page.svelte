@@ -290,7 +290,7 @@
           </div>
 
           <div class="jornada-card__dias">
-            {#each DIAS_CONFIG as d}
+            {#each DIAS_CONFIG as d (d)}
               {@const diaInfo = j.dias[d.key]}
               <div class="dia-row" class:dia-row--folga={!diaInfo.ativo}>
                 <span class="dia-row__abrev">{d.abrev}</span>
@@ -397,7 +397,7 @@
           <div class="section-label">Dias ativos</div>
           {#if errors.dias}<p class="field__error">{errors.dias}</p>{/if}
           <div class="dias-chips">
-            {#each DIAS_CONFIG as d}
+            {#each DIAS_CONFIG as d (d)}
               <label class="dia-chip" class:dia-chip--ativo={formDias[d.key].ativo}>
                 <input
                   type="checkbox"
@@ -413,7 +413,7 @@
           <!-- Horários individuais por dia -->
           {#if errors.dias}<p class="field__error">{errors.dias}</p>{/if}
           <div class="dias-individuais">
-            {#each DIAS_CONFIG as d}
+            {#each DIAS_CONFIG as d (d)}
               <div class="dia-bloco" class:dia-bloco--inativo={!formDias[d.key].ativo}>
                 <label class="dia-bloco__toggle">
                   <input

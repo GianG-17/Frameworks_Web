@@ -35,7 +35,7 @@
         <a href="/admin/dashboard">Dashboard</a>
         <a href="/admin/colaboradores">Colaboradores</a>
         <a href="/admin/jornadas">Jornadas</a>
-      {:else}
+        {:else}
         <a href="/colaborador/registro">Registrar Ponto</a>
         <a href="/colaborador/historico">Histórico</a>
       {/if}

@@ -121,68 +121,33 @@ O `event.locals.user` preenchido pelo hook fica disponível em qualquer `+page.s
 
 ```
 Componente Svelte
-  │  chama authService.login(credentials)
+  │  chama authService.login()
   ▼
 Service (auth.service.ts)
-  │  verifica VITE_USE_MOCK / VITE_API_URL
-  ├─ mock ativo → authMockService.login()
-  │    valida contra MOCK_PASSWORDS
-  │    retorna { token: btoa(JSON.stringify(user)), user }
-  └─ real → api.ts.post('/auth/login', credentials)
-       injeta Bearer token no header Authorization
-       redireciona para /auth/login se 401
+  │    valida os dados de login
+  │    retorna um token
   │
   ▼
-Componente salva token
-  │  localStorage.setItem('auth_token', token)   ← lido por api.ts
-  │  document.cookie = 'auth_token=...'          ← lido por hooks.server.ts
-  ▼
-setUser(user) → atualiza auth.store
+Componente salva o token
   │
   ▼
-isAdmin (derived) recalcula → $isAdmin === true/false
+Atualiza o estado global
   │
   ▼
-AppShell.svelte reage: exibe menu de admin ou colaborador
+Verifica se é admin
+  │
+  ▼
+Exibe o menu
 ```
 
-### Svelte Stores — auto-subscribe com `$`
+### Dados Mockados
 
-Qualquer store pode ser lido no template com o prefixo `$`. O Svelte gerencia a subscrição e cancelamento automaticamente:
-
-```svelte
-<script>
-  import { user, isAdmin } from '@/store/auth.store';
-</script>
-
-<!-- $user e $isAdmin atualizam o DOM reativamente -->
-{#if $isAdmin}
-  <a href="/admin/dashboard">Painel Admin</a>
-{:else}
-  <a href="/colaborador/registro">Bater Ponto</a>
-{/if}
-
-<span>Olá, {$user?.name}</span>
-```
-
-### Sistema Mock
-
-Quando não há backend disponível, os serviços exportam implementações mock ativadas pela variável de ambiente:
+Por enquanto não há backend disponível, então os serviços estão exportando implementações mockadas.
 
 ```
 VITE_USE_MOCK=true   → services exportam mock (dados e delays simulados)
 VITE_USE_MOCK=false  → services exportam implementação real (fetch à API)
 ```
-
-Cada service verifica o flag na inicialização:
-
-```ts
-// auth.service.ts
-const USE_MOCK = !import.meta.env.VITE_API_URL || import.meta.env.VITE_USE_MOCK === 'true';
-export const authService = USE_MOCK ? authMockService : realAuthService;
-```
-
-Os mocks simulam delays de rede (~200-300ms) e mantêm estado em memória durante a sessão.
 
 ---
 

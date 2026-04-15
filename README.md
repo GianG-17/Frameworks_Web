@@ -16,54 +16,21 @@ Sistema de gestão de ponto eletrônico com suporte a leitura de QR Code e regis
 
 ---
 
-## Arquitetura — Hybrid (Layer + Feature)
+## Arquitetura
 
-O projeto segue uma abordagem **híbrida**: as camadas técnicas (services, store, hooks, utils) ficam separadas por responsabilidade, enquanto os **componentes** e as **rotas** são agrupados por domínio/feature.
+O projeto segue uma abordagem híbrida: as camadas técnicas (services, store, hooks, utils) ficam separadas por responsabilidade, enquanto os **componentes** e as **rotas** são agrupados por domínio/feature.
 
 ```
 src/
-├── app.d.ts                    # Tipos globais do SvelteKit (Locals, PageData)
-├── hooks.server.ts             # Server hooks — auth guard, populacão de locals
-│
-├── components/                 # Componentes Svelte reutilizáveis
-│   ├── index.ts                # Barrel file para re-exports
-│   ├── ui/                     # Primitivos de UI (Button, Input, Modal, Badge)
-│   ├── layout/                 # Estrutura visual (AppShell, Sidebar, Header)
-│   ├── auth/                   # Componentes de autenticação (LoginForm, QrReader)
-│   ├── dashboard/              # Widgets do dashboard (StatCard, ChartPanel)
-│   └── timesheet/              # Componentes de ponto (PunchButton, PunchList)
-│
-├── routes/                     # Filesystem router do SvelteKit
-│   ├── auth/                   # Rotas públicas (não autenticadas)
-│   │   ├── login/              # /auth/login  — login por e-mail + senha
-│   │   └── qrcode/             # /auth/qrcode — registro de ponto via QR Code
-│   └── (app)/                  # Layout group — rotas autenticadas
-│       ├── +layout.svelte      # Layout com sidebar (AppShell)
-│       ├── admin/              # Rotas do administrador
-│       │   ├── dashboard/      # /admin/dashboard   — métricas e visão geral
-│       │   ├── colaboradores/  # /admin/colaboradores — CRUD de colaboradores
-│       │   └── jornadas/       # /admin/jornadas     — gestão de jornadas
-│       └── colaborador/        # Rotas do colaborador
-│           ├── registro/       # /colaborador/registro — bater ponto
-│           └── historico/      # /colaborador/historico — consultar registros
-│
-├── services/                   # Camada de comunicação com APIs externas
-│   ├── api.ts                  # Cliente HTTP centralizado (fetch + interceptors)
-│   ├── auth.service.ts         # Login, logout, validação de sessão
-│   └── timesheet.service.ts    # Registro e consulta de pontos
-│
-├── store/                      # Estado global reativo (Svelte Stores)
-│   └── auth.store.ts           # Usuário autenticado, flags isAdmin/isAuth
-│
-├── hooks/                      # Lógica reativa reutilizável (composables)
-│   └── useQrScanner.ts         # Controle de câmera + decodificação de QR Code
-│
-├── utils/                      # Funções puras utilitárias (sem side-effects)
-│   ├── date.ts                 # Formatação e cálculos de data/hora
-│   └── validators.ts           # Validações de formulário (email, senha, etc.)
-│
-└── lib/                        # Módulo $lib do SvelteKit
-    └── index.ts                # Re-exports de conveniência
+├── hooks.server.ts   # Auth guard — intercepta toda requisição
+├── components/       # Componentes Svelte, organizados por domínio/feature
+├── routes/           # Páginas e layouts (filesystem router do SvelteKit)
+├── services/         # Chamadas HTTP e implementações mock
+├── store/            # Estado global reativo (Svelte Stores)
+├── hooks/            # Lógica reativa reutilizável (composables)
+├── utils/            # Funções puras utilitárias
+├── types/            # Interfaces TypeScript compartilhadas
+└── lib/              # Módulo $lib do SvelteKit
 ```
 
 ---
@@ -73,33 +40,149 @@ src/
 ### `components/`
 Componentes Svelte (`.svelte`) organizados por domínio. Cada subpasta agrupa componentes de uma feature específica. Componentes genéricos e reutilizáveis ficam em `ui/`. Componentes de estrutura da página ficam em `layout/`.
 
-**Convenção de nomes:** `PascalCase.svelte` (ex: `Button.svelte`, `AppShell.svelte`).
-
 ### `routes/`
 Rotas do filesystem router do SvelteKit. Cada pasta vira uma rota no app. O group `(app)` compartilha o layout autenticado sem afetar a URL. Arquivos `+page.svelte` são páginas; `+layout.svelte` são layouts; `+page.server.ts` são server load functions.
 
 ### `services/`
 Camada de acesso a dados. Cada serviço encapsula chamadas HTTP para um domínio da API. Todos usam o cliente centralizado `api.ts`, que cuida de headers, token e tratamento de erros.
 
-**Convenção de nomes:** `kebab-case.service.ts` (ex: `auth.service.ts`).
 
 ### `store/`
 Estado global da aplicação usando Svelte Stores (`writable`, `derived`). Cada store gerencia um slice de estado do domínio. Importados diretamente nos componentes com `$store`.
 
-**Convenção de nomes:** `kebab-case.store.ts` (ex: `auth.store.ts`).
 
 ### `hooks/`
 Funções reativas reutilizáveis que encapsulam lógica com side-effects (câmera, geolocalização, timers). Retornam stores ou callbacks. Equivalente ao padrão "composable".
 
-**Convenção de nomes:** `useCamelCase.ts` (ex: `useQrScanner.ts`).
-
 ### `utils/`
 Funções puras sem dependências de framework. Formatadores, validadores, parsers, constantes. Não devem importar stores ou componentes.
 
-**Convenção de nomes:** `kebab-case.ts` (ex: `date.ts`, `validators.ts`).
 
 ### `lib/`
 Pasta especial do SvelteKit acessível via `$lib`. Funciona como ponto central de re-exports para simplificar imports internos.
+
+---
+
+## Roteamento no SvelteKit
+
+O SvelteKit usa **filesystem routing**: a estrutura de pastas dentro de `src/routes/` define as URLs da aplicação. Não há arquivo de rotas centralizado.
+
+### Arquivos especiais de rota
+
+| Arquivo              | Papel                                                                 |
+| -------------------- | --------------------------------------------------------------------- |
+| `+page.svelte`       | Componente da página renderizado na URL correspondente                |
+| `+layout.svelte`     | Layout compartilhado por todas as rotas dentro da mesma pasta         |
+| `+page.server.ts`    | Função `load` executada no servidor antes de renderizar a página      |
+
+### Layout groups — `(app)/`
+
+A pasta `(app)/` é um **layout group**: agrupa rotas que compartilham o mesmo `+layout.svelte` (sidebar + AppShell) sem que o nome do grupo apareça na URL. Assim `/admin/dashboard` funciona normalmente, sem `/app/admin/dashboard`.
+
+### Guard de rotas — `hooks.server.ts`
+
+O arquivo `hooks.server.ts` intercepta **toda** requisição antes de chegar à rota. É aqui que a proteção acontece:
+
+```
+Requisição chega
+  │
+  ├─ pathname começa com /auth → deixa passar (rota pública)
+  │
+  ├─ sem cookie auth_token → redirect 303 /auth/login
+  │
+  ├─ token presente + role colaborador em /admin/* → redirect 303 /colaborador/registro
+  │
+  └─ token válido → popula event.locals.user → resolve(event)
+```
+
+O `event.locals.user` preenchido pelo hook fica disponível em qualquer `+page.server.ts` via `event.locals`, permitindo carregar dados personalizados por usuário no servidor.
+
+---
+
+## Componentização
+
+- Utilização de Runas do Svelte 5
+
+| Rune          | Função                                               |
+| ------------- | ---------------------------------------------------- |
+| `$props()`    | Declara as propriedades recebidas pelo componente    |
+| `$state()`    | Cria estado local reativo                            |
+| `$derived`    | Valor calculado que atualiza automaticamente         |
+| `$derived.by` | Versão com função para derivações complexas          |
+
+- Utilziação de Barrel export
+
+
+---
+
+## Funcionamento Interno
+
+### Como as camadas se comunicam
+
+```
+Componente Svelte
+  │  chama authService.login(credentials)
+  ▼
+Service (auth.service.ts)
+  │  verifica VITE_USE_MOCK / VITE_API_URL
+  ├─ mock ativo → authMockService.login()
+  │    valida contra MOCK_PASSWORDS
+  │    retorna { token: btoa(JSON.stringify(user)), user }
+  └─ real → api.ts.post('/auth/login', credentials)
+       injeta Bearer token no header Authorization
+       redireciona para /auth/login se 401
+  │
+  ▼
+Componente salva token
+  │  localStorage.setItem('auth_token', token)   ← lido por api.ts
+  │  document.cookie = 'auth_token=...'          ← lido por hooks.server.ts
+  ▼
+setUser(user) → atualiza auth.store
+  │
+  ▼
+isAdmin (derived) recalcula → $isAdmin === true/false
+  │
+  ▼
+AppShell.svelte reage: exibe menu de admin ou colaborador
+```
+
+### Svelte Stores — auto-subscribe com `$`
+
+Qualquer store pode ser lido no template com o prefixo `$`. O Svelte gerencia a subscrição e cancelamento automaticamente:
+
+```svelte
+<script>
+  import { user, isAdmin } from '@/store/auth.store';
+</script>
+
+<!-- $user e $isAdmin atualizam o DOM reativamente -->
+{#if $isAdmin}
+  <a href="/admin/dashboard">Painel Admin</a>
+{:else}
+  <a href="/colaborador/registro">Bater Ponto</a>
+{/if}
+
+<span>Olá, {$user?.name}</span>
+```
+
+### Sistema Mock
+
+Quando não há backend disponível, os serviços exportam implementações mock ativadas pela variável de ambiente:
+
+```
+VITE_USE_MOCK=true   → services exportam mock (dados e delays simulados)
+VITE_USE_MOCK=false  → services exportam implementação real (fetch à API)
+```
+
+Cada service verifica o flag na inicialização:
+
+```ts
+// auth.service.ts
+const USE_MOCK = !import.meta.env.VITE_API_URL || import.meta.env.VITE_USE_MOCK === 'true';
+export const authService = USE_MOCK ? authMockService : realAuthService;
+```
+
+Os mocks simulam delays de rede (~200-300ms) e mantêm estado em memória durante a sessão.
 
 ---
 
@@ -110,7 +193,7 @@ Pasta especial do SvelteKit acessível via `$lib`. Funciona como ponto central d
 | `@/`   | `./src/`     | `import { api } from '@/services/api'`     |
 | `$lib` | `./src/lib/` | `import { formatDate } from '$lib'`        |
 
-Configurados em `vite.config.ts` e `tsconfig.json`.
+Configurados em `svelte.config.js` e `vite.config.ts`.
 
 ---
 
@@ -123,9 +206,23 @@ npm install
 # 2. Copiar variáveis de ambiente
 cp .env.example .env
 
-# 3. Rodar em dev
-npm run dev
+# 3. Rodar em modo mock (sem backend)
+VITE_USE_MOCK=true npm run dev
+
+# 4. Verificar tipos e lint
+npm run check
+npm run lint
 ```
+
+### Credenciais de teste
+
+| Usuário              | Identificador       | Senha    | Papel        |
+| -------------------- | ------------------- | -------- | ------------ |
+| Admin                | admin@teste.com     | Senha123 | admin        |
+| Admin (CPF)          | 123.456.789-00      | Senha123 | admin        |
+| Carlos Souza         | carlos@teste.com    | Senha123 | colaborador  |
+| Carlos Souza (CPF)   | 111.444.777-35      | Senha123 | colaborador  |
+| Teste                | teste@teste.com     | Senha123 | colaborador  |
 
 ---
 
@@ -140,14 +237,3 @@ npm run dev
 | Utils          | `camelCase.ts` ou `kebab-case.ts`   |
 | Rotas          | `kebab-case/` (padrão SvelteKit)    |
 | Variáveis CSS  | `--color-primary`, `--color-danger` |
-
-
-## Acessos teste
-
-  admin@teste.com: Senha123
-
-  123.456.789-00: Senha123
-
-  carlos@teste.com: Senha123
-
-  111.444.777-35: Senha123

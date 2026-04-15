@@ -3,11 +3,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 import type { PageData } from './$types';
-  import { colaboradoresStore } from '../../../../store/colaboradores.store';
-import { colaboradorService } from '../../../../services/colaborador.service';
-import ColaboradorModal from '../../../../components/colaboradores/ColaboradorModal.svelte';
-import ConfirmarExclusao from '../../../../components/colaboradores/ConfirmarExclusao.svelte';
-import type { Colaborador, ColaboradorFormData, StatusColaborador } from '../../../../types/colaborador';
+  import { colaboradoresStore } from '@/store/colaboradores.store';
+import { colaboradorService } from '@/services/colaborador.service';
+import ColaboradorModal from '@/components/colaboradores/ColaboradorModal.svelte';
+import ConfirmarExclusao from '@/components/colaboradores/ConfirmarExclusao.svelte';
+import type { Colaborador, ColaboradorFormData, StatusColaborador } from '@/types/colaborador';
 
   let { data }: { data: PageData } = $props();
 

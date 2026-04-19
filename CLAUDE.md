@@ -73,6 +73,10 @@ VITE_USE_MOCK=false   → services export real (fetch to API)
 - Two user roles defined in `App.Locals` and `auth.store.ts`: `'admin' | 'colaborador'`
 - Environment variables prefixed with `VITE_` (see `.env.example`)
 
+## Tipografia
+
+A fonte **DM Sans** (variable font) é usada globalmente. Arquivos em `static/fonts/`. Definida via `@font-face` em `src/app.css`, importado no root layout (`src/routes/+layout.svelte`).
+
 ## Language
 
 The project documentation, comments, and commit messages are in **Brazilian Portuguese**.

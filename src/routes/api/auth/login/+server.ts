@@ -1,5 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { findUserByIdentifier, MOCK_PASSWORDS, encodeToken } from '@/services/mock/data';
+import bcrypt from 'bcryptjs';
+import { prisma } from '@/lib/server/db';
+import { encodeToken, toPayload } from '@/lib/server/token';
 import { jsonError, jsonOk } from '../../_lib/auth-helpers';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -17,16 +19,32 @@ export const POST: RequestHandler = async ({ request }) => {
     return jsonError('identifier e password são obrigatórios', 400);
   }
 
-  const user = findUserByIdentifier(identifier);
+  const isEmail = identifier.includes('@');
+  const normalizedCpf = identifier.replace(/\D/g, '');
+
+  const user = await prisma.user.findFirst({
+    where: isEmail
+      ? { email: identifier }
+      : {
+          OR: [
+            { cpf: identifier },
+            { cpf: formatCpf(normalizedCpf) }
+          ]
+        }
+  });
+
   if (!user) return jsonError('Credenciais inválidas', 401);
 
-  const normalizedId = identifier.includes('@') ? identifier : identifier.replace(/\D/g, '');
-  const expectedPassword = MOCK_PASSWORDS[normalizedId] ?? MOCK_PASSWORDS[identifier];
+  const ok = await bcrypt.compare(password, user.password);
+  if (!ok) return jsonError('Credenciais inválidas', 401);
 
-  if (expectedPassword !== password) {
-    return jsonError('Credenciais inválidas', 401);
-  }
+  const payload = toPayload(user);
+  const token = encodeToken(payload);
 
-  const token = encodeToken(user);
-  return jsonOk({ token, user });
+  return jsonOk({ token, user: payload });
 };
+
+function formatCpf(digits: string): string {
+  if (digits.length !== 11) return digits;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+}

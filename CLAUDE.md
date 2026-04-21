@@ -36,19 +36,37 @@ Hybrid Layer + Feature architecture:
 | `@/`   | `./src/`    | `svelte.config.js` (`kit.alias`) |
 | `$lib` | `./src/lib/`| SvelteKit built-in |
 
-## Mock System
+## Persistência (Prisma + SQLite)
 
-No backend exists yet. Services use a mock flag to swap implementations:
+O projeto usa **Prisma** com **SQLite** para persistência local.
 
+- Schema: `prisma/schema.prisma` — modelos `User`, `Jornada`, `Punch`
+- DB local: `prisma/dev.db` (git-ignored, gerado por desenvolvedor)
+- Singleton: `src/lib/server/db.ts` exporta `prisma` para uso em `+server.ts`
+- Senhas: armazenadas com `bcryptjs`
+- Jornada.dias: serializada como JSON string (limitação do SQLite para Json nativo)
+
+**Setup inicial em nova máquina:**
+```bash
+npm install          # também roda `prisma generate` (postinstall)
+npm run db:migrate   # aplica migrations, cria dev.db
+npm run db:seed      # popula admin + 2 colaboradores + 2 jornadas
 ```
-VITE_USE_MOCK=true   → services export mock (dados fake)
-VITE_USE_MOCK=false   → services export real (fetch to API)
-```
 
-- Mock data in `src/services/mock/data.ts` (2 users, punch history)
-- Mock token is base64-encoded JSON of user object (not JWT)
-- `hooks.server.ts` decodes this token to populate `event.locals.user`
-- Test credentials: `ana@empresa.com` / `Senha123` (admin), `carlos@empresa.com` / `Senha123` (colaborador)
+**Scripts úteis:**
+- `npm run db:studio` — abre Prisma Studio (UI web para inspecionar dados)
+- `npm run db:reset` — reseta DB e roda seed novamente
+- `npm run db:migrate` — cria nova migration após alterar `schema.prisma`
+
+**Token de autenticação**: Base64(JSON do payload do usuário). `hooks.server.ts` e `auth-helpers.ts` decodificam via `src/lib/server/token.ts`.
+
+**Credenciais de teste (seed):** `admin@teste.com` (admin), `carlos@teste.com` (colaborador), `ana@teste.com` (colaborador) — senha padrão para todos: `Senha123`.
+
+## Cross-OS (Windows + Linux)
+
+- `prisma/dev.db` no `.gitignore` — cada dev gera o seu
+- `.gitattributes` força `eol=lf` para texto (evita churn de CRLF)
+- `postinstall: prisma generate` garante o binário nativo correto por plataforma
 
 ## Auth Flow
 

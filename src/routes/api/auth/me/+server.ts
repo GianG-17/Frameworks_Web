@@ -1,13 +1,18 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { requireUser, jsonOk } from '../../_lib/auth-helpers';
+import { prisma } from '@/lib/server/db';
+import { toPayload } from '@/lib/server/token';
+import { requireUser, jsonError, jsonOk } from '../../_lib/auth-helpers';
 
 export const GET: RequestHandler = async ({ request }) => {
-  let user;
+  let tokenUser;
   try {
-    user = requireUser(request);
+    tokenUser = requireUser(request);
   } catch (response) {
     return response as Response;
   }
 
-  return jsonOk(user);
+  const user = await prisma.user.findUnique({ where: { id: tokenUser.id } });
+  if (!user) return jsonError('Usuário não encontrado', 404);
+
+  return jsonOk(toPayload(user));
 };

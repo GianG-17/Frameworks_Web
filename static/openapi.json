@@ -3,7 +3,7 @@
   "info": {
     "title": "Ponto Digital API",
     "version": "1.0.0",
-    "description": "API mock para desenvolvimento do sistema de ponto eletrônico. Implementada via SvelteKit `+server.ts`. Ative com `VITE_USE_MOCK=true`.\n\n**Credenciais de teste:**\n- Admin: `admin@teste.com` / `Senha123`\n- Colaborador: `carlos@teste.com` / `Senha123`"
+    "description": "API do sistema de ponto eletrônico. Implementada via SvelteKit `+server.ts` com persistência em SQLite via Prisma.\n\n**Credenciais de teste (seed):**\n- Admin: `admin@teste.com` / `Senha123`\n- Colaborador: `carlos@teste.com` / `Senha123`\n- Colaborador: `ana@teste.com` / `Senha123`"
   },
   "servers": [
     {
@@ -133,6 +133,76 @@
           "error": { "type": "string", "example": "Não autorizado" }
         }
       },
+      "Colaborador": {
+        "type": "object",
+        "required": ["id", "nome", "email", "cpf", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "nome": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "cpf": { "type": "string" },
+          "cargo": { "type": "string" },
+          "departamento": { "type": "string" },
+          "dataAdmissao": { "type": "string", "format": "date" },
+          "status": { "type": "string", "enum": ["ativo", "inativo", "ferias", "afastado"] },
+          "telefone": { "type": "string" },
+          "jornadaId": { "type": "string" }
+        }
+      },
+      "ColaboradorInput": {
+        "type": "object",
+        "required": ["nome", "email", "cpf"],
+        "properties": {
+          "nome": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "cpf": { "type": "string" },
+          "cargo": { "type": "string" },
+          "departamento": { "type": "string" },
+          "dataAdmissao": { "type": "string", "format": "date" },
+          "status": { "type": "string", "enum": ["ativo", "inativo", "ferias", "afastado"] },
+          "telefone": { "type": "string" },
+          "jornadaId": { "type": "string" }
+        }
+      },
+      "DiaSemana": {
+        "type": "object",
+        "required": ["ativo", "entrada", "saida_almoco", "retorno_almoco", "saida"],
+        "properties": {
+          "ativo": { "type": "boolean" },
+          "entrada": { "type": "string", "example": "08:00" },
+          "saida_almoco": { "type": "string", "example": "12:00" },
+          "retorno_almoco": { "type": "string", "example": "13:00" },
+          "saida": { "type": "string", "example": "17:00" }
+        }
+      },
+      "Jornada": {
+        "type": "object",
+        "required": ["id", "nome", "dias"],
+        "properties": {
+          "id": { "type": "string" },
+          "nome": { "type": "string", "example": "Comercial 8h" },
+          "dias": {
+            "type": "object",
+            "properties": {
+              "segunda": { "$ref": "#/components/schemas/DiaSemana" },
+              "terca": { "$ref": "#/components/schemas/DiaSemana" },
+              "quarta": { "$ref": "#/components/schemas/DiaSemana" },
+              "quinta": { "$ref": "#/components/schemas/DiaSemana" },
+              "sexta": { "$ref": "#/components/schemas/DiaSemana" },
+              "sabado": { "$ref": "#/components/schemas/DiaSemana" },
+              "domingo": { "$ref": "#/components/schemas/DiaSemana" }
+            }
+          }
+        }
+      },
+      "JornadaInput": {
+        "type": "object",
+        "required": ["nome", "dias"],
+        "properties": {
+          "nome": { "type": "string" },
+          "dias": { "type": "object" }
+        }
+      },
       "DashboardMetrics": {
         "type": "object",
         "required": ["colaboradoresAtivos", "pontosHoje", "totalColaboradores", "horasExtrasMes"],
@@ -242,6 +312,159 @@
             "description": "Não autenticado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
           }
+        }
+      }
+    },
+    "/colaboradores": {
+      "get": {
+        "operationId": "listColaboradores",
+        "tags": ["Colaboradores"],
+        "summary": "Listar colaboradores",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Lista de colaboradores",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Colaborador" } }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso restrito a administradores",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createColaborador",
+        "tags": ["Colaboradores"],
+        "summary": "Criar colaborador (senha padrão: Senha123)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ColaboradorInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Colaborador criado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Colaborador" } } }
+          },
+          "409": {
+            "description": "E-mail ou CPF já cadastrado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/colaboradores/{id}": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "operationId": "getColaborador",
+        "tags": ["Colaboradores"],
+        "summary": "Buscar colaborador por id",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Colaborador encontrado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Colaborador" } } }
+          },
+          "404": { "description": "Não encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "put": {
+        "operationId": "updateColaborador",
+        "tags": ["Colaboradores"],
+        "summary": "Atualizar colaborador",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ColaboradorInput" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Colaborador atualizado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Colaborador" } } }
+          },
+          "404": { "description": "Não encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "delete": {
+        "operationId": "deleteColaborador",
+        "tags": ["Colaboradores"],
+        "summary": "Remover colaborador",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "204": { "description": "Removido" },
+          "404": { "description": "Não encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/jornadas": {
+      "get": {
+        "operationId": "listJornadas",
+        "tags": ["Jornadas"],
+        "summary": "Listar jornadas",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Lista de jornadas",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Jornada" } } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createJornada",
+        "tags": ["Jornadas"],
+        "summary": "Criar jornada",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/JornadaInput" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Jornada criada",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Jornada" } } }
+          }
+        }
+      }
+    },
+    "/jornadas/{id}": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "put": {
+        "operationId": "updateJornada",
+        "tags": ["Jornadas"],
+        "summary": "Atualizar jornada",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/JornadaInput" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Jornada atualizada",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Jornada" } } }
+          },
+          "404": { "description": "Não encontrada", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "delete": {
+        "operationId": "deleteJornada",
+        "tags": ["Jornadas"],
+        "summary": "Remover jornada",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "204": { "description": "Removida" },
+          "404": { "description": "Não encontrada", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
       }
     },

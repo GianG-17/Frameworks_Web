@@ -1,8 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import type { DailySummary } from '@/services/timesheet.service';
-import { MOCK_HISTORY } from '@/services/mock/data';
+import { prisma } from '@/lib/server/db';
+import { buildSummary, dateKey } from '@/lib/server/timesheet';
 import { requireUser, jsonOk } from '../../_lib/auth-helpers';
-import { sessionPunches } from '../../_lib/session-store';
 
 export const GET: RequestHandler = async ({ request }) => {
   let user;
@@ -12,23 +11,19 @@ export const GET: RequestHandler = async ({ request }) => {
     return response as Response;
   }
 
-  const today = new Date().toISOString().split('T')[0];
-  const userHistory = MOCK_HISTORY[user.id] ?? [];
-  const mockToday = userHistory.find((d) => d.date === today);
+  const now = new Date();
+  const start = new Date(now);
+  start.setUTCHours(0, 0, 0, 0);
+  const end = new Date(now);
+  end.setUTCHours(23, 59, 59, 999);
 
-  const todaySessionPunches = sessionPunches.filter(
-    (p) => p.userId === user.id && p.timestamp.startsWith(today)
-  );
+  const punches = await prisma.punch.findMany({
+    where: {
+      userId: user.id,
+      timestamp: { gte: start, lte: end }
+    },
+    orderBy: { timestamp: 'asc' }
+  });
 
-  const summary: DailySummary = mockToday
-    ? { ...mockToday, punches: [...mockToday.punches, ...todaySessionPunches] }
-    : {
-        date: today,
-        punches: todaySessionPunches,
-        totalHours: 0,
-        overtime: 0,
-        deficit: 0
-      };
-
-  return jsonOk(summary);
+  return jsonOk(buildSummary(dateKey(now), punches));
 };

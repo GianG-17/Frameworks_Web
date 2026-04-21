@@ -1,50 +1,57 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { MOCK_USERS, MOCK_HISTORY } from '@/services/mock/data';
-import { requireUser, jsonError, jsonOk } from '../../_lib/auth-helpers';
-import { sessionPunches } from '../../_lib/session-store';
+import { prisma } from '@/lib/server/db';
+import { buildDailySummaries } from '@/lib/server/timesheet';
+import { requireAdmin, jsonOk } from '../../_lib/auth-helpers';
 
 export const GET: RequestHandler = async ({ request }) => {
-  let user;
   try {
-    user = requireUser(request);
+    requireAdmin(request);
   } catch (response) {
     return response as Response;
   }
 
-  if (user.role !== 'admin') {
-    return jsonError('Acesso restrito a administradores', 403);
-  }
-
-  const colaboradores = MOCK_USERS.filter((u) => u.role === 'colaborador');
-
-  const today = new Date().toISOString().split('T')[0];
-
-  const pontosHojeMock = colaboradores.reduce((total, c) => {
-    const userToday = (MOCK_HISTORY[c.id] ?? []).find((d) => d.date === today);
-    return total + (userToday?.punches.length ?? 0);
-  }, 0);
-
-  const pontosHojeSessao = sessionPunches.filter((p) =>
-    p.timestamp.startsWith(today)
-  ).length;
+  const [totalColaboradores, colaboradoresAtivos, totalUsuarios] = await Promise.all([
+    prisma.user.count({ where: { role: 'colaborador' } }),
+    prisma.user.count({ where: { role: 'colaborador', status: 'ativo' } }),
+    prisma.user.count()
+  ]);
 
   const now = new Date();
-  const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const todayStart = new Date(now);
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayEnd = new Date(now);
+  todayEnd.setUTCHours(23, 59, 59, 999);
+
+  const pontosHoje = await prisma.punch.count({
+    where: { timestamp: { gte: todayStart, lte: todayEnd } }
+  });
+
+  const mesStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const mesEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+
+  const punchesMes = await prisma.punch.findMany({
+    where: { timestamp: { gte: mesStart, lte: mesEnd } },
+    orderBy: { timestamp: 'asc' }
+  });
+
+  // Agrupa por usuário para calcular horas extras corretas por dia
+  const byUser = new Map<string, typeof punchesMes>();
+  for (const p of punchesMes) {
+    const list = byUser.get(p.userId) ?? [];
+    list.push(p);
+    byUser.set(p.userId, list);
+  }
 
   let horasExtrasMes = 0;
-  for (const c of colaboradores) {
-    const historico = MOCK_HISTORY[c.id] ?? [];
-    for (const dia of historico) {
-      if (dia.date.startsWith(mesAtual)) {
-        horasExtrasMes += dia.overtime ?? 0;
-      }
-    }
+  for (const userPunches of byUser.values()) {
+    const summaries = buildDailySummaries(userPunches);
+    horasExtrasMes += summaries.reduce((acc, s) => acc + s.overtime, 0);
   }
 
   return jsonOk({
-    colaboradoresAtivos: colaboradores.length,
-    pontosHoje: pontosHojeMock + pontosHojeSessao,
-    totalColaboradores: MOCK_USERS.length,
+    colaboradoresAtivos,
+    pontosHoje,
+    totalColaboradores: totalUsuarios,
     horasExtrasMes: Number(horasExtrasMes.toFixed(1))
   });
 };

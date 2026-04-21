@@ -1,4 +1,4 @@
-import { decodeToken } from '@/services/mock/data';
+import { decodeToken, type TokenPayload } from '@/lib/server/token';
 
 export function extractBearerToken(request: Request): string | null {
   const header = request.headers.get('Authorization');
@@ -6,13 +6,21 @@ export function extractBearerToken(request: Request): string | null {
   return header.slice(7);
 }
 
-export function requireUser(request: Request): NonNullable<App.Locals['user']> {
+export function requireUser(request: Request): TokenPayload {
   const token = extractBearerToken(request);
   if (!token) throw jsonError('Não autenticado', 401);
 
   const user = decodeToken(token);
   if (!user) throw jsonError('Token inválido', 401);
 
+  return user;
+}
+
+export function requireAdmin(request: Request): TokenPayload {
+  const user = requireUser(request);
+  if (user.role !== 'admin') {
+    throw jsonError('Acesso restrito a administradores', 403);
+  }
   return user;
 }
 

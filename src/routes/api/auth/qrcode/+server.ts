@@ -1,5 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { MOCK_USERS, encodeToken } from '@/services/mock/data';
+import { prisma } from '@/lib/server/db';
+import { encodeToken, toPayload } from '@/lib/server/token';
 import { jsonError, jsonOk } from '../../_lib/auth-helpers';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -11,13 +12,17 @@ export const POST: RequestHandler = async ({ request }) => {
     return jsonError('Corpo da requisição inválido', 400);
   }
 
-  if (!body.code || typeof body.timestamp !== 'number') {
-    return jsonError('code e timestamp são obrigatórios', 400);
+  if (!body.code) {
+    return jsonError('QR Code inválido', 400);
   }
 
-  // Em modo mock, retorna sempre o primeiro colaborador
-  const user = MOCK_USERS.find((u) => u.role === 'colaborador')!;
-  const token = encodeToken(user);
+  const user = await prisma.user.findFirst({
+    where: { role: 'colaborador', status: 'ativo' }
+  });
 
-  return jsonOk({ token, user });
+  if (!user) return jsonError('Nenhum colaborador disponível', 404);
+
+  const payload = toPayload(user);
+  const token = encodeToken(payload);
+  return jsonOk({ token, user: payload });
 };

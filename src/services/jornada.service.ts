@@ -4,7 +4,6 @@
  */
 
 import { get, post, put, del } from './api';
-import { mockJornadaService } from './mock/jornada.mock';
 
 export type DiaSemanaKey =
   | 'segunda'
@@ -17,7 +16,7 @@ export type DiaSemanaKey =
 
 export interface DiaSemana {
   ativo: boolean;
-  entrada: string;        // "HH:MM"
+  entrada: string;
   saida_almoco: string;
   retorno_almoco: string;
   saida: string;
@@ -31,20 +30,9 @@ export interface Jornada {
 
 export type JornadaInput = Omit<Jornada, 'id'>;
 
-export interface JornadaService {
-  list(): Promise<Jornada[]>;
-  create(data: JornadaInput): Promise<Jornada>;
-  update(id: string, data: JornadaInput): Promise<Jornada>;
-  remove(id: string): Promise<void>;
-}
-
-const USE_MOCK = !import.meta.env.VITE_API_URL || import.meta.env.VITE_USE_MOCK === 'true';
-
-const realJornadaService: JornadaService = {
+export const jornadaService = {
   list: () => get<Jornada[]>('/jornadas'),
-  create: (data) => post<Jornada>('/jornadas', data),
-  update: (id, data) => put<Jornada>(`/jornadas/${id}`, data),
-  remove: (id) => del<void>(`/jornadas/${id}`)
+  create: (data: JornadaInput) => post<Jornada>('/jornadas', data),
+  update: (id: string, data: JornadaInput) => put<Jornada>(`/jornadas/${id}`, data),
+  remove: (id: string) => del<void>(`/jornadas/${id}`)
 };
-
-export const jornadaService: JornadaService = USE_MOCK ? mockJornadaService : realJornadaService;

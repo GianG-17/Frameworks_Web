@@ -132,6 +132,16 @@
         "properties": {
           "error": { "type": "string", "example": "Não autorizado" }
         }
+      },
+      "DashboardMetrics": {
+        "type": "object",
+        "required": ["colaboradoresAtivos", "pontosHoje", "totalColaboradores", "horasExtrasMes"],
+        "properties": {
+          "colaboradoresAtivos": { "type": "integer", "example": 2 },
+          "pontosHoje": { "type": "integer", "example": 8 },
+          "totalColaboradores": { "type": "integer", "example": 3 },
+          "horasExtrasMes": { "type": "number", "description": "Horas extras acumuladas no mês corrente (decimal)", "example": 4.5 }
+        }
       }
     }
   },
@@ -230,6 +240,32 @@
           },
           "401": {
             "description": "Não autenticado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/admin/dashboard": {
+      "get": {
+        "operationId": "getAdminDashboard",
+        "tags": ["Administração"],
+        "summary": "Métricas agregadas do painel do administrador",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Métricas do dashboard",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DashboardMetrics" }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "403": {
+            "description": "Acesso restrito a administradores",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
           }
         }

@@ -4,14 +4,15 @@ import { toColaboradorDTO } from '@/lib/server/colaborador';
 import { requireAdmin, jsonError, jsonOk } from '../../_lib/auth-helpers';
 
 export const GET: RequestHandler = async ({ request, params }) => {
+  let admin;
   try {
-    requireAdmin(request);
+    admin = requireAdmin(request);
   } catch (response) {
     return response as Response;
   }
 
   const user = await prisma.user.findUnique({ where: { id: params.id } });
-  if (!user || user.role !== 'colaborador') {
+  if (!user || user.role !== 'colaborador' || user.empresaId !== admin.empresaId) {
     return jsonError('Colaborador não encontrado', 404);
   }
 
@@ -19,8 +20,9 @@ export const GET: RequestHandler = async ({ request, params }) => {
 };
 
 export const PUT: RequestHandler = async ({ request, params }) => {
+  let admin;
   try {
-    requireAdmin(request);
+    admin = requireAdmin(request);
   } catch (response) {
     return response as Response;
   }
@@ -44,7 +46,7 @@ export const PUT: RequestHandler = async ({ request, params }) => {
   }
 
   const existing = await prisma.user.findUnique({ where: { id: params.id } });
-  if (!existing || existing.role !== 'colaborador') {
+  if (!existing || existing.role !== 'colaborador' || existing.empresaId !== admin.empresaId) {
     return jsonError('Colaborador não encontrado', 404);
   }
 
@@ -67,14 +69,15 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 };
 
 export const DELETE: RequestHandler = async ({ request, params }) => {
+  let admin;
   try {
-    requireAdmin(request);
+    admin = requireAdmin(request);
   } catch (response) {
     return response as Response;
   }
 
   const existing = await prisma.user.findUnique({ where: { id: params.id } });
-  if (!existing || existing.role !== 'colaborador') {
+  if (!existing || existing.role !== 'colaborador' || existing.empresaId !== admin.empresaId) {
     return jsonError('Colaborador não encontrado', 404);
   }
 

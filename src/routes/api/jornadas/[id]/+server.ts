@@ -4,8 +4,9 @@ import { toJornadaDTO } from '@/lib/server/jornada';
 import { requireAdmin, jsonError, jsonOk } from '../../_lib/auth-helpers';
 
 export const PUT: RequestHandler = async ({ request, params }) => {
+  let admin;
   try {
-    requireAdmin(request);
+    admin = requireAdmin(request);
   } catch (response) {
     return response as Response;
   }
@@ -18,7 +19,9 @@ export const PUT: RequestHandler = async ({ request, params }) => {
   }
 
   const existing = await prisma.jornada.findUnique({ where: { id: params.id } });
-  if (!existing) return jsonError('Jornada não encontrada', 404);
+  if (!existing || existing.empresaId !== admin.empresaId) {
+    return jsonError('Jornada não encontrada', 404);
+  }
 
   const jornada = await prisma.jornada.update({
     where: { id: params.id },
@@ -32,14 +35,17 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 };
 
 export const DELETE: RequestHandler = async ({ request, params }) => {
+  let admin;
   try {
-    requireAdmin(request);
+    admin = requireAdmin(request);
   } catch (response) {
     return response as Response;
   }
 
   const existing = await prisma.jornada.findUnique({ where: { id: params.id } });
-  if (!existing) return jsonError('Jornada não encontrada', 404);
+  if (!existing || existing.empresaId !== admin.empresaId) {
+    return jsonError('Jornada não encontrada', 404);
+  }
 
   await prisma.jornada.delete({ where: { id: params.id } });
   return new Response(null, { status: 204 });

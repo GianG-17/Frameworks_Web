@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { authenticator } from 'otplib';
+import { generateSecret } from 'otplib';
 
 const prisma = new PrismaClient();
 
@@ -41,7 +41,7 @@ async function main() {
       cnpj: '00.000.000/0001-00',
       horaAbertura: '08:00',
       horaFechamento: '18:00',
-      qrSecret: authenticator.generateSecret()
+      qrSecret: generateSecret()
     }
   });
 

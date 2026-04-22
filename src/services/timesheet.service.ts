@@ -29,6 +29,14 @@ export const timesheetService = {
   punch: (data: { type: PunchType; method: PunchRecord['method'] }) =>
     post<PunchRecord>('/timesheet/punch', data),
 
+  punchQr: (data: {
+    empresaId: string;
+    token: string;
+    type: PunchType;
+    latitude?: number;
+    longitude?: number;
+  }) => post<PunchRecord>('/timesheet/punch/qr', data),
+
   today: () => get<DailySummary>('/timesheet/today'),
 
   history: (params: { startDate: string; endDate: string }) =>

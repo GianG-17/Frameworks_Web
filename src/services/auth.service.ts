@@ -18,6 +18,7 @@ export interface AuthResponse {
     email: string;
     cpf: string;
     role: 'admin' | 'colaborador';
+    empresaId: string;
   };
 }
 

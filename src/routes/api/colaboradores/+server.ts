@@ -7,14 +7,15 @@ import { requireAdmin, jsonError, jsonOk } from '../_lib/auth-helpers';
 const SENHA_PADRAO = 'Senha123';
 
 export const GET: RequestHandler = async ({ request }) => {
+  let admin;
   try {
-    requireAdmin(request);
+    admin = requireAdmin(request);
   } catch (response) {
     return response as Response;
   }
 
   const users = await prisma.user.findMany({
-    where: { role: 'colaborador' },
+    where: { role: 'colaborador', empresaId: admin.empresaId },
     orderBy: { name: 'asc' }
   });
 
@@ -22,8 +23,9 @@ export const GET: RequestHandler = async ({ request }) => {
 };
 
 export const POST: RequestHandler = async ({ request }) => {
+  let admin;
   try {
-    requireAdmin(request);
+    admin = requireAdmin(request);
   } catch (response) {
     return response as Response;
   }
@@ -59,6 +61,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
   const user = await prisma.user.create({
     data: {
+      empresaId: admin.empresaId,
       name: body.nome,
       email: body.email,
       cpf: body.cpf,

@@ -1,15 +1,16 @@
 /**
  * @module hooks/useQrScanner
- * @description Hook reativo para leitura de QR Code via câmera.
- *
- * Encapsula a lógica de permissão de câmera, streaming de vídeo
- * e decodificação do QR Code. Retorna stores reativos.
+ * @description Hook para leitura de QR Code via câmera usando `qr-scanner`.
  *
  * Uso em componente Svelte:
  *   const { scanning, lastResult, error, start, stop } = useQrScanner();
+ *   onMount(() => start(videoEl));
+ *   onDestroy(stop);
+ *   $: if ($lastResult) handlePayload($lastResult);
  */
 
 import { writable } from 'svelte/store';
+import QrScanner from 'qr-scanner';
 
 export interface QrScannerState {
   scanning: ReturnType<typeof writable<boolean>>;
@@ -24,26 +25,18 @@ export function useQrScanner(): QrScannerState {
   const lastResult = writable<string | null>(null);
   const error = writable<string | null>(null);
 
-  let stream: MediaStream | null = null;
-  let animationFrame: number | null = null;
+  let instance: QrScanner | null = null;
 
   async function start(videoElement: HTMLVideoElement) {
     try {
       error.set(null);
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      });
-      videoElement.srcObject = stream;
-      await videoElement.play();
+      instance = new QrScanner(
+        videoElement,
+        (result) => lastResult.set(result.data),
+        { highlightScanRegion: true, highlightCodeOutline: true, preferredCamera: 'environment' }
+      );
+      await instance.start();
       scanning.set(true);
-
-      // TODO: integrar lib de decodificação (ex: jsQR, @nicolo-ribaudo/qr-reader)
-      // A cada frame, capturar imagem do vídeo e decodificar
-      function tick() {
-        // Placeholder para lógica de decodificação
-        animationFrame = requestAnimationFrame(tick);
-      }
-      tick();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao acessar câmera';
       error.set(message);
@@ -52,8 +45,11 @@ export function useQrScanner(): QrScannerState {
   }
 
   function stop() {
-    if (animationFrame) cancelAnimationFrame(animationFrame);
-    if (stream) stream.getTracks().forEach((t) => t.stop());
+    if (instance) {
+      instance.stop();
+      instance.destroy();
+      instance = null;
+    }
     scanning.set(false);
   }
 

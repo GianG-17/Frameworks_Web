@@ -24,6 +24,13 @@ export function requireAdmin(request: Request): TokenPayload {
   return user;
 }
 
+/** Retorna o empresaId do usuário autenticado. Lança 401/403 se não autenticado. */
+export function requireEmpresaId(request: Request): string {
+  const user = requireUser(request);
+  if (!user.empresaId) throw jsonError('Usuário sem empresa vinculada', 403);
+  return user.empresaId;
+}
+
 export function jsonError(message: string, status: number): Response {
   return new Response(JSON.stringify({ error: message }), {
     status,

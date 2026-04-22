@@ -3,11 +3,12 @@
   @description Página de registro de ponto — bater ponto e ver punches do dia.
 -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import Button from '@/components/ui/Button.svelte';
   import { timesheetService } from '@/services/timesheet.service';
   import type { PunchType, DailySummary } from '@/services/timesheet.service';
   import { formatDate, formatTime } from '@/utils/date';
+  import { useQrScanner } from '@/hooks/useQrScanner';
 
   const PUNCH_LABELS: Record<PunchType, string> = {
     entrada: 'Entrada',
@@ -41,6 +42,26 @@
     }
   }
 
+  let qrInput = $state('');
+  let scannerOpen = $state(false);
+  let videoEl: HTMLVideoElement | undefined = $state();
+  const scanner = useQrScanner();
+  const scannerError = scanner.error;
+  const scannerResult = scanner.lastResult;
+
+  async function abrirScanner() {
+    errorMsg = '';
+    scannerOpen = true;
+    // aguarda render do <video> antes de iniciar
+    await Promise.resolve();
+    if (videoEl) await scanner.start(videoEl);
+  }
+
+  function fecharScanner() {
+    scanner.stop();
+    scannerOpen = false;
+  }
+
   async function handlePunch(): Promise<void> {
     const type = nextPunchType;
     if (!type) return;
@@ -57,10 +78,48 @@
     }
   }
 
+  async function processarPayload(payload: string): Promise<void> {
+    const type = nextPunchType;
+    if (!type) return;
+    punching = true;
+    errorMsg = '';
+    try {
+      const parsed = JSON.parse(payload) as { empresaId: string; token: string };
+      if (!parsed.empresaId || !parsed.token) throw new Error('formato');
+      await timesheetService.punchQr({ empresaId: parsed.empresaId, token: parsed.token, type });
+      qrInput = '';
+      fecharScanner();
+      await loadToday();
+    } catch {
+      errorMsg = 'QR Code inválido ou expirado.';
+    } finally {
+      punching = false;
+    }
+  }
+
+  async function handleQrPunch(): Promise<void> {
+    if (!qrInput.trim()) {
+      errorMsg = 'Cole o conteúdo do QR Code.';
+      return;
+    }
+    await processarPayload(qrInput);
+  }
+
+  // Processa QR automaticamente quando o scanner decodifica algo
+  scannerResult.subscribe((value) => {
+    if (value && scannerOpen && !punching) {
+      processarPayload(value);
+    }
+  });
+
   onMount(() => {
     loadToday();
     const timer = setInterval(() => (now = new Date()), 1000);
     return () => clearInterval(timer);
+  });
+
+  onDestroy(() => {
+    scanner.stop();
   });
 </script>
 
@@ -91,6 +150,35 @@
       <p class="registro__done">Todos os registros do dia foram feitos.</p>
     {/if}
   </div>
+
+  {#if nextPunchType}
+    <div class="qr-box">
+      <h3>Registrar via QR Code</h3>
+      <p class="qr-hint">
+        Escaneie o QR Code exibido pela empresa para registrar <strong>{PUNCH_LABELS[nextPunchType]}</strong>.
+      </p>
+
+      {#if scannerOpen}
+        <div class="scanner">
+          <video bind:this={videoEl}><track kind="captions" /></video>
+          {#if $scannerError}<p class="error">{$scannerError}</p>{/if}
+          <Button variant="secondary" size="md" onclick={fecharScanner}>Fechar câmera</Button>
+        </div>
+      {:else}
+        <Button variant="secondary" size="md" onclick={abrirScanner}>
+          📷 Abrir câmera
+        </Button>
+      {/if}
+
+      <details class="manual">
+        <summary>Inserir manualmente</summary>
+        <textarea bind:value={qrInput} placeholder={'{"empresaId":"...","token":"123456"}'} rows="3"></textarea>
+        <Button variant="secondary" size="md" loading={punching} onclick={handleQrPunch}>
+          Confirmar
+        </Button>
+      </details>
+    </div>
+  {/if}
 
   <div class="registro__list">
     <h2>Registros de hoje</h2>
@@ -203,5 +291,61 @@
     border-radius: 0.5rem;
     margin-bottom: 1rem;
     text-align: center;
+  }
+
+  .qr-box {
+    margin: 1.5rem 0;
+    padding: 1.25rem;
+    background: #fff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 0.75rem;
+  }
+
+  .qr-box h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+  }
+
+  .qr-hint {
+    color: #64748b;
+    font-size: 0.85rem;
+    margin: 0 0 0.75rem;
+  }
+
+  .scanner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .scanner video {
+    width: 100%;
+    max-width: 320px;
+    border-radius: 0.5rem;
+    background: #000;
+  }
+
+  .manual {
+    margin-top: 0.75rem;
+  }
+
+  .manual summary {
+    cursor: pointer;
+    color: #64748b;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .qr-box textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    font-family: monospace;
+    font-size: 0.8rem;
+    margin-bottom: 0.75rem;
+    resize: vertical;
   }
 </style>

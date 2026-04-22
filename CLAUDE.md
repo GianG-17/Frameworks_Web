@@ -22,7 +22,6 @@ npm run format       # Prettier
 Hybrid Layer + Feature architecture:
 
 - **`src/services/`** — HTTP layer. All API calls go through `api.ts` (centralized fetch client with auth token injection and 401 redirect). Domain services (`auth.service.ts`, `timesheet.service.ts`) use this client.
-- **`src/services/mock/`** — Mock implementations of services for frontend development without backend. Activated via `VITE_USE_MOCK=true`. Each service file checks the flag and exports mock or real implementation transparently.
 - **`src/store/`** — Global state via Svelte writable/derived stores. `auth.store.ts` holds the current user, `isAuthenticated`, and `isAdmin` derived stores.
 - **`src/hooks/`** — Reusable composables with side-effects (e.g., `useQrScanner.ts` for camera/QR).
 - **`src/utils/`** — Pure functions only (no framework imports). Formatters, validators.
@@ -40,11 +39,22 @@ Hybrid Layer + Feature architecture:
 
 O projeto usa **Prisma** com **SQLite** para persistência local.
 
-- Schema: `prisma/schema.prisma` — modelos `User`, `Jornada`, `Punch`
+- Schema: `prisma/schema.prisma` — modelos `Empresa`, `User`, `Jornada`, `Punch`, `Ferias`, `Justificativa`
 - DB local: `prisma/dev.db` (git-ignored, gerado por desenvolvedor)
 - Singleton: `src/lib/server/db.ts` exporta `prisma` para uso em `+server.ts`
 - Senhas: armazenadas com `bcryptjs`
 - Jornada.dias: serializada como JSON string (limitação do SQLite para Json nativo)
+
+## Multi-tenancy
+
+Todas as entidades (User, Jornada, Punch, Ferias, Justificativa) são escopadas por `empresaId`. Cada usuário pertence a uma única `Empresa`, e admin só enxerga dados da própria empresa. O `empresaId` é incluído no token (Base64 do payload) e fica disponível em `locals.user.empresaId` via `hooks.server.ts`.
+
+## QR Code (TOTP)
+
+- Cada empresa tem um `qrSecret` base32 armazenado no DB.
+- `src/lib/server/totp.ts` (`otplib`) gera tokens de 6 dígitos com passo de 30s e janela ±1.
+- Admin acessa `/admin/empresa` para ver o QR rotativo (polling 30s).
+- Colaborador registra ponto via `POST /api/timesheet/punch/qr` com `{ empresaId, token, type }`.
 
 **Setup inicial em nova máquina:**
 ```bash

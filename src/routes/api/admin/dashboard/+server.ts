@@ -4,16 +4,19 @@ import { buildDailySummaries } from '@/lib/server/timesheet';
 import { requireAdmin, jsonOk } from '../../_lib/auth-helpers';
 
 export const GET: RequestHandler = async ({ request }) => {
+  let admin;
   try {
-    requireAdmin(request);
+    admin = requireAdmin(request);
   } catch (response) {
     return response as Response;
   }
 
+  const empresaId = admin.empresaId;
+
   const [totalColaboradores, colaboradoresAtivos, totalUsuarios] = await Promise.all([
-    prisma.user.count({ where: { role: 'colaborador' } }),
-    prisma.user.count({ where: { role: 'colaborador', status: 'ativo' } }),
-    prisma.user.count()
+    prisma.user.count({ where: { role: 'colaborador', empresaId } }),
+    prisma.user.count({ where: { role: 'colaborador', status: 'ativo', empresaId } }),
+    prisma.user.count({ where: { empresaId } })
   ]);
 
   const now = new Date();
@@ -23,14 +26,14 @@ export const GET: RequestHandler = async ({ request }) => {
   todayEnd.setUTCHours(23, 59, 59, 999);
 
   const pontosHoje = await prisma.punch.count({
-    where: { timestamp: { gte: todayStart, lte: todayEnd } }
+    where: { empresaId, timestamp: { gte: todayStart, lte: todayEnd } }
   });
 
   const mesStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const mesEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
 
   const punchesMes = await prisma.punch.findMany({
-    where: { timestamp: { gte: mesStart, lte: mesEnd } },
+    where: { empresaId, timestamp: { gte: mesStart, lte: mesEnd } },
     orderBy: { timestamp: 'asc' }
   });
 

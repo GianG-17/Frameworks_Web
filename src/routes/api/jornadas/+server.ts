@@ -4,20 +4,24 @@ import { toJornadaDTO } from '@/lib/server/jornada';
 import { requireAdmin, requireUser, jsonError, jsonOk } from '../_lib/auth-helpers';
 
 export const GET: RequestHandler = async ({ request }) => {
-  // Qualquer usuário autenticado pode listar (colaboradores ainda podem precisar ver a própria jornada)
+  let user;
   try {
-    requireUser(request);
+    user = requireUser(request);
   } catch (response) {
     return response as Response;
   }
 
-  const jornadas = await prisma.jornada.findMany({ orderBy: { nome: 'asc' } });
+  const jornadas = await prisma.jornada.findMany({
+    where: { empresaId: user.empresaId },
+    orderBy: { nome: 'asc' }
+  });
   return jsonOk(jornadas.map(toJornadaDTO));
 };
 
 export const POST: RequestHandler = async ({ request }) => {
+  let admin;
   try {
-    requireAdmin(request);
+    admin = requireAdmin(request);
   } catch (response) {
     return response as Response;
   }
@@ -35,6 +39,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
   const jornada = await prisma.jornada.create({
     data: {
+      empresaId: admin.empresaId,
       nome: body.nome,
       dias: JSON.stringify(body.dias)
     }

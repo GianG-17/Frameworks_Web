@@ -12,15 +12,19 @@ export interface TokenPayload {
   email: string;
   cpf: string;
   role: string;
+  empresaId: string;
 }
 
-export function toPayload(user: Pick<User, 'id' | 'name' | 'email' | 'cpf' | 'role'>): TokenPayload {
+export function toPayload(
+  user: Pick<User, 'id' | 'name' | 'email' | 'cpf' | 'role' | 'empresaId'>
+): TokenPayload {
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     cpf: user.cpf,
-    role: user.role
+    role: user.role,
+    empresaId: user.empresaId
   };
 }
 

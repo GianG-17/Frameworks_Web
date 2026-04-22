@@ -16,17 +16,28 @@
   let password = $state('');
   let loading = $state(false);
   let errorMsg = $state('');
+  let cpfError = $state('');
 
   function handleTabChange(tab: LoginTab): void {
     activeTab = tab;
     identifier = '';
     password = '';
     errorMsg = '';
+    cpfError = '';
   }
 
   function handleCpfInput(e: Event): void {
     const input = e.target as HTMLInputElement;
-    identifier = formatCpfInput(input.value);
+    const raw = input.value;
+
+    // Bloqueia qualquer letra — só permite dígitos, pontos e hífen
+    if (/[a-zA-Z]/.test(raw)) {
+      cpfError = 'O CPF deve conter apenas números.';
+    } else {
+      cpfError = '';
+    }
+
+    identifier = formatCpfInput(raw);
   }
 
   function validate(): string | null {
@@ -39,6 +50,8 @@
   }
 
   async function handleLogin(): Promise<void> {
+    if (cpfError) return;
+
     const validationError = validate();
     if (validationError) {
       errorMsg = validationError;
@@ -70,13 +83,18 @@
 </svelte:head>
 
 <div class="login-page">
-  <form class="login-card" onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
+  <form
+    class="login-card"
+    onsubmit={(e) => { e.preventDefault(); handleLogin(); }}
+  >
     <h1>Ponto Digital</h1>
     <p>Acesse sua conta</p>
 
-    <div class="tabs">
+    <div class="tabs" role="tablist">
       <button
         type="button"
+        role="tab"
+        aria-selected={activeTab === 'colaborador'}
         class="tab"
         class:tab--active={activeTab === 'colaborador'}
         onclick={() => handleTabChange('colaborador')}
@@ -85,6 +103,8 @@
       </button>
       <button
         type="button"
+        role="tab"
+        aria-selected={activeTab === 'admin'}
         class="tab"
         class:tab--active={activeTab === 'admin'}
         onclick={() => handleTabChange('admin')}
@@ -94,32 +114,56 @@
     </div>
 
     {#if errorMsg}
-      <div class="error" role="alert">{errorMsg}</div>
+      <div class="error" role="alert" aria-live="assertive">{errorMsg}</div>
     {/if}
 
     {#if activeTab === 'admin'}
-      <label>
-        E-mail
-        <input type="email" bind:value={identifier} placeholder="seu@email.com" />
-      </label>
-    {:else}
-      <label>
-        CPF
+      <div class="field">
+        <label for="identifier">E-mail</label>
         <input
+          id="identifier"
+          type="email"
+          bind:value={identifier}
+          placeholder="seu@email.com"
+          autocomplete="email"
+          aria-required="true"
+        />
+      </div>
+    {:else}
+      <div class="field">
+        <label for="identifier">CPF</label>
+        <input
+          id="identifier"
           type="text"
           value={identifier}
           oninput={handleCpfInput}
           placeholder="000.000.000-00"
           inputmode="numeric"
           maxlength="14"
+          autocomplete="username"
+          aria-required="true"
+          aria-invalid={cpfError ? 'true' : 'false'}
+          aria-describedby={cpfError ? 'cpf-erro' : undefined}
         />
-      </label>
+        {#if cpfError}
+          <span id="cpf-erro" class="field-error" role="alert" aria-live="polite">
+            {cpfError}
+          </span>
+        {/if}
+      </div>
     {/if}
 
-    <label>
-      Senha
-      <input type="password" bind:value={password} placeholder="••••••••" />
-    </label>
+    <div class="field">
+      <label for="password">Senha</label>
+      <input
+        id="password"
+        type="password"
+        bind:value={password}
+        placeholder="••••••••"
+        autocomplete="current-password"
+        aria-required="true"
+      />
+    </div>
 
     <Button type="submit" variant="primary" {loading}>Entrar</Button>
 
@@ -186,10 +230,13 @@
     color: #fff;
   }
 
-  label {
+  .field {
     display: flex;
     flex-direction: column;
     gap: 0.375rem;
+  }
+
+  label {
     font-size: 0.875rem;
     font-weight: 600;
     color: #334155;
@@ -206,6 +253,15 @@
 
   input:focus {
     border-color: var(--color-primary, #2563eb);
+  }
+
+  input[aria-invalid='true'] {
+    border-color: #dc2626;
+  }
+
+  .field-error {
+    font-size: 0.8rem;
+    color: #dc2626;
   }
 
   .error {

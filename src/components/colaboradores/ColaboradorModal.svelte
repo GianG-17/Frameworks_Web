@@ -31,7 +31,6 @@
 
   let erros = $state<Partial<Record<keyof ColaboradorFormData, string>>>({});
 
-  // Preenche o form quando o colaborador muda (edição)
   $effect(() => {
     if (colaborador) {
       form = {
@@ -59,6 +58,34 @@
     erros = {};
   });
 
+  function handleCpfInput(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const raw = input.value;
+
+    if (/[a-zA-Z]/.test(raw)) {
+      erros = { ...erros, cpf: 'O CPF deve conter apenas números.' };
+    } else {
+      const { cpf: _, ...resto } = erros;
+      erros = resto;
+    }
+
+    form.cpf = raw.replace(/[a-zA-Z]/g, '');
+  }
+
+  function handleTelefoneInput(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const raw = input.value;
+
+    if (/[a-zA-Z]/.test(raw)) {
+      erros = { ...erros, telefone: 'O telefone deve conter apenas números.' };
+    } else {
+      const { telefone: _, ...resto } = erros;
+      erros = resto;
+    }
+
+    form.telefone = raw.replace(/[a-zA-Z]/g, '');
+  }
+
   function validar(): boolean {
     const novosErros: typeof erros = {};
 
@@ -70,6 +97,7 @@
     if (!form.cargo.trim()) novosErros.cargo = 'Cargo é obrigatório';
     if (!form.departamento.trim()) novosErros.departamento = 'Departamento é obrigatório';
     if (!form.dataAdmissao) novosErros.dataAdmissao = 'Data de admissão é obrigatória';
+    if (erros.telefone) novosErros.telefone = erros.telefone;
 
     erros = novosErros;
     return Object.keys(novosErros).length === 0;
@@ -83,20 +111,33 @@
   function handleBackdropClick(e: MouseEvent) {
     if (e.target === e.currentTarget) onFechar();
   }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') onFechar();
+  }
 </script>
 
 {#if aberto}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="modal-backdrop" onclick={handleBackdropClick}>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <form
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-titulo"
+      onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}
+      onkeydown={handleKeydown}
+    >
       <header class="modal-header">
         <h2 id="modal-titulo">{colaborador ? 'Editar Colaborador' : 'Novo Colaborador'}</h2>
-        <button class="btn-fechar" onclick={onFechar} aria-label="Fechar modal">✕</button>
+        <button type="button" class="btn-fechar" onclick={onFechar} aria-label="Fechar modal">✕</button>
       </header>
 
       <div class="modal-body">
         <div class="form-grid">
+
           <!-- Nome -->
           <div class="campo campo--full">
             <label for="nome">Nome completo *</label>
@@ -106,8 +147,13 @@
               bind:value={form.nome}
               class:erro={!!erros.nome}
               placeholder="Ex: João Silva"
+              aria-required="true"
+              aria-invalid={!!erros.nome}
+              aria-describedby={erros.nome ? 'erro-nome' : undefined}
             />
-            {#if erros.nome}<span class="msg-erro">{erros.nome}</span>{/if}
+            {#if erros.nome}
+              <span id="erro-nome" class="msg-erro" role="alert">{erros.nome}</span>
+            {/if}
           </div>
 
           <!-- E-mail -->
@@ -119,8 +165,13 @@
               bind:value={form.email}
               class:erro={!!erros.email}
               placeholder="joao@empresa.com"
+              aria-required="true"
+              aria-invalid={!!erros.email}
+              aria-describedby={erros.email ? 'erro-email' : undefined}
             />
-            {#if erros.email}<span class="msg-erro">{erros.email}</span>{/if}
+            {#if erros.email}
+              <span id="erro-email" class="msg-erro" role="alert">{erros.email}</span>
+            {/if}
           </div>
 
           <!-- CPF -->
@@ -129,11 +180,18 @@
             <input
               id="cpf"
               type="text"
-              bind:value={form.cpf}
+              value={form.cpf}
+              oninput={handleCpfInput}
               class:erro={!!erros.cpf}
               placeholder="000.000.000-00"
+              inputmode="numeric"
+              aria-required="true"
+              aria-invalid={!!erros.cpf}
+              aria-describedby={erros.cpf ? 'erro-cpf' : undefined}
             />
-            {#if erros.cpf}<span class="msg-erro">{erros.cpf}</span>{/if}
+            {#if erros.cpf}
+              <span id="erro-cpf" class="msg-erro" role="alert">{erros.cpf}</span>
+            {/if}
           </div>
 
           <!-- Cargo -->
@@ -145,8 +203,13 @@
               bind:value={form.cargo}
               class:erro={!!erros.cargo}
               placeholder="Ex: Desenvolvedor"
+              aria-required="true"
+              aria-invalid={!!erros.cargo}
+              aria-describedby={erros.cargo ? 'erro-cargo' : undefined}
             />
-            {#if erros.cargo}<span class="msg-erro">{erros.cargo}</span>{/if}
+            {#if erros.cargo}
+              <span id="erro-cargo" class="msg-erro" role="alert">{erros.cargo}</span>
+            {/if}
           </div>
 
           <!-- Departamento -->
@@ -158,8 +221,13 @@
               bind:value={form.departamento}
               class:erro={!!erros.departamento}
               placeholder="Ex: Tecnologia"
+              aria-required="true"
+              aria-invalid={!!erros.departamento}
+              aria-describedby={erros.departamento ? 'erro-departamento' : undefined}
             />
-            {#if erros.departamento}<span class="msg-erro">{erros.departamento}</span>{/if}
+            {#if erros.departamento}
+              <span id="erro-departamento" class="msg-erro" role="alert">{erros.departamento}</span>
+            {/if}
           </div>
 
           <!-- Data de admissão -->
@@ -170,14 +238,19 @@
               type="date"
               bind:value={form.dataAdmissao}
               class:erro={!!erros.dataAdmissao}
+              aria-required="true"
+              aria-invalid={!!erros.dataAdmissao}
+              aria-describedby={erros.dataAdmissao ? 'erro-dataAdmissao' : undefined}
             />
-            {#if erros.dataAdmissao}<span class="msg-erro">{erros.dataAdmissao}</span>{/if}
+            {#if erros.dataAdmissao}
+              <span id="erro-dataAdmissao" class="msg-erro" role="alert">{erros.dataAdmissao}</span>
+            {/if}
           </div>
 
           <!-- Status -->
           <div class="campo">
             <label for="status">Status</label>
-            <select id="status" bind:value={form.status}>
+            <select id="status" bind:value={form.status} aria-required="true">
               {#each statusOpcoes as opt}
                 <option value={opt.value}>{opt.label}</option>
               {/each}
@@ -190,20 +263,29 @@
             <input
               id="telefone"
               type="tel"
-              bind:value={form.telefone}
+              value={form.telefone}
+              oninput={handleTelefoneInput}
               placeholder="(11) 99999-9999"
+              inputmode="numeric"
+              class:erro={!!erros.telefone}
+              aria-invalid={!!erros.telefone}
+              aria-describedby={erros.telefone ? 'erro-telefone' : undefined}
             />
+            {#if erros.telefone}
+              <span id="erro-telefone" class="msg-erro" role="alert">{erros.telefone}</span>
+            {/if}
           </div>
+
         </div>
       </div>
 
       <footer class="modal-footer">
-        <button class="btn btn--secundario" onclick={onFechar}>Cancelar</button>
-        <button class="btn btn--primario" onclick={handleSubmit}>
+        <button type="button" class="btn btn--secundario" onclick={onFechar}>Cancelar</button>
+        <button type="submit" class="btn btn--primario">
           {colaborador ? 'Salvar alterações' : 'Criar colaborador'}
         </button>
       </footer>
-    </div>
+    </form>
   </div>
 {/if}
 
@@ -307,7 +389,7 @@
   }
 
   input.erro,
-  select.erro {
+  input[aria-invalid='true'] {
     border-color: var(--color-danger, #ef4444);
   }
 

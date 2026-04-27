@@ -33,8 +33,12 @@
     <nav class="sidebar__nav">
       {#if $isAdmin}
         <a href="/admin/dashboard">Dashboard</a>
+        <a href="/admin/empresa">Empresa</a>
         <a href="/admin/colaboradores">Colaboradores</a>
         <a href="/admin/jornadas">Jornadas</a>
+        <a href="/admin/ferias">Férias</a>
+        <a href="/admin/justificativas">Justificativas</a>
+        <a href="/admin/relatorios">Relatórios</a>
         {:else}
         <a href="/colaborador/registro">Registrar Ponto</a>
         <a href="/colaborador/historico">Histórico</a>

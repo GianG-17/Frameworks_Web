@@ -1,0 +1,115 @@
+// Schema Prisma — Ponto Digital
+// Banco: SQLite (arquivo dev.db na raiz do projeto)
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Empresa {
+  id             String   @id @default(cuid())
+  nome           String
+  cnpj           String?  @unique
+  horaAbertura   String   // "08:00"
+  horaFechamento String   // "18:00"
+  qrSecret       String   // segredo TOTP base32
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  users          User[]
+  jornadas       Jornada[]
+  punches        Punch[]
+  ferias         Ferias[]
+  justificativas Justificativa[]
+}
+
+model User {
+  id           String    @id @default(cuid())
+  empresaId    String
+  empresa      Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  name         String
+  email        String    @unique
+  cpf          String    @unique
+  password     String
+  role         String    // "admin" | "colaborador"
+  cargo        String?
+  departamento String?
+  telefone     String?
+  dataAdmissao DateTime?
+  status       String?   // "ativo" | "inativo" | "ferias" | "afastado"
+  jornadaId    String?
+  jornada      Jornada?  @relation(fields: [jornadaId], references: [id], onDelete: SetNull)
+  punches      Punch[]
+  ferias       Ferias[]
+  justificativas Justificativa[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([empresaId])
+}
+
+model Jornada {
+  id        String   @id @default(cuid())
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  nome      String
+  // JSON serializado com os 7 dias (segunda..domingo)
+  dias      String
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([empresaId])
+}
+
+model Punch {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  type      String   // "entrada" | "saida_almoco" | "retorno_almoco" | "saida"
+  timestamp DateTime @default(now())
+  method    String   // "qrcode" | "manual"
+  latitude  Float?
+  longitude Float?
+
+  @@index([userId, timestamp])
+  @@index([empresaId, timestamp])
+}
+
+model Ferias {
+  id            String   @id @default(cuid())
+  colaboradorId String
+  colaborador   User     @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  empresaId     String
+  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  dataInicio    DateTime
+  dataFim       DateTime
+  observacao    String?
+  createdAt     DateTime @default(now())
+
+  @@index([empresaId])
+  @@index([colaboradorId])
+}
+
+model Justificativa {
+  id            String   @id @default(cuid())
+  colaboradorId String
+  colaborador   User     @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  empresaId     String
+  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  data          DateTime
+  motivo        String
+  anexoUrl      String?
+  createdAt     DateTime @default(now())
+
+  @@index([empresaId])
+  @@index([colaboradorId])
+}

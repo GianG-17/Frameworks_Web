@@ -1,0 +1,14 @@
+# Normaliza line endings para LF em todos os arquivos de texto
+# (evita churn em diffs e problemas com Prisma/ESLint em Windows+Linux)
+* text=auto eol=lf
+
+# Arquivos binários explícitos (não converter)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+*.db binary

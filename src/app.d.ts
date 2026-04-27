@@ -12,6 +12,7 @@ declare global {
         email: string;
         cpf: string;
         role: 'admin' | 'colaborador';
+        empresaId: string;
       } | null;
     }
 

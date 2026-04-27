@@ -14,6 +14,7 @@ export interface User {
   email: string;
   cpf: string;
   role: 'admin' | 'colaborador';
+  empresaId: string;
 }
 
 export const user = writable<User | null>(null);

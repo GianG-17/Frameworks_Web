@@ -10,7 +10,7 @@
  */
 
 import type { Handle } from '@sveltejs/kit';
-import { redirect } from '@sveltejs/kit';
+import { redirect, json } from '@sveltejs/kit';
 
 function decodeToken(token: string): App.Locals['user'] {
   try {
@@ -20,6 +20,9 @@ function decodeToken(token: string): App.Locals['user'] {
   }
 }
 
+// Rotas de API públicas (não exigem token)
+const PUBLIC_API_PATHS = ['/api/auth/login', '/api/auth/qrcode'];
+
 export const handle: Handle = async ({ event, resolve }) => {
   const token = event.cookies.get('auth_token');
 
@@ -27,12 +30,25 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   const { pathname } = event.url;
 
-  // Rotas públicas — não precisa de auth
-  if (pathname.startsWith('/auth')) {
+  // Rotas de página públicas e documentação
+  if (pathname.startsWith('/auth') || pathname.startsWith('/api-docs')) {
     return resolve(event);
   }
 
-  // Rota protegida sem token → redirect
+  // Rotas de API públicas (login, qrcode)
+  if (PUBLIC_API_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
+    return resolve(event);
+  }
+
+  // Rotas de API protegidas → retornar 401 JSON (não redirecionar)
+  if (pathname.startsWith('/api/')) {
+    if (!token) {
+      return json({ error: 'Não autorizado' }, { status: 401 });
+    }
+    return resolve(event);
+  }
+
+  // Rotas de página protegidas → redirecionar
   if (!token) {
     throw redirect(303, '/auth/login');
   }

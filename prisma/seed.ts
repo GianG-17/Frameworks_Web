@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { generateSecret } from 'otplib';
+import process from 'process';
 
 const prisma = new PrismaClient();
 

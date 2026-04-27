@@ -7,9 +7,10 @@
     colaborador?: Colaborador | null;
     onFechar: () => void;
     onSalvar: (dados: ColaboradorFormData) => void;
+    onExcluir?: () => void;
   }
 
-  let { aberto, colaborador = null, onFechar, onSalvar }: Props = $props();
+  let { aberto, colaborador = null, onFechar, onSalvar, onExcluir }: Props = $props();
 
   const statusOpcoes: { value: StatusColaborador; label: string }[] = [
     { value: 'ativo', label: 'Ativo' },
@@ -280,6 +281,9 @@
       </div>
 
       <footer class="modal-footer">
+        {#if colaborador && onExcluir}
+          <button type="button" class="btn btn--perigo" onclick={onExcluir}>Excluir</button>
+        {/if}
         <button type="button" class="btn btn--secundario" onclick={onFechar}>Cancelar</button>
         <button type="submit" class="btn btn--primario">
           {colaborador ? 'Salvar alterações' : 'Criar colaborador'}
@@ -404,6 +408,16 @@
     gap: 0.75rem;
     padding: 1rem 1.5rem 1.5rem;
     border-top: 1px solid var(--color-border, #e2e8f0);
+  }
+
+  .btn--perigo {
+    margin-right: auto;
+    background: var(--color-danger, #dc2626);
+    color: #fff;
+  }
+
+  .btn--perigo:hover {
+    opacity: 0.9;
   }
 
   .btn {

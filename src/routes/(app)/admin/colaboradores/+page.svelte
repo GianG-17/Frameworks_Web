@@ -8,6 +8,7 @@ import { colaboradorService } from '@/services/colaborador.service';
 import ColaboradorModal from '@/components/colaboradores/ColaboradorModal.svelte';
 import ConfirmarExclusao from '@/components/colaboradores/ConfirmarExclusao.svelte';
 import type { Colaborador, ColaboradorFormData, StatusColaborador } from '@/types/colaborador';
+import Button from '@/components/ui/Button.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -226,20 +227,9 @@ import type { Colaborador, ColaboradorFormData, StatusColaborador } from '@/type
                 </span>
               </td>
               <td class="td-acoes">
-                <button
-                  class="btn-acao btn-acao--editar"
-                  onclick={() => abrirEdicao(colaborador)}
-                  aria-label="Editar {colaborador.nome}"
-                >
-                  ✏️
-                </button>
-                <button
-                  class="btn-acao btn-acao--excluir"
-                  onclick={() => abrirExclusao(colaborador)}
-                  aria-label="Remover {colaborador.nome}"
-                >
-                  🗑️
-                </button>
+                <Button variant="outline" size="sm" onclick={() => abrirEdicao(colaborador)}>
+                  Editar
+                </Button>
               </td>
             </tr>
           {/each}
@@ -255,6 +245,12 @@ import type { Colaborador, ColaboradorFormData, StatusColaborador } from '@/type
   colaborador={colaboradorEditando}
   onFechar={fecharModal}
   onSalvar={handleSalvar}
+  onExcluir={() => {
+    if (!colaboradorEditando) return;
+    const alvo = colaboradorEditando;
+    fecharModal();
+    abrirExclusao(alvo);
+  }}
 />
 
 <ConfirmarExclusao

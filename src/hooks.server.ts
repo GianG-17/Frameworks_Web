@@ -3,7 +3,7 @@
  * @description Server hooks do SvelteKit — intercepta toda requisição.
  *
  * Responsável por:
- *  - Verificar token JWT em cookies
+ *  - Verificar token em cookies
  *  - Popular `event.locals.user`
  *  - Bloquear rotas protegidas para não-autenticados
  *  - Bloquear rotas admin para colaboradores
@@ -11,22 +11,21 @@
 
 import type { Handle } from '@sveltejs/kit';
 import { redirect, json } from '@sveltejs/kit';
-
-function decodeToken(token: string): App.Locals['user'] {
-  try {
-    return JSON.parse(atob(token)) as App.Locals['user'];
-  } catch {
-    return null;
-  }
-}
+import { decodeToken } from '@/lib/server/token';
 
 // Rotas de API públicas (não exigem token)
 const PUBLIC_API_PATHS = ['/api/auth/login', '/api/auth/qrcode'];
 
 export const handle: Handle = async ({ event, resolve }) => {
   const token = event.cookies.get('auth_token');
+  const decoded = token ? decodeToken(token) : null;
 
-  event.locals.user = token ? decodeToken(token) : null;
+  // Token presente mas inválido → tratar como sessão expirada e limpar cookie.
+  if (token && !decoded) {
+    event.cookies.delete('auth_token', { path: '/' });
+  }
+
+  event.locals.user = decoded as App.Locals['user'];
 
   const { pathname } = event.url;
 
@@ -42,19 +41,19 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // Rotas de API protegidas → retornar 401 JSON (não redirecionar)
   if (pathname.startsWith('/api/')) {
-    if (!token) {
+    if (!decoded) {
       return json({ error: 'Não autorizado' }, { status: 401 });
     }
     return resolve(event);
   }
 
   // Rotas de página protegidas → redirecionar
-  if (!token) {
+  if (!decoded) {
     throw redirect(303, '/auth/login');
   }
 
   // Rotas admin → verificar role
-  if (pathname.startsWith('/admin') && event.locals.user?.role !== 'admin') {
+  if (pathname.startsWith('/admin') && decoded.role !== 'admin') {
     throw redirect(303, '/colaborador/registro');
   }
 

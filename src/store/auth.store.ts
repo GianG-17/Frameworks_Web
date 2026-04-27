@@ -27,4 +27,29 @@ export function setUser(data: User) {
 
 export function clearUser() {
   user.set(null);
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('auth_token');
+    document.cookie = 'auth_token=; Max-Age=0; path=/; SameSite=Lax';
+  }
+}
+
+/**
+ * Reidrata o store a partir do token salvo em localStorage.
+ * Chamada no boot do client para sobreviver a full reloads (HMR/refresh).
+ * Em caso de token inválido, limpa cookie + storage.
+ */
+export function hydrateFromStorage(): void {
+  if (typeof window === 'undefined') return;
+  const token = localStorage.getItem('auth_token');
+  if (!token) return;
+  try {
+    const parsed = JSON.parse(atob(token)) as User;
+    if (parsed && (parsed.role === 'admin' || parsed.role === 'colaborador')) {
+      user.set(parsed);
+      return;
+    }
+    throw new Error('payload inválido');
+  } catch {
+    clearUser();
+  }
 }

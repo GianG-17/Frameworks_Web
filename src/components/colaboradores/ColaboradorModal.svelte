@@ -1,6 +1,8 @@
 <!-- src/components/colaboradores/ColaboradorModal.svelte -->
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { Colaborador, ColaboradorFormData, StatusColaborador } from '../../types/colaborador';
+  import { jornadaService, type Jornada } from '../../services/jornada.service';
 
   interface Props {
     aberto: boolean;
@@ -27,10 +29,26 @@
     departamento: '',
     dataAdmissao: '',
     status: 'ativo',
-    telefone: ''
+    telefone: '',
+    jornadaId: ''
   });
 
   let erros = $state<Partial<Record<keyof ColaboradorFormData, string>>>({});
+
+  let aba = $state<'dados' | 'jornada'>('dados');
+  let jornadas = $state<Jornada[]>([]);
+  let carregandoJornadas = $state(false);
+
+  onMount(async () => {
+    carregandoJornadas = true;
+    try {
+      jornadas = await jornadaService.list();
+    } catch {
+      jornadas = [];
+    } finally {
+      carregandoJornadas = false;
+    }
+  });
 
   $effect(() => {
     if (colaborador) {
@@ -42,7 +60,8 @@
         departamento: colaborador.departamento,
         dataAdmissao: colaborador.dataAdmissao,
         status: colaborador.status,
-        telefone: colaborador.telefone ?? ''
+        telefone: colaborador.telefone ?? '',
+        jornadaId: colaborador.jornadaId ?? ''
       };
     } else {
       form = {
@@ -53,9 +72,11 @@
         departamento: '',
         dataAdmissao: '',
         status: 'ativo',
-        telefone: ''
+        telefone: '',
+        jornadaId: ''
       };
     }
+    aba = 'dados';
     erros = {};
   });
 
@@ -136,7 +157,31 @@
         <button type="button" class="btn-fechar" onclick={onFechar} aria-label="Fechar modal">✕</button>
       </header>
 
+      <div class="modal-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={aba === 'dados'}
+          class="modal-tab"
+          class:modal-tab--ativa={aba === 'dados'}
+          onclick={() => (aba = 'dados')}
+        >
+          Dados
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={aba === 'jornada'}
+          class="modal-tab"
+          class:modal-tab--ativa={aba === 'jornada'}
+          onclick={() => (aba = 'jornada')}
+        >
+          Jornada
+        </button>
+      </div>
+
       <div class="modal-body">
+        {#if aba === 'dados'}
         <div class="form-grid">
 
           <!-- Nome -->
@@ -278,6 +323,32 @@
           </div>
 
         </div>
+        {:else}
+        <div class="aba-jornada">
+          <div class="campo campo--full">
+            <label for="jornadaId">Jornada de trabalho</label>
+            {#if carregandoJornadas}
+              <p class="aba-jornada__hint">Carregando jornadas…</p>
+            {:else if jornadas.length === 0}
+              <p class="aba-jornada__hint">
+                Nenhuma jornada cadastrada. Cadastre uma em <strong>Jornadas</strong> antes de
+                vincular ao colaborador.
+              </p>
+            {:else}
+              <select id="jornadaId" bind:value={form.jornadaId}>
+                <option value="">Sem jornada vinculada</option>
+                {#each jornadas as j (j.id)}
+                  <option value={j.id}>{j.nome}</option>
+                {/each}
+              </select>
+              <p class="aba-jornada__hint">
+                Vincule o colaborador a uma jornada existente. A alteração é salva ao clicar em
+                <strong>Salvar alterações</strong>.
+              </p>
+            {/if}
+          </div>
+        </div>
+        {/if}
       </div>
 
       <footer class="modal-footer">
@@ -345,8 +416,38 @@
     color: var(--color-text, #111);
   }
 
+  .modal-tabs {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.5rem 1.5rem 0;
+    border-bottom: 1px solid var(--color-border, #e2e8f0);
+  }
+
+  .modal-tab {
+    background: none;
+    border: none;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-muted, #64748b);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+
+  .modal-tab--ativa {
+    color: var(--color-primary, #3b82f6);
+    border-bottom-color: var(--color-primary, #3b82f6);
+  }
+
   .modal-body {
     padding: 1.5rem;
+  }
+
+  .aba-jornada__hint {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted, #64748b);
+    margin: 0.5rem 0 0;
   }
 
   .form-grid {

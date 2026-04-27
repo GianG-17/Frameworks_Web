@@ -10,5 +10,9 @@ export const load: PageServerLoad = ({ locals }) => {
     throw redirect(303, '/admin/dashboard');
   }
 
-  throw redirect(303, '/colaborador/registro');
+  if (locals.user.role === 'colaborador') {
+    throw redirect(303, '/colaborador/registro');
+  }
+
+  throw redirect(303, '/auth/login');
 };

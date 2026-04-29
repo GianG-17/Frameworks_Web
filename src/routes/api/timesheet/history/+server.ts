@@ -30,7 +30,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
       userId: user.id,
       timestamp: { gte: start, lte: end }
     },
-    orderBy: { timestamp: 'asc' }
+    orderBy: { timestamp: 'asc' },
+    include: { anulacao: true }
   });
 
   return jsonOk(buildDailySummaries(punches));

@@ -7,6 +7,12 @@ import { post, get } from './api';
 
 export type PunchType = 'entrada' | 'saida_almoco' | 'retorno_almoco' | 'saida';
 
+export interface PunchAnulacao {
+  motivo: string;
+  anuladoPor: string;
+  anuladoEm: string;
+}
+
 export interface PunchRecord {
   id: string;
   userId: string;
@@ -15,6 +21,9 @@ export interface PunchRecord {
   latitude?: number | null;
   longitude?: number | null;
   method: 'qrcode' | 'manual';
+  createdBy: string | null;
+  createdReason: string | null;
+  anulacao: PunchAnulacao | null;
 }
 
 export interface DailySummary {

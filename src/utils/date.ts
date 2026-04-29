@@ -10,12 +10,18 @@ const TIMEZONE = 'America/Sao_Paulo';
 
 /** "25/03/2026" */
 export function formatDate(date: Date | string): string {
+  // Strings "YYYY-MM-DD" são interpretadas como UTC pelo Date constructor,
+  // causando deslocamento de fuso. Adicionamos T00:00 para forçar leitura local.
+  const d =
+    typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ? new Date(`${date}T00:00`)
+      : new Date(date);
   return new Intl.DateTimeFormat(LOCALE, {
     timeZone: TIMEZONE,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
-  }).format(new Date(date));
+  }).format(d);
 }
 
 /** "08:32" */

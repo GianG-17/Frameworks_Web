@@ -1,5 +1,5 @@
 // Schema Prisma — Ponto Digital
-// Banco: SQLite (arquivo dev.db na raiz do projeto)
+// Banco: PostgreSQL (dev local via docker-compose; produção via Postgres gerenciado)
 // Docs: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -8,7 +8,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

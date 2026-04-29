@@ -35,15 +35,14 @@ Hybrid Layer + Feature architecture:
 | `@/`   | `./src/`    | `svelte.config.js` (`kit.alias`) |
 | `$lib` | `./src/lib/`| SvelteKit built-in |
 
-## Persistência (Prisma + SQLite)
+## Persistência (Prisma + PostgreSQL)
 
-O projeto usa **Prisma** com **SQLite** para persistência local.
+O projeto usa **Prisma** com **PostgreSQL**. Em dev local, o Postgres roda em container via `docker-compose.yml` (porta 5432, usuário `ponto`/`ponto`, DB `ponto_digital`). Em produção, aponte `DATABASE_URL` para um Postgres gerenciado (Neon/Supabase/Railway).
 
 - Schema: `prisma/schema.prisma` — modelos `Empresa`, `User`, `Jornada`, `Punch`, `Ferias`, `Justificativa`
-- DB local: `prisma/dev.db` (git-ignored, gerado por desenvolvedor)
 - Singleton: `src/lib/server/db.ts` exporta `prisma` para uso em `+server.ts`
 - Senhas: armazenadas com `bcryptjs`
-- Jornada.dias: serializada como JSON string (limitação do SQLite para Json nativo)
+- Jornada.dias: serializada como JSON string (decisão de manter compatibilidade com camada `src/lib/server/jornada.ts`)
 
 ## Multi-tenancy
 
@@ -58,9 +57,10 @@ Todas as entidades (User, Jornada, Punch, Ferias, Justificativa) são escopadas 
 
 **Setup inicial em nova máquina:**
 ```bash
-npm install          # também roda `prisma generate` (postinstall)
-npm run db:migrate   # aplica migrations, cria dev.db
-npm run db:seed      # popula admin + 2 colaboradores + 2 jornadas
+docker compose up -d postgres   # sobe Postgres em container (porta 5432)
+npm install                     # também roda `prisma generate` (postinstall)
+npm run db:migrate              # aplica migrations no Postgres
+npm run db:seed                 # popula admin + 6 colaboradores + 2 jornadas
 ```
 
 **Scripts úteis:**
@@ -74,7 +74,7 @@ npm run db:seed      # popula admin + 2 colaboradores + 2 jornadas
 
 ## Cross-OS (Windows + Linux)
 
-- `prisma/dev.db` no `.gitignore` — cada dev gera o seu
+- Postgres roda em container Docker (volume nomeado `postgres_data`) — não polui o repo
 - `.gitattributes` força `eol=lf` para texto (evita churn de CRLF)
 - `postinstall: prisma generate` garante o binário nativo correto por plataforma
 

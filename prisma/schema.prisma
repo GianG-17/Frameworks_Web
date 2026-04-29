@@ -1,5 +1,5 @@
 // Schema Prisma — Ponto Digital
-// Banco: SQLite (arquivo dev.db na raiz do projeto)
+// Banco: PostgreSQL (dev local via docker-compose; produção via Postgres gerenciado)
 // Docs: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -8,7 +8,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -69,19 +69,38 @@ model Jornada {
 }
 
 model Punch {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  empresaId String
-  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  type      String   // "entrada" | "saida_almoco" | "retorno_almoco" | "saida"
-  timestamp DateTime @default(now())
-  method    String   // "qrcode" | "manual"
-  latitude  Float?
-  longitude Float?
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  empresaId     String
+  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  type          String   // "entrada" | "saida_almoco" | "retorno_almoco" | "saida"
+  timestamp     DateTime @default(now())
+  method        String   // "qrcode" | "manual"
+  latitude      Float?
+  longitude     Float?
+  // Auditoria — Portaria 671/2021: registros são imutáveis.
+  // createdBy preenchido apenas quando admin cria batida em nome de outro usuário.
+  createdBy     String?
+  createdReason String?
+  anulacao      PunchAnulacao?
 
   @@index([userId, timestamp])
   @@index([empresaId, timestamp])
+}
+
+// Anulação de batida — registro complementar que invalida um Punch sem apagá-lo.
+// Cálculo do espelho ignora punches com anulacao; AFD legal exporta ambos.
+model PunchAnulacao {
+  id         String   @id @default(cuid())
+  punchId    String   @unique
+  punch      Punch    @relation(fields: [punchId], references: [id], onDelete: Cascade)
+  empresaId  String
+  motivo     String
+  anuladoPor String   // User.id do admin
+  anuladoEm  DateTime @default(now())
+
+  @@index([empresaId])
 }
 
 model Ferias {

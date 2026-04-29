@@ -22,7 +22,8 @@ export const GET: RequestHandler = async ({ request }) => {
       userId: user.id,
       timestamp: { gte: start, lte: end }
     },
-    orderBy: { timestamp: 'asc' }
+    orderBy: { timestamp: 'asc' },
+    include: { anulacao: true }
   });
 
   return jsonOk(buildSummary(dateKey(now), punches));

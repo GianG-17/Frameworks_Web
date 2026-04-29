@@ -32,7 +32,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
   const punches = await prisma.punch.findMany({
     where: { userId: colaboradorId, timestamp: { gte: start, lte: end } },
-    orderBy: { timestamp: 'asc' }
+    orderBy: { timestamp: 'asc' },
+    include: { anulacao: true }
   });
 
   const dias = buildDailySummaries(punches);

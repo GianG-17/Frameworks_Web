@@ -196,6 +196,13 @@
   function closeModal() {
     modalOpen = false;
     editingId = null;
+    deleteConfirmId = null;
+  }
+
+  async function handleDeleteFromModal() {
+    if (!editingId) return;
+    await handleDelete(editingId);
+    if (!errorMsg) closeModal();
   }
 
   async function handleSave() {
@@ -280,12 +287,6 @@
             <span class="jornada-card__nome">{j.nome}</span>
             <div class="jornada-card__actions">
               <Button variant="outline" size="sm" onclick={() => openEdit(j)}>Editar</Button>
-              {#if deleteConfirmId === j.id}
-                <Button variant="danger" size="sm" onclick={() => handleDelete(j.id)}>Confirmar</Button>
-                <Button variant="secondary" size="sm" onclick={() => (deleteConfirmId = null)}>Cancelar</Button>
-              {:else}
-                <Button variant="danger" size="sm" onclick={() => (deleteConfirmId = j.id)}>Excluir</Button>
-              {/if}
             </div>
           </div>
 
@@ -474,6 +475,15 @@
         {/if}
 
         <div class="modal__footer">
+          {#if editingId}
+            {#if deleteConfirmId === editingId}
+              <Button variant="danger" size="sm" onclick={handleDeleteFromModal}>Confirmar exclusão</Button>
+              <Button variant="secondary" size="sm" onclick={() => (deleteConfirmId = null)}>Cancelar</Button>
+            {:else}
+              <Button variant="danger" size="sm" onclick={() => (deleteConfirmId = editingId)}>Excluir</Button>
+            {/if}
+          {/if}
+          <div class="modal__footer-spacer"></div>
           <Button variant="outline" onclick={closeModal}>Cancelar</Button>
           <Button variant="primary" type="submit" loading={saving}>
             {editingId ? 'Salvar Alterações' : 'Criar Jornada'}
@@ -693,11 +703,15 @@
 
   .modal__footer {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
     gap: 0.5rem;
     padding-top: 1rem;
     margin-top: auto;
     border-top: 1px solid #e2e8f0;
+  }
+
+  .modal__footer-spacer {
+    flex: 1;
   }
 
   /* ── Campos ─────────────────────────────────────────────── */

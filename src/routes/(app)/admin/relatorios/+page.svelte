@@ -4,33 +4,28 @@
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { relatorioService, type EspelhoRelatorio, type ConsolidadoRelatorio } from '@/services/relatorio.service';
+  import { relatorioService, type ConsolidadoRelatorio } from '@/services/relatorio.service';
   import { colaboradorService } from '@/services/colaborador.service';
   import type { Colaborador } from '@/types/colaborador';
+  import EspelhoMensal from '@/components/timesheet/EspelhoMensal.svelte';
 
   let aba = $state<'espelho' | 'consolidado'>('espelho');
   let colaboradores = $state<Colaborador[]>([]);
   let errorMsg = $state('');
 
-  // Espelho
-  let esp = $state({ colaboradorId: '', inicio: '', fim: '' });
-  let espResult = $state<EspelhoRelatorio | null>(null);
-
-  // Consolidado
   const hoje = new Date();
   const mesDefault = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+
+  // Espelho mensal
+  let espColaboradorId = $state('');
+  let espMes = $state(mesDefault);
+  let colaboradorSelecionado = $derived(
+    colaboradores.find((c) => c.id === espColaboradorId) ?? null
+  );
+
+  // Consolidado
   let mes = $state(mesDefault);
   let conResult = $state<ConsolidadoRelatorio | null>(null);
-
-  async function carregarEspelho(e: Event) {
-    e.preventDefault();
-    errorMsg = '';
-    try {
-      espResult = await relatorioService.espelho(esp);
-    } catch {
-      errorMsg = 'Erro ao gerar espelho.';
-    }
-  }
 
   async function carregarConsolidado(e: Event) {
     e.preventDefault();
@@ -60,51 +55,33 @@
   {#if errorMsg}<div class="error">{errorMsg}</div>{/if}
 
   {#if aba === 'espelho'}
-    <form class="card form" onsubmit={carregarEspelho}>
-      <label>
-        Colaborador
-        <select bind:value={esp.colaboradorId} required>
-          <option value="">Selecione…</option>
-          {#each colaboradores as c (c.id)}
-            <option value={c.id}>{c.nome}</option>
-          {/each}
-        </select>
-      </label>
+    <div class="card form">
       <div class="row">
-        <label>Início<input type="date" bind:value={esp.inicio} required /></label>
-        <label>Fim<input type="date" bind:value={esp.fim} required /></label>
+        <label>
+          Colaborador
+          <select bind:value={espColaboradorId}>
+            <option value="">Selecione…</option>
+            {#each colaboradores as c (c.id)}
+              <option value={c.id}>{c.nome}</option>
+            {/each}
+          </select>
+        </label>
+        <label>Mês<input type="month" bind:value={espMes} /></label>
       </div>
-      <button class="btn" type="submit">Gerar</button>
-    </form>
+    </div>
 
-    {#if espResult}
+    {#if espColaboradorId && colaboradorSelecionado}
       <div class="card">
-        <h2>{espResult.colaborador.nome}</h2>
-        <p class="muted">{espResult.inicio} a {espResult.fim}</p>
-        <div class="totais">
-          <span><strong>{espResult.totais.horas}h</strong> trabalhadas</span>
-          <span><strong>{espResult.totais.extras}h</strong> extras</span>
-          <span><strong>{espResult.totais.deficit}h</strong> déficit</span>
-        </div>
-        {#if espResult.dias.length === 0}
-          <p class="muted">Nenhum ponto registrado no período.</p>
-        {:else}
-          <table>
-            <thead><tr><th>Data</th><th>Batidas</th><th>Horas</th><th>Extra</th><th>Déficit</th></tr></thead>
-            <tbody>
-              {#each espResult.dias as d (d.date)}
-                <tr>
-                  <td>{d.date}</td>
-                  <td>{d.punches.length}</td>
-                  <td>{d.totalHours}h</td>
-                  <td>{d.overtime}h</td>
-                  <td>{d.deficit}h</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        {/if}
+        <h2>{colaboradorSelecionado.nome}</h2>
+        <p class="muted">Espelho de {espMes}</p>
+        <EspelhoMensal
+          colaboradorId={espColaboradorId}
+          colaboradorNome={colaboradorSelecionado.nome}
+          mes={espMes}
+        />
       </div>
+    {:else}
+      <p class="muted">Selecione um colaborador para visualizar o espelho mensal.</p>
     {/if}
   {:else}
     <form class="card form" onsubmit={carregarConsolidado}>
@@ -153,7 +130,6 @@
   .row { display: flex; gap: 0.75rem; }
   .row label { flex: 1; }
   .btn { padding: 0.625rem 1.25rem; background: #3b82f6; color: #fff; border: none; border-radius: 0.5rem; font-weight: 500; cursor: pointer; }
-  .totais { display: flex; gap: 2rem; margin: 1rem 0; color: #334155; }
   table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
   th { text-align: left; padding: 0.5rem; font-size: 0.75rem; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #e2e8f0; }
   td { padding: 0.75rem 0.5rem; border-bottom: 1px solid #e2e8f0; }

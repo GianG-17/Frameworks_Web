@@ -1,9 +1,21 @@
 /**
  * @module lib/server/timesheet
  * @description Utilitários server-side para cálculo de resumo diário de ponto.
+ *
+ * Conformidade com Portaria 671/2021:
+ *  - Registros (Punch) são imutáveis.
+ *  - Correções via batidas manuais (createdBy) ou anulações (PunchAnulacao).
+ *  - Cálculo ignora batidas anuladas, mas o DTO continua expondo a anulação
+ *    para que o front exiba a marcação visual e o AFD futuro liste tudo.
  */
 
-import type { Punch } from '@prisma/client';
+import type { Punch, PunchAnulacao } from '@prisma/client';
+
+export interface AnulacaoDTO {
+  motivo: string;
+  anuladoPor: string;
+  anuladoEm: string;
+}
 
 export interface PunchDTO {
   id: string;
@@ -13,6 +25,9 @@ export interface PunchDTO {
   method: string;
   latitude: number | null;
   longitude: number | null;
+  createdBy: string | null;
+  createdReason: string | null;
+  anulacao: AnulacaoDTO | null;
 }
 
 export interface DailySummaryDTO {
@@ -23,7 +38,9 @@ export interface DailySummaryDTO {
   deficit: number;
 }
 
-export function toPunchDTO(p: Punch): PunchDTO {
+export type PunchWithAnulacao = Punch & { anulacao?: PunchAnulacao | null };
+
+export function toPunchDTO(p: PunchWithAnulacao): PunchDTO {
   return {
     id: p.id,
     userId: p.userId,
@@ -31,7 +48,16 @@ export function toPunchDTO(p: Punch): PunchDTO {
     timestamp: p.timestamp.toISOString(),
     method: p.method,
     latitude: p.latitude,
-    longitude: p.longitude
+    longitude: p.longitude,
+    createdBy: p.createdBy ?? null,
+    createdReason: p.createdReason ?? null,
+    anulacao: p.anulacao
+      ? {
+          motivo: p.anulacao.motivo,
+          anuladoPor: p.anulacao.anuladoPor,
+          anuladoEm: p.anulacao.anuladoEm.toISOString()
+        }
+      : null
   };
 }
 
@@ -42,10 +68,11 @@ export function dateKey(date: Date): string {
 /**
  * Agrupa pontos por data e calcula totalHours / overtime / deficit por dia.
  * Regra: totalHours = (saida_almoco - entrada) + (saida - retorno_almoco) em horas decimais.
- * Se faltar qualquer um dos 4 tipos, totalHours = 0. Jornada base considerada: 8h/dia.
+ * Batidas anuladas são exibidas no DTO mas ignoradas no cálculo.
+ * Se faltar qualquer um dos 4 tipos válidos, totalHours = 0. Jornada base: 8h/dia.
  */
-export function buildDailySummaries(punches: Punch[]): DailySummaryDTO[] {
-  const byDay = new Map<string, Punch[]>();
+export function buildDailySummaries(punches: PunchWithAnulacao[]): DailySummaryDTO[] {
+  const byDay = new Map<string, PunchWithAnulacao[]>();
 
   for (const p of punches) {
     const key = dateKey(p.timestamp);
@@ -64,8 +91,9 @@ export function buildDailySummaries(punches: Punch[]): DailySummaryDTO[] {
   return summaries;
 }
 
-export function buildSummary(date: string, punches: Punch[]): DailySummaryDTO {
-  const byType = new Map(punches.map((p) => [p.type, p]));
+export function buildSummary(date: string, punches: PunchWithAnulacao[]): DailySummaryDTO {
+  const validas = punches.filter((p) => !p.anulacao);
+  const byType = new Map(validas.map((p) => [p.type, p]));
   const entrada = byType.get('entrada');
   const saidaAlmoco = byType.get('saida_almoco');
   const retornoAlmoco = byType.get('retorno_almoco');

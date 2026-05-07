@@ -42,6 +42,7 @@
         {:else}
         <a href="/colaborador/registro">Registrar Ponto</a>
         <a href="/colaborador/historico">Histórico</a>
+        <a href="/colaborador/justificativas">Justificativas</a>
       {/if}
     </nav>
 

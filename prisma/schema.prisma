@@ -127,7 +127,11 @@ model Justificativa {
   data          DateTime
   motivo        String
   anexoUrl      String?
+  status        String   @default("pending") // "pending" | "approved" | "rejected"
+  approvedBy    String?  // User.id do admin que aprovou
+  approvedAt    DateTime?
   createdAt     DateTime @default(now())
+  @@index([status])
 
   @@index([empresaId])
   @@index([colaboradorId])

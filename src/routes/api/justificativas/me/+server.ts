@@ -1,26 +1,28 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { prisma } from '@/lib/server/db';
-import { requireAdmin, jsonError, jsonOk } from '../_lib/auth-helpers';
+import { requireUser, jsonError, jsonOk } from '../../_lib/auth-helpers';
 
 export const GET: RequestHandler = async ({ request }) => {
-  let admin;
+  let user;
   try {
-    admin = requireAdmin(request);
+    user = requireUser(request);
   } catch (response) {
     return response as Response;
   }
 
   const lista = await prisma.justificativa.findMany({
-    where: { empresaId: admin.empresaId },
-    orderBy: { data: 'desc' },
-    include: { colaborador: { select: { id: true, name: true } } }
+    where: {
+      empresaId: user.empresaId,
+      colaboradorId: user.id
+    },
+    orderBy: { data: 'desc' }
   });
 
   return jsonOk(
     lista.map((j) => ({
       id: j.id,
       colaboradorId: j.colaboradorId,
-      colaboradorNome: j.colaborador.name,
+      colaboradorNome: user.name,
       data: j.data.toISOString(),
       motivo: j.motivo,
       anexoUrl: j.anexoUrl,
@@ -32,39 +34,31 @@ export const GET: RequestHandler = async ({ request }) => {
 };
 
 export const POST: RequestHandler = async ({ request }) => {
-  let admin;
+  let user;
   try {
-    admin = requireAdmin(request);
+    user = requireUser(request);
   } catch (response) {
     return response as Response;
   }
 
-  let body: Partial<{ colaboradorId: string; data: string; motivo: string; anexoUrl: string }>;
+  let body: Partial<{ data: string; motivo: string; anexoUrl: string }>;
   try {
     body = await request.json();
   } catch {
     return jsonError('Corpo da requisição inválido', 400);
   }
 
-  if (!body.colaboradorId || !body.data || !body.motivo) {
-    return jsonError('colaboradorId, data e motivo são obrigatórios', 400);
-  }
-
-  const colaborador = await prisma.user.findUnique({ where: { id: body.colaboradorId } });
-  if (!colaborador || colaborador.empresaId !== admin.empresaId) {
-    return jsonError('Colaborador não encontrado', 404);
+  if (!body.data || !body.motivo) {
+    return jsonError('data e motivo são obrigatórios', 400);
   }
 
   const justificativa = await prisma.justificativa.create({
     data: {
-      empresaId: admin.empresaId,
-      colaboradorId: body.colaboradorId,
+      empresaId: user.empresaId,
+      colaboradorId: user.id,
       data: new Date(body.data),
       motivo: body.motivo,
-      anexoUrl: body.anexoUrl ?? null,
-      status: 'approved',
-      approvedBy: admin.id,
-      approvedAt: new Date()
+      anexoUrl: body.anexoUrl ?? null
     }
   });
 

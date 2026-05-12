@@ -6,13 +6,13 @@ Sistema de gestão de ponto eletrônico com suporte a leitura de QR Code e regis
 
 ## Stack
 
-| Camada     | Tecnologia                  |
-| ---------- | --------------------------- |
-| Framework  | SvelteKit + Svelte 5        |
-| Linguagem  | TypeScript                  |
-| Build      | Vite                        |
-| Estilo     | Scoped CSS (Svelte)         |
-| Estado     | Svelte Stores               |
+| Camada    | Tecnologia           |
+| --------- | -------------------- |
+| Framework | SvelteKit + Svelte 5 |
+| Linguagem | TypeScript           |
+| Build     | Vite                 |
+| Estilo    | Scoped CSS (Svelte)  |
+| Estado    | Svelte Stores        |
 
 ---
 
@@ -38,27 +38,31 @@ src/
 ## O que mora em cada pasta
 
 ### `components/`
+
 Componentes Svelte (`.svelte`) organizados por domínio. Cada subpasta agrupa componentes de uma feature específica. Componentes genéricos e reutilizáveis ficam em `ui/`. Componentes de estrutura da página ficam em `layout/`.
 
 ### `routes/`
+
 Rotas do filesystem router do SvelteKit. Cada pasta vira uma rota no app. O group `(app)` compartilha o layout autenticado sem afetar a URL. Arquivos `+page.svelte` são páginas; `+layout.svelte` são layouts; `+page.server.ts` são server load functions.
 
 ### `services/`
+
 Camada de acesso a dados. Cada serviço encapsula chamadas HTTP para um domínio da API. Todos usam o cliente centralizado `api.ts`, que cuida de headers, token e tratamento de erros.
 
-
 ### `store/`
+
 Estado global da aplicação usando Svelte Stores (`writable`, `derived`). Cada store gerencia um slice de estado do domínio. Importados diretamente nos componentes com `$store`.
 
-
 ### `hooks/`
+
 Funções reativas reutilizáveis que encapsulam lógica com side-effects (câmera, geolocalização, timers). Retornam stores ou callbacks. Equivalente ao padrão "composable".
 
 ### `utils/`
+
 Funções puras sem dependências de framework. Formatadores, validadores, parsers, constantes. Não devem importar stores ou componentes.
 
-
 ### `lib/`
+
 Pasta especial do SvelteKit acessível via `$lib`. Funciona como ponto central de re-exports para simplificar imports internos.
 
 ---
@@ -69,11 +73,11 @@ O SvelteKit usa **filesystem routing**: a estrutura de pastas dentro de `src/rou
 
 ### Arquivos especiais de rota
 
-| Arquivo              | Papel                                                                 |
-| -------------------- | --------------------------------------------------------------------- |
-| `+page.svelte`       | Componente da página renderizado na URL correspondente                |
-| `+layout.svelte`     | Layout compartilhado por todas as rotas dentro da mesma pasta         |
-| `+page.server.ts`    | Função `load` executada no servidor antes de renderizar a página      |
+| Arquivo           | Papel                                                            |
+| ----------------- | ---------------------------------------------------------------- |
+| `+page.svelte`    | Componente da página renderizado na URL correspondente           |
+| `+layout.svelte`  | Layout compartilhado por todas as rotas dentro da mesma pasta    |
+| `+page.server.ts` | Função `load` executada no servidor antes de renderizar a página |
 
 ### Layout groups — `(app)/`
 
@@ -103,15 +107,14 @@ O `event.locals.user` preenchido pelo hook fica disponível em qualquer `+page.s
 
 - Utilização de Runas do Svelte 5
 
-| Rune          | Função                                               |
-| ------------- | ---------------------------------------------------- |
-| `$props()`    | Declara as propriedades recebidas pelo componente    |
-| `$state()`    | Cria estado local reativo                            |
-| `$derived`    | Valor calculado que atualiza automaticamente         |
-| `$derived.by` | Versão com função para derivações complexas          |
+| Rune          | Função                                            |
+| ------------- | ------------------------------------------------- |
+| `$props()`    | Declara as propriedades recebidas pelo componente |
+| `$state()`    | Cria estado local reativo                         |
+| `$derived`    | Valor calculado que atualiza automaticamente      |
+| `$derived.by` | Versão com função para derivações complexas       |
 
 - Utilziação de Barrel export
-
 
 ---
 
@@ -153,10 +156,10 @@ VITE_USE_MOCK=false  → services exportam implementação real (fetch à API)
 
 ## Path Aliases
 
-| Alias  | Resolve para | Exemplo de uso                             |
-| ------ | ------------ | ------------------------------------------ |
-| `@/`   | `./src/`     | `import { api } from '@/services/api'`     |
-| `$lib` | `./src/lib/` | `import { formatDate } from '$lib'`        |
+| Alias  | Resolve para | Exemplo de uso                         |
+| ------ | ------------ | -------------------------------------- |
+| `@/`   | `./src/`     | `import { api } from '@/services/api'` |
+| `$lib` | `./src/lib/` | `import { formatDate } from '$lib'`    |
 
 Configurados em `svelte.config.js` e `vite.config.ts`.
 
@@ -181,24 +184,24 @@ npm run lint
 
 ### Credenciais de teste
 
-| Usuário              | Identificador       | Senha    | Papel        |
-| -------------------- | ------------------- | -------- | ------------ |
-| Admin                | admin@teste.com     | Senha123 | admin        |
-| Admin (CPF)          | 123.456.789-00      | Senha123 | admin        |
-| Carlos Souza         | carlos@teste.com    | Senha123 | colaborador  |
-| Carlos Souza (CPF)   | 111.444.777-35      | Senha123 | colaborador  |
-| Teste                | teste@teste.com     | Senha123 | colaborador  |
+| Usuário            | Identificador    | Senha    | Papel       |
+| ------------------ | ---------------- | -------- | ----------- |
+| Admin              | admin@teste.com  | Senha123 | admin       |
+| Admin (CPF)        | 123.456.789-00   | Senha123 | admin       |
+| Carlos Souza       | carlos@teste.com | Senha123 | colaborador |
+| Carlos Souza (CPF) | 111.444.777-35   | Senha123 | colaborador |
+| Teste              | teste@teste.com  | Senha123 | colaborador |
 
 ---
 
 ## Convenções
 
-| Item           | Padrão                              |
-| -------------- | ----------------------------------- |
-| Componentes    | `PascalCase.svelte`                 |
-| Serviços       | `nome.service.ts`                   |
-| Stores         | `nome.store.ts`                     |
-| Hooks          | `useCamelCase.ts`                   |
-| Utils          | `camelCase.ts` ou `kebab-case.ts`   |
-| Rotas          | `kebab-case/` (padrão SvelteKit)    |
-| Variáveis CSS  | `--color-primary`, `--color-danger` |
+| Item          | Padrão                              |
+| ------------- | ----------------------------------- |
+| Componentes   | `PascalCase.svelte`                 |
+| Serviços      | `nome.service.ts`                   |
+| Stores        | `nome.store.ts`                     |
+| Hooks         | `useCamelCase.ts`                   |
+| Utils         | `camelCase.ts` ou `kebab-case.ts`   |
+| Rotas         | `kebab-case/` (padrão SvelteKit)    |
+| Variáveis CSS | `--color-primary`, `--color-danger` |

@@ -30,10 +30,10 @@ Hybrid Layer + Feature architecture:
 
 ## Path Aliases
 
-| Alias  | Resolves to | Configured in |
-|--------|-------------|---------------|
-| `@/`   | `./src/`    | `svelte.config.js` (`kit.alias`) |
-| `$lib` | `./src/lib/`| SvelteKit built-in |
+| Alias  | Resolves to  | Configured in                    |
+| ------ | ------------ | -------------------------------- |
+| `@/`   | `./src/`     | `svelte.config.js` (`kit.alias`) |
+| `$lib` | `./src/lib/` | SvelteKit built-in               |
 
 ## Persistência (Prisma + PostgreSQL)
 
@@ -56,6 +56,7 @@ Todas as entidades (User, Jornada, Punch, Ferias, Justificativa) são escopadas 
 - Colaborador registra ponto via `POST /api/timesheet/punch/qr` com `{ empresaId, token, type }`.
 
 **Setup inicial em nova máquina:**
+
 ```bash
 docker compose up -d postgres   # sobe Postgres em container (porta 5432)
 npm install                     # também roda `prisma generate` (postinstall)
@@ -64,6 +65,7 @@ npm run db:seed                 # popula admin + 6 colaboradores + 2 jornadas
 ```
 
 **Scripts úteis:**
+
 - `npm run db:studio` — abre Prisma Studio (UI web para inspecionar dados)
 - `npm run db:reset` — reseta DB e roda seed novamente
 - `npm run db:migrate` — cria nova migration após alterar `schema.prisma`

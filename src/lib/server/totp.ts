@@ -10,29 +10,29 @@ const STEP_SECONDS = 30;
 const WINDOW = 1;
 
 export function generateSecret(): string {
-  return libGenerateSecret();
+	return libGenerateSecret();
 }
 
 export function generateToken(secret: string): string {
-  return generateSync({ secret, period: STEP_SECONDS });
+	return generateSync({ secret, period: STEP_SECONDS });
 }
 
 export function verifyToken(token: string, secret: string): boolean {
-  const result = verifySync({
-    token,
-    secret,
-    period: STEP_SECONDS,
-    epochTolerance: WINDOW * STEP_SECONDS
-  });
-  return result.valid;
+	const result = verifySync({
+		token,
+		secret,
+		period: STEP_SECONDS,
+		epochTolerance: WINDOW * STEP_SECONDS
+	});
+	return result.valid;
 }
 
 /** Segundos até o próximo token começar a valer. */
 export function secondsUntilNext(): number {
-  const now = Math.floor(Date.now() / 1000);
-  return STEP_SECONDS - (now % STEP_SECONDS);
+	const now = Math.floor(Date.now() / 1000);
+	return STEP_SECONDS - (now % STEP_SECONDS);
 }
 
 export function buildOtpauthUrl(secret: string, label: string, issuer = 'Ponto Digital'): string {
-  return generateURI({ secret, label, issuer });
+	return generateURI({ secret, label, issuer });
 }

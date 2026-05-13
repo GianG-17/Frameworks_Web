@@ -12,9 +12,9 @@ import { post } from './api';
 import type { PunchRecord, PunchType } from './timesheet.service';
 
 export const punchAdminService = {
-  criarManual: (data: { userId: string; type: PunchType; timestamp: string; reason: string }) =>
-    post<PunchRecord>('/timesheet/punch/manual', data),
+	criarManual: (data: { userId: string; type: PunchType; timestamp: string; reason: string }) =>
+		post<PunchRecord>('/timesheet/punch/manual', data),
 
-  anular: (punchId: string, motivo: string) =>
-    post<PunchRecord>(`/timesheet/punch/${punchId}/anular`, { motivo })
+	anular: (punchId: string, motivo: string) =>
+		post<PunchRecord>(`/timesheet/punch/${punchId}/anular`, { motivo })
 };

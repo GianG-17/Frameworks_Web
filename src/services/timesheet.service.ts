@@ -8,48 +8,48 @@ import { post, get } from './api';
 export type PunchType = 'entrada' | 'saida_almoco' | 'retorno_almoco' | 'saida';
 
 export interface PunchAnulacao {
-  motivo: string;
-  anuladoPor: string;
-  anuladoEm: string;
+	motivo: string;
+	anuladoPor: string;
+	anuladoEm: string;
 }
 
 export interface PunchRecord {
-  id: string;
-  userId: string;
-  type: PunchType;
-  timestamp: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  method: 'qrcode' | 'manual';
-  createdBy: string | null;
-  createdReason: string | null;
-  anulacao: PunchAnulacao | null;
+	id: string;
+	userId: string;
+	type: PunchType;
+	timestamp: string;
+	latitude?: number | null;
+	longitude?: number | null;
+	method: 'qrcode' | 'manual';
+	createdBy: string | null;
+	createdReason: string | null;
+	anulacao: PunchAnulacao | null;
 }
 
 export interface DailySummary {
-  date: string;
-  punches: PunchRecord[];
-  totalHours: number;
-  overtime: number;
-  deficit: number;
+	date: string;
+	punches: PunchRecord[];
+	totalHours: number;
+	overtime: number;
+	deficit: number;
 }
 
 export const timesheetService = {
-  punch: (data: { type: PunchType; method: PunchRecord['method'] }) =>
-    post<PunchRecord>('/timesheet/punch', data),
+	punch: (data: { type: PunchType; method: PunchRecord['method'] }) =>
+		post<PunchRecord>('/timesheet/punch', data),
 
-  punchQr: (data: {
-    empresaId: string;
-    token: string;
-    type: PunchType;
-    latitude?: number;
-    longitude?: number;
-  }) => post<PunchRecord>('/timesheet/punch/qr', data),
+	punchQr: (data: {
+		empresaId: string;
+		token: string;
+		type: PunchType;
+		latitude?: number;
+		longitude?: number;
+	}) => post<PunchRecord>('/timesheet/punch/qr', data),
 
-  today: () => get<DailySummary>('/timesheet/today'),
+	today: () => get<DailySummary>('/timesheet/today'),
 
-  history: (params: { startDate: string; endDate: string }) =>
-    get<DailySummary[]>(
-      `/timesheet/history?startDate=${params.startDate}&endDate=${params.endDate}`
-    )
+	history: (params: { startDate: string; endDate: string }) =>
+		get<DailySummary[]>(
+			`/timesheet/history?startDate=${params.startDate}&endDate=${params.endDate}`
+		)
 };

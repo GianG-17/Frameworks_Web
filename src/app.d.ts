@@ -4,22 +4,22 @@
  */
 
 declare global {
-  namespace App {
-    interface Locals {
-      user: {
-        id: string;
-        name: string;
-        email: string;
-        cpf: string;
-        role: 'admin' | 'colaborador';
-        empresaId: string;
-      } | null;
-    }
+	namespace App {
+		interface Locals {
+			user: {
+				id: string;
+				name: string;
+				email: string;
+				cpf: string;
+				role: 'admin' | 'colaborador';
+				empresaId: string;
+			} | null;
+		}
 
-    // interface PageData {}
-    // interface PageState {}
-    // interface Platform {}
-  }
+		// interface PageData {}
+		// interface PageState {}
+		// interface Platform {}
+	}
 }
 
 export {};

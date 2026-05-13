@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
-  return { titulo: 'Colaboradores' };
+	return { titulo: 'Colaboradores' };
 };

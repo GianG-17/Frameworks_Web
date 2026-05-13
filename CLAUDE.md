@@ -1,110 +1,99 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guia para o Claude Code (claude.ai/code) trabalhar neste repositório.
 
-## Project Overview
+## Visão Geral
 
-**Ponto Digital** — sistema de gestão de ponto eletrônico (time clock management) built with SvelteKit + Svelte 5 + TypeScript. Two user roles: `admin` (manages employees and work schedules, views dashboard) and `colaborador` (clocks in/out via QR code or manual login).
+**Ponto Digital** — sistema de gestão de ponto eletrônico em SvelteKit + Svelte 5 + TypeScript. Dois papéis: `admin` (gerencia colaboradores, jornadas e dashboard) e `colaborador` (registra ponto via QR Code ou login manual).
 
-## Commands
+## Comandos
 
 ```bash
-npm run dev          # Start dev server
-npm run build        # Production build
-npm run preview      # Preview production build
-npm run check        # Type-check with svelte-check
+npm run dev          # servidor de desenvolvimento
+npm run build        # build de produção
+npm run preview      # preview da build
+npm run check        # type-check (svelte-check)
 npm run lint         # ESLint
 npm run format       # Prettier
+npm run db:migrate   # cria/aplica migration (após mudar schema.prisma)
+npm run db:seed      # popula admin + 6 colaboradores + 2 jornadas
+npm run db:studio    # abre Prisma Studio
+npm run db:reset     # reseta DB e roda seed
 ```
 
-## Architecture
+## Arquitetura
 
-Hybrid Layer + Feature architecture:
+Híbrida Camada + Feature:
 
-- **`src/services/`** — HTTP layer. All API calls go through `api.ts` (centralized fetch client with auth token injection and 401 redirect). Domain services (`auth.service.ts`, `timesheet.service.ts`) use this client.
-- **`src/store/`** — Global state via Svelte writable/derived stores. `auth.store.ts` holds the current user, `isAuthenticated`, and `isAdmin` derived stores.
-- **`src/hooks/`** — Reusable composables with side-effects (e.g., `useQrScanner.ts` for camera/QR).
-- **`src/utils/`** — Pure functions only (no framework imports). Formatters, validators.
-- **`src/components/`** — Svelte components organized by feature domain (`ui/`, `auth/`, `dashboard/`, `timesheet/`, `layout/`).
-- **`src/routes/`** — SvelteKit filesystem router. `auth/` is public; `(app)/` is the authenticated layout group (URL-transparent). Admin routes under `(app)/admin/`, employee routes under `(app)/colaborador/`.
+- **`src/services/`** — camada HTTP. Todas as chamadas passam pelo `api.ts` (fetch centralizado com injeção de token e redirect em 401). Serviços de domínio (`auth.service.ts`, `timesheet.service.ts`) usam esse client.
+- **`src/store/`** — estado global via stores do Svelte. `auth.store.ts` mantém o usuário e os derived `isAuthenticated`/`isAdmin`.
+- **`src/hooks/`** — composables com efeitos colaterais (ex.: `useQrScanner.ts`).
+- **`src/utils/`** — funções puras, sem imports de framework. Formatadores e validadores.
+- **`src/components/`** — Svelte components por domínio (`ui/`, `auth/`, `dashboard/`, `timesheet/`, `layout/`, `colaboradores/`).
+- **`src/routes/`** — roteador filesystem do SvelteKit. `auth/` é público; `(app)/` é o group autenticado. Admin em `(app)/admin/`, colaborador em `(app)/colaborador/`.
+- **`src/lib/server/`** — código exclusivo de servidor (Prisma, TOTP, token, helpers).
 
-## Path Aliases
+### Aliases
 
-| Alias  | Resolves to | Configured in |
-|--------|-------------|---------------|
-| `@/`   | `./src/`    | `svelte.config.js` (`kit.alias`) |
-| `$lib` | `./src/lib/`| SvelteKit built-in |
+| Alias  | Resolve para | Configurado em                   |
+| ------ | ------------ | -------------------------------- |
+| `@/`   | `./src/`     | `svelte.config.js` (`kit.alias`) |
+| `$lib` | `./src/lib/` | built-in do SvelteKit            |
 
 ## Persistência (Prisma + PostgreSQL)
 
-O projeto usa **Prisma** com **PostgreSQL**. Em dev local, o Postgres roda em container via `docker-compose.yml` (porta 5432, usuário `ponto`/`ponto`, DB `ponto_digital`). Em produção, aponte `DATABASE_URL` para um Postgres gerenciado (Neon/Supabase/Railway).
+- Postgres em container via `docker-compose.yml` (porta 5432, user `ponto`/`ponto`, DB `ponto_digital`). Em produção: `DATABASE_URL` apontando para Postgres gerenciado (Neon/Supabase/Railway).
+- Schema em `prisma/schema.prisma` — modelos `Empresa`, `User`, `Jornada`, `Punch`, `Ferias`, `Justificativa`.
+- Singleton do client: `src/lib/server/db.ts` (usado em `+server.ts`).
+- Senhas com `bcryptjs`. `Jornada.dias` serializada como JSON string (compatibilidade com `src/lib/server/jornada.ts`).
+- **Multi-tenancy**: todas as entidades são escopadas por `empresaId`. Admin só enxerga dados da própria empresa.
 
-- Schema: `prisma/schema.prisma` — modelos `Empresa`, `User`, `Jornada`, `Punch`, `Ferias`, `Justificativa`
-- Singleton: `src/lib/server/db.ts` exporta `prisma` para uso em `+server.ts`
-- Senhas: armazenadas com `bcryptjs`
-- Jornada.dias: serializada como JSON string (decisão de manter compatibilidade com camada `src/lib/server/jornada.ts`)
+## Autenticação
 
-## Multi-tenancy
-
-Todas as entidades (User, Jornada, Punch, Ferias, Justificativa) são escopadas por `empresaId`. Cada usuário pertence a uma única `Empresa`, e admin só enxerga dados da própria empresa. O `empresaId` é incluído no token (Base64 do payload) e fica disponível em `locals.user.empresaId` via `hooks.server.ts`.
+- **Token**: Base64(JSON do payload do usuário, incluindo `empresaId` e `role`). Codificado/decodificado em `src/lib/server/token.ts`.
+- **Persistência client**: gravado em `localStorage` (para `api.ts`) e `document.cookie` (para `hooks.server.ts`).
+- **Servidor**: `hooks.server.ts` lê o cookie, decodifica via `token.ts` e popula `event.locals.user` (com `empresaId`). Helpers em `src/routes/api/_lib/auth-helpers.ts`.
+- **Proteção de rotas**: sem token → `/auth/login`; colaborador em `/admin/*` → `/colaborador/registro`. Raiz `/` redireciona por papel em `+page.server.ts`.
 
 ## QR Code (TOTP)
 
-- Cada empresa tem um `qrSecret` base32 armazenado no DB.
-- `src/lib/server/totp.ts` (`otplib`) gera tokens de 6 dígitos com passo de 30s e janela ±1.
-- Admin acessa `/admin/empresa` para ver o QR rotativo (polling 30s).
+- Cada empresa tem um `qrSecret` base32 no DB.
+- `src/lib/server/totp.ts` (`otplib`) gera tokens de 6 dígitos, passo 30s, janela ±1.
+- Admin vê o QR rotativo em `/admin/empresa` (polling 30s).
 - Colaborador registra ponto via `POST /api/timesheet/punch/qr` com `{ empresaId, token, type }`.
 
-**Setup inicial em nova máquina:**
+## Setup em nova máquina
+
 ```bash
-docker compose up -d postgres   # sobe Postgres em container (porta 5432)
-npm install                     # também roda `prisma generate` (postinstall)
-npm run db:migrate              # aplica migrations no Postgres
-npm run db:seed                 # popula admin + 6 colaboradores + 2 jornadas
+docker compose up -d postgres   # sobe Postgres
+npm install                     # também roda prisma generate (postinstall) e ativa husky (prepare)
+npm run db:migrate              # aplica migrations
+npm run db:seed                 # popula dados de teste
 ```
 
-**Scripts úteis:**
-- `npm run db:studio` — abre Prisma Studio (UI web para inspecionar dados)
-- `npm run db:reset` — reseta DB e roda seed novamente
-- `npm run db:migrate` — cria nova migration após alterar `schema.prisma`
+Volume nomeado `postgres_data` (não polui o repo). `.gitattributes` força `eol=lf`. `postinstall: prisma generate` garante o binário nativo por plataforma (Windows/Linux).
 
-**Token de autenticação**: Base64(JSON do payload do usuário). `hooks.server.ts` e `auth-helpers.ts` decodificam via `src/lib/server/token.ts`.
+**Credenciais de seed** (senha `Senha123` para todos):
 
-**Credenciais de teste (seed):** `admin@teste.com` (admin), `carlos@teste.com` (colaborador), `ana@teste.com` (colaborador) — senha padrão para todos: `Senha123`.
+- `admin@teste.com` — admin
+- `carlos@teste.com`, `ana@teste.com` — colaboradores
 
-## Cross-OS (Windows + Linux)
+## Qualidade de Código
 
-- Postgres roda em container Docker (volume nomeado `postgres_data`) — não polui o repo
-- `.gitattributes` força `eol=lf` para texto (evita churn de CRLF)
-- `postinstall: prisma generate` garante o binário nativo correto por plataforma
+- **Pre-commit hook** ativo via `husky` + `lint-staged`: ao commitar, roda `eslint --fix` e `prettier --write` somente nos arquivos staged. Configuração em [.husky/pre-commit](.husky/pre-commit) e bloco `lint-staged` no `package.json`.
+- Em colaborações onde lint já é validado pelo hook, não é necessário rodar `npm run lint` manualmente antes de cada edit — o hook é a rede de segurança.
 
-## Auth Flow
+## Convenções
 
-1. Login form calls `authService.login()` → receives `{ token, user }`
-2. Token saved to both `localStorage` (for client `api.ts`) and `document.cookie` (for server `hooks.server.ts`)
-3. `hooks.server.ts` reads cookie, decodes token, populates `event.locals.user`
-4. Route protection: no token → `/auth/login`; colaborador on `/admin/*` → `/colaborador/registro`
-5. Root `/` redirects by role via `+page.server.ts`
-
-## Naming Conventions
-
-- Components: `PascalCase.svelte`
-- Services: `name.service.ts`
-- Stores: `name.store.ts`
-- Hooks: `useCamelCase.ts`
-- Utils: `camelCase.ts` or `kebab-case.ts`
-- Routes: `kebab-case/` directories
-
-## Key Patterns
-
-- Svelte 5 runes: `$state`, `$derived`, `$derived.by()`, `$props()` — not legacy `let` exports
-- Two user roles defined in `App.Locals` and `auth.store.ts`: `'admin' | 'colaborador'`
-- Environment variables prefixed with `VITE_` (see `.env.example`)
-
-## Tipografia
-
-A fonte **DM Sans** (variable font) é usada globalmente. Arquivos em `static/fonts/`. Definida via `@font-face` em `src/app.css`, importado no root layout (`src/routes/+layout.svelte`).
-
-## Language
-
-The project documentation, comments, and commit messages are in **Brazilian Portuguese**.
+- **Svelte 5 runes**: `$state`, `$derived`, `$derived.by()`, `$props()` — nunca `export let` legado.
+- **Nomenclatura**:
+  - Components: `PascalCase.svelte`
+  - Services: `name.service.ts`
+  - Stores: `name.store.ts`
+  - Hooks: `useCamelCase.ts`
+  - Utils: `camelCase.ts` ou `kebab-case.ts`
+  - Rotas: diretórios `kebab-case/`
+- **Papéis**: `'admin' | 'colaborador'` (definidos em `App.Locals` e `auth.store.ts`).
+- **Variáveis de ambiente**: prefixo `VITE_` (ver `.env.example`).
+- **Tipografia**: DM Sans (variable font) em `static/fonts/`, declarada via `@font-face` em `src/app.css`.
+- **Idioma**: documentação, comentários e commits em português do Brasil.

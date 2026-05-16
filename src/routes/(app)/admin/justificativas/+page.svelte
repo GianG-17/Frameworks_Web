@@ -7,10 +7,14 @@
 	import { justificativaService, type Justificativa } from '@/services/justificativa.service';
 	import { colaboradorService } from '@/services/colaborador.service';
 	import type { Colaborador } from '@/types/colaborador';
+	import Button from '@/components/ui/Button.svelte';
+	import Card from '@/components/ui/Card.svelte';
+	import ApprovalCard from '@/components/ApprovalCard.svelte';
 
 	let lista = $state<Justificativa[]>([]);
 	let colaboradores = $state<Colaborador[]>([]);
 	let errorMsg = $state('');
+	let openId = $state<string | null>(null);
 	let form = $state({ colaboradorId: '', data: '', motivo: '', anexoUrl: '' });
 
 	async function carregar() {
@@ -43,11 +47,20 @@
 	async function remover(id: string) {
 		if (!confirm('Remover esta justificativa?')) return;
 		await justificativaService.remove(id);
+		openId = null;
 		await carregar();
 	}
 
-	function fmt(iso: string) {
-		return new Date(iso).toLocaleDateString('pt-BR');
+	function fmtCurta(iso: string): string {
+		return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+	}
+
+	function fmtLonga(iso: string): string {
+		return new Date(iso).toLocaleDateString('pt-BR', {
+			weekday: 'long',
+			day: '2-digit',
+			month: 'long'
+		});
 	}
 
 	onMount(carregar);
@@ -60,133 +73,191 @@
 
 	{#if errorMsg}<div class="error">{errorMsg}</div>{/if}
 
-	<form class="card form" onsubmit={criar}>
+	<Card>
 		<h2>Nova justificativa</h2>
-		<label>
-			Colaborador
-			<select bind:value={form.colaboradorId} required>
-				<option value="">Selecione…</option>
-				{#each colaboradores as c (c.id)}
-					<option value={c.id}>{c.nome}</option>
-				{/each}
-			</select>
-		</label>
-		<label>Data da falta<input type="date" bind:value={form.data} required /></label>
-		<label>Motivo<input bind:value={form.motivo} required /></label>
-		<label>URL do anexo (opcional)<input bind:value={form.anexoUrl} /></label>
-		<button class="btn" type="submit">Cadastrar</button>
-	</form>
-
-	<div class="card">
-		<h2>Justificativas cadastradas</h2>
-		{#if lista.length === 0}
-			<p class="muted">Nenhuma justificativa cadastrada.</p>
-		{:else}
-			<table>
-				<thead
-					><tr><th>Colaborador</th><th>Data</th><th>Motivo</th><th>Anexo</th><th></th></tr></thead
-				>
-				<tbody>
-					{#each lista as j (j.id)}
-						<tr>
-							<td>{j.colaboradorNome}</td>
-							<td>{fmt(j.data)}</td>
-							<td>{j.motivo}</td>
-							<td>
-								{#if j.anexoUrl}
-									<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-									<a href={j.anexoUrl} target="_blank" rel="noopener">ver</a>
-								{:else}—{/if}
-							</td>
-							<td><button class="btn-del" onclick={() => remover(j.id)}>🗑️</button></td>
-						</tr>
+		<form class="form" onsubmit={criar}>
+			<label class="field">
+				<span>Colaborador</span>
+				<select bind:value={form.colaboradorId} required>
+					<option value="">Selecione…</option>
+					{#each colaboradores as c (c.id)}
+						<option value={c.id}>{c.nome}</option>
 					{/each}
-				</tbody>
-			</table>
-		{/if}
-	</div>
+				</select>
+			</label>
+			<label class="field">
+				<span>Data da falta</span>
+				<input type="date" bind:value={form.data} required />
+			</label>
+			<label class="field">
+				<span>Motivo</span>
+				<input bind:value={form.motivo} required />
+			</label>
+			<label class="field">
+				<span>URL do anexo (opcional)</span>
+				<input bind:value={form.anexoUrl} />
+			</label>
+			<Button type="submit" variant="primary">Cadastrar</Button>
+		</form>
+	</Card>
+
+	<div class="section-label">Cadastradas ({lista.length})</div>
+
+	{#if lista.length === 0}
+		<Card>
+			<p class="muted">Nenhuma justificativa cadastrada.</p>
+		</Card>
+	{:else}
+		<div class="list">
+			{#each lista as j (j.id)}
+				{@const isOpen = openId === j.id}
+				<ApprovalCard
+					nome={j.colaboradorNome}
+					titulo="Justificativa de falta"
+					dataLabel={fmtCurta(j.data)}
+					expanded={isOpen}
+					onToggle={() => (openId = isOpen ? null : j.id)}
+				>
+					{#snippet details()}
+						<div class="row">
+							<span class="row__label">Data</span>
+							<span class="row__val">{fmtLonga(j.data)}</span>
+						</div>
+						<div class="row column">
+							<span class="row__label">Motivo</span>
+							<p class="row__motivo">{j.motivo}</p>
+						</div>
+						{#if j.anexoUrl}
+							<div class="row">
+								<span class="row__label">Anexo</span>
+								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+								<a class="row__link" href={j.anexoUrl} target="_blank" rel="noopener">Ver anexo</a>
+							</div>
+						{/if}
+					{/snippet}
+					{#snippet actions()}
+						<Button variant="danger" onclick={() => remover(j.id)}>Remover</Button>
+					{/snippet}
+				</ApprovalCard>
+			{/each}
+		</div>
+	{/if}
 </section>
 
 <style>
 	.page {
-		padding: 2rem;
-		max-width: 1000px;
+		max-width: 720px;
 		margin: 0 auto;
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
 	}
+
 	h1 {
-		margin: 0 0 1.5rem;
+		margin: 0;
+		font-size: 1.375rem;
+		font-weight: 700;
+		color: var(--color-text);
+		letter-spacing: -0.02em;
 	}
-	.card {
-		background: #fff;
-		border: 1px solid #e2e8f0;
-		border-radius: 0.75rem;
-		padding: 1.5rem;
-		margin-bottom: 1.5rem;
-	}
-	.card h2 {
+
+	h2 {
 		margin: 0 0 1rem;
-		font-size: 1.125rem;
+		font-size: 0.9375rem;
+		font-weight: 700;
+		color: var(--color-text);
 	}
-	label {
-		display: block;
-		margin-bottom: 0.75rem;
-		font-size: 0.875rem;
-		color: #475569;
+
+	.form {
+		display: flex;
+		flex-direction: column;
+		gap: 0.875rem;
 	}
-	input,
-	select {
-		display: block;
-		width: 100%;
-		margin-top: 0.25rem;
-		padding: 0.5rem 0.75rem;
-		border: 1.5px solid #e2e8f0;
-		border-radius: 0.5rem;
-		font-size: 0.9rem;
+
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: #374151;
 	}
-	.btn {
-		padding: 0.625rem 1.25rem;
-		background: #3b82f6;
-		color: #fff;
-		border: none;
-		border-radius: 0.5rem;
-		font-weight: 500;
-		cursor: pointer;
+
+	.field input,
+	.field select {
+		padding: 0.625rem 0.875rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		font-size: 0.9375rem;
+		color: var(--color-text);
+		font-family: inherit;
 	}
-	.btn-del {
-		background: none;
-		border: none;
-		cursor: pointer;
-		font-size: 1rem;
-		padding: 0.25rem 0.5rem;
-	}
-	table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 0.9rem;
-	}
-	th {
-		text-align: left;
-		padding: 0.5rem;
-		font-size: 0.75rem;
+
+	.section-label {
+		font-size: 0.8125rem;
+		font-weight: 700;
+		color: var(--color-text-subtle);
 		text-transform: uppercase;
-		color: #64748b;
-		border-bottom: 1px solid #e2e8f0;
+		letter-spacing: 0.06em;
 	}
-	td {
-		padding: 0.75rem 0.5rem;
-		border-bottom: 1px solid #e2e8f0;
+
+	.list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.625rem;
 	}
-	.muted {
-		color: #64748b;
+
+	.row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.5rem;
 	}
-	.error {
-		background: #fef2f2;
-		color: #b91c1c;
+
+	.row.column {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.row__label {
+		font-size: 0.8125rem;
+		color: var(--color-text-subtle);
+		font-weight: 500;
+	}
+
+	.row__val {
+		font-size: 0.875rem;
+		color: var(--color-text);
+		font-weight: 500;
+		text-transform: capitalize;
+	}
+
+	.row__motivo {
+		margin: 0;
+		color: #334155;
+		font-size: 0.9rem;
+		line-height: 1.5;
+		background: var(--color-surface-muted);
 		padding: 0.75rem;
-		border-radius: 0.5rem;
-		margin-bottom: 1rem;
+		border-radius: var(--radius-sm);
+		width: 100%;
 	}
-	a {
-		color: #3b82f6;
+
+	.row__link {
+		color: var(--color-primary);
+		font-size: 0.875rem;
+		text-decoration: none;
+	}
+
+	.muted {
+		color: var(--color-text-muted);
+		margin: 0;
+	}
+
+	.error {
+		background: var(--color-danger-bg);
+		color: var(--color-danger);
+		padding: 0.75rem 1rem;
+		border-radius: var(--radius-sm);
 	}
 </style>

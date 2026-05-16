@@ -4,12 +4,18 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 	import {
 		adminService,
 		type DashboardMetrics,
 		type EntradaStatus
 	} from '@/services/admin.service';
 	import { formatDate, formatTime } from '@/utils/date';
+	import Badge from '@/components/ui/Badge.svelte';
+	import Card from '@/components/ui/Card.svelte';
+	import StatCard from '@/components/ui/StatCard.svelte';
+	import Avatar from '@/components/ui/Avatar.svelte';
+	import Icon from '@/components/ui/Icon.svelte';
 
 	let metrics = $state<DashboardMetrics | null>(null);
 	let loading = $state(true);
@@ -40,7 +46,6 @@
 
 	onMount(loadMetrics);
 
-	// ── Helpers de apresentação ─────────────────────────────────────────────
 	const statusLabels: Record<EntradaStatus, string> = {
 		pontual: 'Pontual',
 		atrasado: 'Atrasado',
@@ -48,6 +53,18 @@
 		pendente: 'Pendente',
 		folga: 'Folga',
 		sem_jornada: 'Sem jornada'
+	};
+
+	const statusVariant: Record<
+		EntradaStatus,
+		'success' | 'warning' | 'danger' | 'info' | 'neutral'
+	> = {
+		pontual: 'success',
+		atrasado: 'danger',
+		falta: 'danger',
+		pendente: 'warning',
+		folga: 'neutral',
+		sem_jornada: 'info'
 	};
 
 	function maxHoras(serie: { horas: number }[]): number {
@@ -61,6 +78,20 @@
 		const m = min % 60;
 		return m === 0 ? `+${h}h` : `+${h}h ${m}min`;
 	}
+
+	function initialsFromName(name: string): string {
+		return name
+			.split(' ')
+			.filter(Boolean)
+			.slice(0, 2)
+			.map((p) => p[0])
+			.join('')
+			.toUpperCase();
+	}
+
+	const avatarColors = ['#2563eb', '#7c3aed', '#0891b2', '#16a34a', '#d97706'];
+
+	const pendentes = $derived(metrics?.justificativasMes ?? 0);
 </script>
 
 <svelte:head>
@@ -71,18 +102,26 @@
 	<header class="dashboard__header">
 		<div>
 			<h1>Dashboard</h1>
-			{#if metrics}
-				<p class="dashboard__sub">
-					Referência: <strong>{formatDate(metrics.referenciaData)}</strong>
-				</p>
-			{/if}
+			<p class="dashboard__sub">
+				{new Date(`${dataRef}T12:00:00`).toLocaleDateString('pt-BR', {
+					weekday: 'long',
+					day: '2-digit',
+					month: 'long'
+				})}
+			</p>
 		</div>
 		<div class="dashboard__filtros">
+			{#if pendentes > 0}
+				<a href={resolve('/admin/justificativas', {})} class="alert-btn">
+					<Icon name="alert" size={14} />
+					{pendentes} justificativa{pendentes > 1 ? 's' : ''} no mês
+				</a>
+			{/if}
 			<label class="dashboard__data-label">
-				Data
+				<span>Data</span>
 				<input type="date" bind:value={dataRef} />
 			</label>
-			<button class="dashboard__refresh" onclick={recarregar} disabled={loading}>
+			<button class="refresh-btn" onclick={recarregar} disabled={loading}>
 				{loading ? 'Atualizando…' : 'Atualizar'}
 			</button>
 		</div>
@@ -92,47 +131,51 @@
 		<div class="error" role="alert">{errorMsg}</div>
 	{/if}
 
-	<!-- ── KPIs ──────────────────────────────────────────────────────────── -->
-	<div class="cards">
-		<div class="card">
-			<span class="card__label">Colaboradores ativos</span>
-			<span class="card__value">{loading ? '…' : (metrics?.colaboradoresAtivos ?? '--')}</span>
-			<span class="card__hint">de {metrics?.totalColaboradoresRegistrados ?? '--'} cadastrados</span
-			>
-		</div>
-		<div class="card">
-			<span class="card__label">Pontos no dia</span>
-			<span class="card__value">{loading ? '…' : (metrics?.pontosHoje ?? '--')}</span>
-		</div>
-		<div class="card card--alert" class:card--ok={metrics && metrics.atrasosHoje === 0}>
-			<span class="card__label">Atrasos no dia</span>
-			<span class="card__value">{loading ? '…' : (metrics?.atrasosHoje ?? '--')}</span>
-		</div>
-		<div class="card card--alert" class:card--ok={metrics && metrics.faltasHoje === 0}>
-			<span class="card__label">Faltas (sem batida)</span>
-			<span class="card__value">{loading ? '…' : (metrics?.faltasHoje ?? '--')}</span>
-		</div>
-		<div class="card">
-			<span class="card__label">Horas extras (mês)</span>
-			<span class="card__value">{loading ? '…' : `${metrics?.horasExtrasMes ?? '--'}h`}</span>
-		</div>
-		<div class="card">
-			<span class="card__label">Horas em déficit (mês)</span>
-			<span class="card__value">{loading ? '…' : `${metrics?.horasDeficitMes ?? '--'}h`}</span>
-		</div>
-		<div class="card">
-			<span class="card__label">Justificativas no mês</span>
-			<span class="card__value">{loading ? '…' : (metrics?.justificativasMes ?? '--')}</span>
-		</div>
-		<div class="card">
-			<span class="card__label">Férias ativas</span>
-			<span class="card__value">{loading ? '…' : (metrics?.feriasAtivasNoMes ?? '--')}</span>
-		</div>
+	<div class="stats">
+		<StatCard
+			tone="info"
+			label="Colaboradores ativos"
+			value={loading ? '—' : (metrics?.colaboradoresAtivos ?? '—')}
+		/>
+		<StatCard
+			tone="info"
+			label="Pontos no dia"
+			value={loading ? '—' : (metrics?.pontosHoje ?? '—')}
+		/>
+		<StatCard
+			tone={metrics && metrics.atrasosHoje === 0 ? 'success' : 'danger'}
+			label="Atrasos no dia"
+			value={loading ? '—' : (metrics?.atrasosHoje ?? '—')}
+		/>
+		<StatCard
+			tone={metrics && metrics.faltasHoje === 0 ? 'success' : 'danger'}
+			label="Faltas no dia"
+			value={loading ? '—' : (metrics?.faltasHoje ?? '—')}
+		/>
+		<StatCard
+			tone="success"
+			label="Horas extras (mês)"
+			value={loading ? '—' : `${metrics?.horasExtrasMes ?? '—'}h`}
+		/>
+		<StatCard
+			tone="warning"
+			label="Déficit (mês)"
+			value={loading ? '—' : `${metrics?.horasDeficitMes ?? '—'}h`}
+		/>
+		<StatCard
+			tone="neutral"
+			label="Justificativas (mês)"
+			value={loading ? '—' : (metrics?.justificativasMes ?? '—')}
+		/>
+		<StatCard
+			tone="neutral"
+			label="Férias ativas"
+			value={loading ? '—' : (metrics?.feriasAtivasNoMes ?? '—')}
+		/>
 	</div>
 
-	<div class="dashboard__grid">
-		<!-- ── Entradas do dia ──────────────────────────────────────────── -->
-		<section class="panel">
+	<div class="grid">
+		<Card>
 			<header class="panel__header">
 				<h2>Entradas do dia</h2>
 				<span class="panel__hint">tolerância &gt; 10 min para "atrasado"</span>
@@ -142,35 +185,33 @@
 			{:else if !metrics || metrics.entradasHoje.length === 0}
 				<p class="panel__empty">Nenhum colaborador ativo.</p>
 			{:else}
-				<table class="tabela">
-					<thead>
-						<tr>
-							<th>Colaborador</th>
-							<th>Previsto</th>
-							<th>Bateu</th>
-							<th>Atraso</th>
-							<th>Status</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each metrics.entradasHoje as e (e.colaboradorId)}
-							<tr>
-								<td>{e.nome}</td>
-								<td class="num">{e.jornadaEntrada ?? '—'}</td>
-								<td class="num">{e.batidaEntrada ? formatTime(e.batidaEntrada) : '—'}</td>
-								<td class="num">{formatAtraso(e.atrasoMin)}</td>
-								<td>
-									<span class="badge badge--{e.status}">{statusLabels[e.status]}</span>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+				<div class="entradas">
+					{#each metrics.entradasHoje as e, i (e.colaboradorId)}
+						<div class="entrada">
+							<Avatar
+								initials={initialsFromName(e.nome)}
+								size={36}
+								color={avatarColors[i % avatarColors.length]}
+							/>
+							<div class="entrada__meta">
+								<div class="entrada__nome">{e.nome}</div>
+								<div class="entrada__sub">
+									Previsto {e.jornadaEntrada ?? '—'} · Bateu {e.batidaEntrada
+										? formatTime(e.batidaEntrada)
+										: '—'}
+								</div>
+							</div>
+							<div class="entrada__right">
+								<Badge variant={statusVariant[e.status]} dot>{statusLabels[e.status]}</Badge>
+								<span class="entrada__atraso">{formatAtraso(e.atrasoMin)}</span>
+							</div>
+						</div>
+					{/each}
+				</div>
 			{/if}
-		</section>
+		</Card>
 
-		<!-- ── Top 5 horas extras ───────────────────────────────────────── -->
-		<section class="panel">
+		<Card>
 			<header class="panel__header">
 				<h2>Top 5 — Horas extras no mês</h2>
 			</header>
@@ -192,11 +233,10 @@
 					{/each}
 				</ul>
 			{/if}
-		</section>
+		</Card>
 	</div>
 
-	<!-- ── Gráfico horas extras por dia ──────────────────────────────────── -->
-	<section class="panel">
+	<Card>
 		<header class="panel__header">
 			<h2>Horas extras por dia — mês de referência</h2>
 		</header>
@@ -226,19 +266,21 @@
 				</strong>
 			</p>
 		{/if}
-	</section>
+	</Card>
 </section>
 
 <style>
 	.dashboard {
-		padding: 1.5rem;
 		max-width: 1200px;
 		margin: 0 auto;
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
 	}
 
 	.dashboard__header {
 		display: flex;
-		align-items: flex-end;
+		align-items: flex-start;
 		justify-content: space-between;
 		gap: 1rem;
 		flex-wrap: wrap;
@@ -246,18 +288,24 @@
 
 	.dashboard__header h1 {
 		margin: 0;
+		font-size: 1.375rem;
+		font-weight: 700;
+		color: var(--color-text);
+		letter-spacing: -0.02em;
 	}
 
 	.dashboard__sub {
-		margin: 0.25rem 0 0;
-		color: #64748b;
+		margin: 0.125rem 0 0;
+		color: var(--color-text-muted);
 		font-size: 0.875rem;
+		text-transform: capitalize;
 	}
 
 	.dashboard__filtros {
 		display: flex;
 		align-items: flex-end;
-		gap: 0.75rem;
+		gap: 0.5rem;
+		flex-wrap: wrap;
 	}
 
 	.dashboard__data-label {
@@ -265,92 +313,69 @@
 		flex-direction: column;
 		gap: 0.25rem;
 		font-size: 0.75rem;
-		color: #64748b;
+		color: var(--color-text-muted);
 	}
 
-	.dashboard__refresh {
-		background: #fff;
-		border: 1px solid #cbd5e1;
-		color: #334155;
-		padding: 0.5rem 1rem;
-		border-radius: 0.5rem;
-		font-size: 0.875rem;
+	.dashboard__data-label input {
+		padding: 0.5rem 0.625rem;
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--color-border);
+		font-family: inherit;
+	}
+
+	.refresh-btn {
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		color: #475569;
+		padding: 0.5rem 0.875rem;
+		border-radius: var(--radius-sm);
+		font-size: 0.8125rem;
 		font-weight: 600;
 		cursor: pointer;
-		transition: all 150ms ease;
-		height: 2.5rem;
+		font-family: inherit;
+		height: 2.25rem;
 	}
 
-	.dashboard__refresh:hover:not(:disabled) {
-		background: #f1f5f9;
-		border-color: #94a3b8;
+	.refresh-btn:hover:not(:disabled) {
+		background: var(--color-surface-muted);
 	}
 
-	.dashboard__refresh:disabled {
+	.refresh-btn:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
 	}
 
-	.cards {
+	.alert-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		background: var(--color-warning-soft);
+		border: 1px solid var(--color-warning-soft-border);
+		color: var(--color-warning-strong);
+		border-radius: 0.625rem;
+		padding: 0.5rem 0.875rem;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		text-decoration: none;
+		height: 2.25rem;
+	}
+
+	.stats {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 		gap: 0.75rem;
-		margin: 1.5rem 0;
 	}
 
-	.card {
-		background: #fff;
-		border-radius: 0.75rem;
-		padding: 1rem 1.25rem;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-	}
-
-	.card__label {
-		font-size: 0.8125rem;
-		color: #64748b;
-	}
-
-	.card__value {
-		font-size: 1.75rem;
-		font-weight: 700;
-		color: #0f172a;
-		font-variant-numeric: tabular-nums;
-	}
-
-	.card__hint {
-		font-size: 0.75rem;
-		color: #94a3b8;
-	}
-
-	.card--alert .card__value {
-		color: #dc2626;
-	}
-	.card--alert.card--ok .card__value {
-		color: #16a34a;
-	}
-
-	.dashboard__grid {
+	.grid {
 		display: grid;
 		grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
 		gap: 1rem;
-		margin-bottom: 1rem;
 	}
 
 	@media (max-width: 900px) {
-		.dashboard__grid {
+		.grid {
 			grid-template-columns: 1fr;
 		}
-	}
-
-	.panel {
-		background: #fff;
-		border-radius: 0.75rem;
-		padding: 1.25rem;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-		margin-bottom: 1rem;
 	}
 
 	.panel__header {
@@ -363,78 +388,67 @@
 
 	.panel__header h2 {
 		margin: 0;
-		font-size: 1rem;
-		font-weight: 600;
-		color: #0f172a;
+		font-size: 0.9375rem;
+		font-weight: 700;
+		color: var(--color-text);
 	}
 
 	.panel__hint {
 		font-size: 0.75rem;
-		color: #94a3b8;
+		color: var(--color-text-subtle);
 	}
 
 	.panel__empty {
-		color: #64748b;
+		color: var(--color-text-muted);
 		font-size: 0.875rem;
 		margin: 0;
 	}
 
-	.tabela {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 0.875rem;
+	.entradas {
+		display: flex;
+		flex-direction: column;
 	}
 
-	.tabela th {
-		text-align: left;
-		padding: 0.5rem 0.5rem 0.5rem 0;
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		color: #64748b;
-		border-bottom: 1px solid #e2e8f0;
+	.entrada {
+		display: flex;
+		align-items: center;
+		gap: 0.875rem;
+		padding: 0.75rem 0;
+		border-bottom: 1px solid var(--color-border-soft);
 	}
 
-	.tabela td {
-		padding: 0.625rem 0.5rem 0.625rem 0;
-		border-bottom: 1px solid #f1f5f9;
+	.entrada:last-child {
+		border-bottom: none;
 	}
 
-	.tabela td.num {
-		font-variant-numeric: tabular-nums;
-		color: #334155;
+	.entrada__meta {
+		flex: 1;
+		min-width: 0;
 	}
 
-	.badge {
-		display: inline-block;
-		padding: 0.125rem 0.5rem;
-		border-radius: 999px;
-		font-size: 0.75rem;
+	.entrada__nome {
 		font-weight: 600;
+		color: var(--color-text);
+		font-size: 0.9rem;
 	}
 
-	.badge--pontual {
-		background: #dcfce7;
-		color: #166534;
+	.entrada__sub {
+		color: var(--color-text-subtle);
+		font-size: 0.75rem;
+		margin-top: 0.125rem;
 	}
-	.badge--atrasado {
-		background: #fee2e2;
-		color: #991b1b;
+
+	.entrada__right {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 0.25rem;
 	}
-	.badge--falta {
-		background: #fee2e2;
-		color: #7f1d1d;
-	}
-	.badge--pendente {
-		background: #fef3c7;
-		color: #92400e;
-	}
-	.badge--folga {
-		background: #e2e8f0;
-		color: #475569;
-	}
-	.badge--sem_jornada {
-		background: #f3e8ff;
-		color: #6b21a8;
+
+	.entrada__atraso {
+		font-size: 0.7rem;
+		color: var(--color-text-subtle);
+		font-variant-numeric: tabular-nums;
 	}
 
 	.ranking {
@@ -462,22 +476,22 @@
 	}
 
 	.ranking__bar {
-		background: #f1f5f9;
-		border-radius: 999px;
+		background: var(--color-border-soft);
+		border-radius: var(--radius-pill);
 		height: 0.5rem;
 		overflow: hidden;
 	}
 
 	.ranking__bar-fill {
-		background: linear-gradient(90deg, #3b82f6, #2563eb);
+		background: linear-gradient(90deg, #3b82f6, var(--color-primary));
 		height: 100%;
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 	}
 
 	.ranking__valor {
 		font-variant-numeric: tabular-nums;
-		color: #0f172a;
-		font-weight: 600;
+		color: var(--color-text);
+		font-weight: 700;
 	}
 
 	.chart {
@@ -501,32 +515,27 @@
 	.chart__bar {
 		width: 100%;
 		min-height: 1px;
-		background: linear-gradient(180deg, #60a5fa, #2563eb);
+		background: linear-gradient(180deg, #60a5fa, var(--color-primary));
 		border-radius: 0.25rem 0.25rem 0 0;
 		transition: height 200ms ease;
 	}
 
-	.chart__col[title]:hover .chart__bar {
-		filter: brightness(1.1);
-	}
-
 	.chart__label {
 		font-size: 0.65rem;
-		color: #94a3b8;
+		color: var(--color-text-subtle);
 		font-variant-numeric: tabular-nums;
 	}
 
 	.chart__hint {
 		margin: 0.75rem 0 0;
 		font-size: 0.8125rem;
-		color: #64748b;
+		color: var(--color-text-muted);
 	}
 
 	.error {
-		background: #fef2f2;
-		color: #dc2626;
+		background: var(--color-danger-bg);
+		color: var(--color-danger);
 		padding: 0.75rem 1rem;
-		border-radius: 0.5rem;
-		margin-top: 1rem;
+		border-radius: var(--radius-sm);
 	}
 </style>

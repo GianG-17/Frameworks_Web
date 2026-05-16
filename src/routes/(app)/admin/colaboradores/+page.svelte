@@ -308,7 +308,7 @@
 		min-width: 200px;
 		padding: 0.625rem 0.875rem;
 		border: 1.5px solid var(--color-border, #e2e8f0);
-		border-radius: 0.5rem;
+		border-radius: var(--radius-sm);
 		font-size: 0.9rem;
 		background: var(--color-input-bg, #f8fafc);
 		color: var(--color-text, #111);
@@ -324,7 +324,7 @@
 	.select-status {
 		padding: 0.625rem 0.875rem;
 		border: 1.5px solid var(--color-border, #e2e8f0);
-		border-radius: 0.5rem;
+		border-radius: var(--radius-sm);
 		font-size: 0.9rem;
 		background: var(--color-input-bg, #f8fafc);
 		color: var(--color-text, #111);
@@ -338,14 +338,14 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 0.75rem 1rem;
-		border-radius: 0.5rem;
+		border-radius: var(--radius-sm);
 		font-size: 0.875rem;
 		margin-bottom: 1rem;
 	}
 
 	.alerta--erro {
-		background: #fef2f2;
-		color: #b91c1c;
+		background: var(--color-danger-bg);
+		color: var(--color-danger);
 		border: 1px solid #fecaca;
 	}
 
@@ -394,7 +394,7 @@
 	.tabela-wrapper {
 		overflow-x: auto;
 		border: 1px solid var(--color-border, #e2e8f0);
-		border-radius: 0.75rem;
+		border-radius: var(--radius-md);
 	}
 
 	.tabela {
@@ -499,7 +499,7 @@
 		color: #166534;
 	}
 	.badge--inativo {
-		background: #f1f5f9;
+		background: var(--color-bg);
 		color: #475569;
 	}
 	.badge--ferias {
@@ -537,7 +537,7 @@
 		align-items: center;
 		gap: 0.4rem;
 		padding: 0.625rem 1.25rem;
-		border-radius: 0.5rem;
+		border-radius: var(--radius-sm);
 		font-size: 0.9rem;
 		font-weight: 500;
 		cursor: pointer;

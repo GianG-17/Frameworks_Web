@@ -5,9 +5,11 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import Button from '@/components/ui/Button.svelte';
+	import Card from '@/components/ui/Card.svelte';
+	import Icon from '@/components/ui/Icon.svelte';
 	import { timesheetService } from '@/services/timesheet.service';
 	import type { PunchType, DailySummary } from '@/services/timesheet.service';
-	import { formatDate, formatTime } from '@/utils/date';
+	import { formatTime, diffInMinutes } from '@/utils/date';
 	import { useQrScanner } from '@/hooks/useQrScanner';
 
 	const PUNCH_LABELS: Record<PunchType, string> = {
@@ -19,16 +21,38 @@
 
 	const PUNCH_SEQUENCE: PunchType[] = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'];
 
+	const PUNCH_DOT: Record<PunchType, string> = {
+		entrada: '#22c55e',
+		saida_almoco: '#f97316',
+		retorno_almoco: '#3b82f6',
+		saida: '#8b5cf6'
+	};
+
 	let summary = $state<DailySummary | null>(null);
 	let loading = $state(false);
 	let punching = $state(false);
 	let errorMsg = $state('');
 	let now = $state(new Date());
+	let lastSuccess = $state('');
 
-	let nextPunchType: PunchType | null = $derived.by(() => {
+	const nextPunchType: PunchType | null = $derived.by(() => {
 		if (!summary) return 'entrada';
 		const registered = summary.punches.map((p) => p.type);
 		return PUNCH_SEQUENCE.find((type) => !registered.includes(type)) ?? null;
+	});
+
+	const totalMinutes = $derived.by(() => {
+		if (!summary || summary.punches.length < 2) return 0;
+		const byType = new Map(summary.punches.map((p) => [p.type, p.timestamp]));
+		let total = 0;
+		const ent = byType.get('entrada');
+		const saA = byType.get('saida_almoco');
+		const reA = byType.get('retorno_almoco');
+		const sai = byType.get('saida');
+		if (ent && saA) total += diffInMinutes(ent, saA);
+		if (reA && sai) total += diffInMinutes(reA, sai);
+		else if (reA && !sai) total += diffInMinutes(reA, now);
+		return Math.max(0, total);
 	});
 
 	async function loadToday(): Promise<void> {
@@ -52,7 +76,6 @@
 	async function abrirScanner() {
 		errorMsg = '';
 		scannerOpen = true;
-		// aguarda render do <video> antes de iniciar
 		await Promise.resolve();
 		if (videoEl) await scanner.start(videoEl);
 	}
@@ -70,6 +93,8 @@
 		errorMsg = '';
 		try {
 			await timesheetService.punch({ type, method: 'manual' });
+			lastSuccess = PUNCH_LABELS[type];
+			setTimeout(() => (lastSuccess = ''), 3000);
 			await loadToday();
 		} catch {
 			errorMsg = 'Erro ao registrar ponto.';
@@ -89,6 +114,8 @@
 			await timesheetService.punchQr({ empresaId: parsed.empresaId, token: parsed.token, type });
 			qrInput = '';
 			fecharScanner();
+			lastSuccess = PUNCH_LABELS[type];
+			setTimeout(() => (lastSuccess = ''), 3000);
 			await loadToday();
 		} catch {
 			errorMsg = 'QR Code inválido ou expirado.';
@@ -105,7 +132,6 @@
 		await processarPayload(qrInput);
 	}
 
-	// Processa QR automaticamente quando o scanner decodifica algo
 	scannerResult.subscribe((value) => {
 		if (value && scannerOpen && !punching) {
 			processarPayload(value);
@@ -121,6 +147,10 @@
 	onDestroy(() => {
 		scanner.stop();
 	});
+
+	function punchAt(type: PunchType): string | null {
+		return summary?.punches.find((p) => p.type === type)?.timestamp ?? null;
+	}
 </script>
 
 <svelte:head>
@@ -128,36 +158,83 @@
 </svelte:head>
 
 <section class="registro">
-	<h1>Registrar Ponto</h1>
-
-	<div class="registro__clock">
-		<span class="clock__date">{formatDate(now)}</span>
+	<div class="clock">
+		<span class="clock__date">
+			{now.toLocaleDateString('pt-BR', {
+				weekday: 'long',
+				day: '2-digit',
+				month: 'long',
+				year: 'numeric'
+			})}
+		</span>
 		<span class="clock__time">
 			{now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
 		</span>
+		{#if totalMinutes > 0}
+			<span class="clock__worked">
+				<Icon name="clock" size={13} />
+				{Math.floor(totalMinutes / 60)}h {String(totalMinutes % 60).padStart(2, '0')}min trabalhados
+			</span>
+		{/if}
 	</div>
+
+	<Card>
+		<div class="steps">
+			{#each PUNCH_SEQUENCE as type, i (type)}
+				{@const ts = punchAt(type)}
+				{@const isDone = !!ts}
+				{@const isNext = !isDone && nextPunchType === type}
+				<div class="step">
+					<div class="step__dot" class:is-done={isDone} class:is-next={isNext}>
+						{#if isDone}
+							<Icon name="check" size={12} stroke={3} />
+						{:else if isNext}
+							<span class="step__inner"></span>
+						{/if}
+					</div>
+					<span class="step__label" class:is-done={isDone} class:is-next={isNext}>
+						{PUNCH_LABELS[type]}
+						{#if isDone}
+							<br /><span class="step__time">{formatTime(ts!)}</span>
+						{/if}
+					</span>
+				</div>
+				{#if i < PUNCH_SEQUENCE.length - 1}
+					<div class="step__line" class:is-done={isDone}></div>
+				{/if}
+			{/each}
+		</div>
+	</Card>
 
 	{#if errorMsg}
 		<div class="error" role="alert">{errorMsg}</div>
 	{/if}
 
-	<div class="registro__action">
+	<div class="action">
 		{#if nextPunchType}
 			<Button variant="primary" size="lg" loading={punching} onclick={handlePunch}>
 				{PUNCH_LABELS[nextPunchType]}
 			</Button>
 		{:else}
-			<p class="registro__done">Todos os registros do dia foram feitos.</p>
+			<div class="done-box">
+				<Icon name="check-circle" size={28} />
+				<span>Todos os registros do dia concluídos</span>
+			</div>
+		{/if}
+		{#if lastSuccess}
+			<div class="success-toast">
+				<Icon name="check" size={14} stroke={2.5} />
+				{lastSuccess} registrado com sucesso
+			</div>
 		{/if}
 	</div>
 
 	{#if nextPunchType}
-		<div class="qr-box">
-			<h3>Registrar via QR Code</h3>
+		<Card>
+			<h3 class="qr-title">Registrar via QR Code</h3>
 			<p class="qr-hint">
-				Escaneie o QR Code exibido pela empresa para registrar <strong
-					>{PUNCH_LABELS[nextPunchType]}</strong
-				>.
+				Escaneie o QR Code exibido pela empresa para registrar
+				<strong>{PUNCH_LABELS[nextPunchType]}</strong>.
 			</p>
 
 			{#if scannerOpen}
@@ -167,7 +244,7 @@
 					<Button variant="secondary" size="md" onclick={fecharScanner}>Fechar câmera</Button>
 				</div>
 			{:else}
-				<Button variant="secondary" size="md" onclick={abrirScanner}>📷 Abrir câmera</Button>
+				<Button variant="secondary" size="md" onclick={abrirScanner}>Abrir câmera</Button>
 			{/if}
 
 			<details class="manual">
@@ -178,137 +255,199 @@
 					Confirmar
 				</Button>
 			</details>
-		</div>
+		</Card>
 	{/if}
 
-	<div class="registro__list">
-		<h2>Registros de hoje</h2>
-
-		{#if loading}
-			<p class="registro__loading">Carregando...</p>
-		{:else if summary && summary.punches.length > 0}
-			<ul>
+	{#if summary && summary.punches.length > 0}
+		<Card>
+			<h2 class="list-title">Registros de hoje</h2>
+			<div class="punches">
 				{#each summary.punches as punch (punch)}
-					<li class="punch-item">
-						<span class="punch-item__type">{PUNCH_LABELS[punch.type]}</span>
-						<span class="punch-item__time">{formatTime(punch.timestamp)}</span>
-					</li>
+					<div class="punch">
+						<div class="punch__left">
+							<span class="punch__dot" style="background: {PUNCH_DOT[punch.type]};"></span>
+							<span class="punch__type">{PUNCH_LABELS[punch.type]}</span>
+						</div>
+						<span class="punch__time">{formatTime(punch.timestamp)}</span>
+					</div>
 				{/each}
-			</ul>
-		{:else}
-			<p class="registro__empty">Nenhum registro ainda.</p>
-		{/if}
-	</div>
+			</div>
+		</Card>
+	{:else if loading}
+		<p class="empty">Carregando...</p>
+	{/if}
 </section>
 
 <style>
 	.registro {
 		max-width: 480px;
 		margin: 0 auto;
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
 	}
 
-	.registro__clock {
+	.clock {
+		background: var(--color-sidebar);
+		border-radius: var(--radius-lg);
+		padding: 1.75rem;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		gap: 0.25rem;
-		margin: 1.5rem 0;
-		padding: 1.5rem;
-		background: #fff;
-		border-radius: 0.75rem;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 	}
 
 	.clock__date {
-		font-size: 0.875rem;
-		color: #64748b;
+		color: var(--color-text-muted);
+		font-size: 0.8125rem;
+		text-transform: capitalize;
 	}
 
 	.clock__time {
-		font-size: 2.5rem;
+		color: #f8fafc;
+		font-size: 3rem;
 		font-weight: 700;
-		color: #0f172a;
+		letter-spacing: -0.03em;
 		font-variant-numeric: tabular-nums;
+		line-height: 1.1;
 	}
 
-	.registro__action {
+	.clock__worked {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		background: var(--color-sidebar-border);
+		color: var(--color-sidebar-item-fg);
+		padding: 0.3rem 0.75rem;
+		border-radius: var(--radius-pill);
+		font-size: 0.8rem;
+		margin-top: 0.5rem;
+	}
+
+	.steps {
 		display: flex;
-		justify-content: center;
-		margin-bottom: 2rem;
+		align-items: flex-start;
 	}
 
-	.registro__done {
-		color: #16a34a;
-		font-weight: 600;
-		text-align: center;
-	}
-
-	.registro__list h2 {
-		font-size: 1.125rem;
-		margin-bottom: 0.75rem;
-		color: #0f172a;
-	}
-
-	.registro__list ul {
-		list-style: none;
-		padding: 0;
+	.step {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.punch-item {
-		display: flex;
-		justify-content: space-between;
 		align-items: center;
-		padding: 0.75rem 1rem;
-		background: #fff;
-		border-radius: 0.5rem;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+		gap: 0.375rem;
+		min-width: 64px;
 	}
 
-	.punch-item__type {
+	.step__dot {
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		background: var(--color-border-soft);
+		border: 2px solid var(--color-border);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: #fff;
+	}
+
+	.step__dot.is-done {
+		background: var(--color-primary);
+		border-color: var(--color-primary);
+	}
+
+	.step__dot.is-next {
+		background: var(--color-primary-soft);
+		border: 2px solid var(--color-primary);
+	}
+
+	.step__inner {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--color-primary);
+	}
+
+	.step__label {
+		font-size: 0.7rem;
+		color: var(--color-text-subtle);
+		text-align: center;
+		line-height: 1.2;
+	}
+
+	.step__label.is-done {
+		color: var(--color-primary);
 		font-weight: 600;
+	}
+
+	.step__label.is-next {
 		color: #334155;
-	}
-
-	.punch-item__time {
-		font-variant-numeric: tabular-nums;
-		color: #2563eb;
 		font-weight: 600;
 	}
 
-	.registro__loading,
-	.registro__empty {
-		text-align: center;
-		color: #94a3b8;
-		padding: 1rem;
+	.step__time {
+		color: var(--color-text-muted);
+		font-weight: 400;
 	}
 
-	.error {
-		background: #fef2f2;
-		color: #dc2626;
-		padding: 0.75rem 1rem;
-		border-radius: 0.5rem;
-		margin-bottom: 1rem;
-		text-align: center;
+	.step__line {
+		flex: 1;
+		height: 2px;
+		background: var(--color-border);
+		margin-top: 14px;
 	}
 
-	.qr-box {
-		margin: 1.5rem 0;
-		padding: 1.25rem;
-		background: #fff;
-		border: 1px dashed #cbd5e1;
-		border-radius: 0.75rem;
+	.step__line.is-done {
+		background: var(--color-primary);
 	}
 
-	.qr-box h3 {
-		margin: 0 0 0.5rem;
+	.action {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.action :global(.btn--lg) {
+		width: 100%;
+		font-size: 1.0625rem;
+		padding: 1rem 2.5rem;
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-primary);
+	}
+
+	.done-box {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		background: var(--color-success-bg);
+		color: var(--color-success);
+		border-radius: var(--radius-md);
+		padding: 1rem 1.5rem;
+		width: 100%;
+		font-weight: 600;
 		font-size: 1rem;
 	}
 
+	.success-toast {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		background: var(--color-success-bg);
+		color: #15803d;
+		padding: 0.5rem 1rem;
+		border-radius: var(--radius-pill);
+		font-size: 0.875rem;
+		font-weight: 500;
+	}
+
+	.qr-title {
+		margin: 0 0 0.5rem;
+		font-size: 0.9375rem;
+		font-weight: 700;
+		color: var(--color-text);
+	}
+
 	.qr-hint {
-		color: #64748b;
+		color: var(--color-text-muted);
 		font-size: 0.85rem;
 		margin: 0 0 0.75rem;
 	}
@@ -324,7 +463,7 @@
 	.scanner video {
 		width: 100%;
 		max-width: 320px;
-		border-radius: 0.5rem;
+		border-radius: var(--radius-sm);
 		background: #000;
 	}
 
@@ -334,19 +473,80 @@
 
 	.manual summary {
 		cursor: pointer;
-		color: #64748b;
+		color: var(--color-text-muted);
 		font-size: 0.85rem;
 		margin-bottom: 0.5rem;
 	}
 
-	.qr-box textarea {
+	.manual textarea {
 		width: 100%;
 		padding: 0.5rem;
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--color-border);
 		border-radius: 0.375rem;
 		font-family: monospace;
 		font-size: 0.8rem;
 		margin-bottom: 0.75rem;
 		resize: vertical;
+	}
+
+	.list-title {
+		font-size: 0.9375rem;
+		font-weight: 700;
+		color: var(--color-text);
+		margin: 0 0 0.875rem;
+	}
+
+	.punches {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.punch {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0.75rem 1rem;
+		background: var(--color-surface);
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--color-border-soft);
+	}
+
+	.punch__left {
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+	}
+
+	.punch__dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+	}
+
+	.punch__type {
+		font-weight: 600;
+		color: #334155;
+		font-size: 0.9rem;
+	}
+
+	.punch__time {
+		font-weight: 700;
+		color: var(--color-text);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.9375rem;
+	}
+
+	.empty {
+		text-align: center;
+		color: var(--color-text-subtle);
+	}
+
+	.error {
+		background: var(--color-danger-bg);
+		color: var(--color-danger);
+		padding: 0.75rem 1rem;
+		border-radius: var(--radius-sm);
+		text-align: center;
 	}
 </style>

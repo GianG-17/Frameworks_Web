@@ -6,8 +6,10 @@
 	import { onMount } from 'svelte';
 	import { timesheetService } from '@/services/timesheet.service';
 	import type { DailySummary, PunchType } from '@/services/timesheet.service';
-	import { formatDate, formatTime, formatHoursMinutes } from '@/utils/date';
+	import { formatTime, formatHoursMinutes } from '@/utils/date';
 	import { SvelteDate } from 'svelte/reactivity';
+	import Card from '@/components/ui/Card.svelte';
+	import Icon from '@/components/ui/Icon.svelte';
 
 	const PUNCH_LABELS: Record<PunchType, string> = {
 		entrada: 'Entrada',
@@ -16,9 +18,20 @@
 		saida: 'Saída'
 	};
 
+	const PUNCH_DOT: Record<PunchType, string> = {
+		entrada: '#22c55e',
+		saida_almoco: '#f97316',
+		retorno_almoco: '#3b82f6',
+		saida: '#8b5cf6'
+	};
+
+	type Filter = 'todos' | 'extras' | 'deficit';
+
 	let history = $state<DailySummary[]>([]);
 	let loading = $state(false);
 	let errorMsg = $state('');
+	let filter = $state<Filter>('todos');
+	let openDay = $state<string | null>(null);
 
 	function defaultDateRange(): { startDate: string; endDate: string } {
 		const end = new SvelteDate();
@@ -42,9 +55,25 @@
 		}
 	}
 
-	onMount(() => {
-		loadHistory();
-	});
+	const filtered = $derived(
+		history.filter((d) => {
+			if (filter === 'extras') return d.overtime > 0;
+			if (filter === 'deficit') return d.deficit > 0;
+			return true;
+		})
+	);
+
+	const totalExtraMin = $derived(history.reduce((a, d) => a + d.overtime * 60, 0));
+	const totalDeficitMin = $derived(history.reduce((a, d) => a + d.deficit * 60, 0));
+	const totalDias = $derived(history.length);
+	const bancoMin = $derived(totalExtraMin - totalDeficitMin);
+
+	function formatDayHeader(dateStr: string): string {
+		const d = new Date(`${dateStr}T12:00:00`);
+		return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+	}
+
+	onMount(loadHistory);
 </script>
 
 <svelte:head>
@@ -58,43 +87,81 @@
 		<div class="error" role="alert">{errorMsg}</div>
 	{/if}
 
+	<div class="summary">
+		<Card>
+			<span class="summary__label">Dias trabalhados</span>
+			<span class="summary__value">{totalDias}</span>
+		</Card>
+		<Card>
+			<span class="summary__label">Banco de horas</span>
+			<span
+				class="summary__value"
+				style="color: {bancoMin >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}"
+			>
+				{bancoMin >= 0 ? '+' : '-'}{formatHoursMinutes(Math.abs(bancoMin))}
+			</span>
+		</Card>
+		<Card>
+			<span class="summary__label">Horas extras</span>
+			<span class="summary__value" style="color: var(--color-primary)">
+				{formatHoursMinutes(totalExtraMin)}
+			</span>
+		</Card>
+	</div>
+
+	<div class="tabs">
+		{#each [['todos', 'Todos'], ['extras', 'Com extras'], ['deficit', 'Com déficit']] as [val, label] (val)}
+			<button class="tab" class:is-active={filter === val} onclick={() => (filter = val as Filter)}>
+				{label}
+			</button>
+		{/each}
+	</div>
+
 	{#if loading}
-		<p class="historico__loading">Carregando...</p>
-	{:else if history.length > 0}
-		<div class="historico__list">
-			{#each history as day (day)}
-				<div class="day-card">
-					<div class="day-card__header">
-						<span class="day-card__date">{formatDate(day.date)}</span>
-						<span class="day-card__hours">{formatHoursMinutes(day.totalHours * 60)}</span>
-					</div>
+		<p class="empty">Carregando...</p>
+	{:else if filtered.length === 0}
+		<p class="empty">Nenhum registro encontrado.</p>
+	{:else}
+		<div class="list">
+			{#each filtered as day (day.date)}
+				{@const isOpen = openDay === day.date}
+				<div class="day">
+					<button class="day__header" onclick={() => (openDay = isOpen ? null : day.date)}>
+						<div class="day__title">
+							<div class="day__date">{formatDayHeader(day.date)}</div>
+							<div class="day__sub">{day.punches.length} registros</div>
+						</div>
+						<div class="day__right">
+							{#if day.overtime > 0}
+								<span class="badge badge--success">+{formatHoursMinutes(day.overtime * 60)}</span>
+							{/if}
+							{#if day.deficit > 0}
+								<span class="badge badge--danger">-{formatHoursMinutes(day.deficit * 60)}</span>
+							{/if}
+							<span class="day__hours">{formatHoursMinutes(day.totalHours * 60)}</span>
+							<span class="day__chevron" class:is-open={isOpen}>
+								<Icon name="chevron-down" size={14} />
+							</span>
+						</div>
+					</button>
 
-					<div class="day-card__punches">
-						{#each day.punches as punch (punch)}
-							<div class="day-card__punch">
-								<span class="punch__label">{PUNCH_LABELS[punch.type]}</span>
-								<span class="punch__time">{formatTime(punch.timestamp)}</span>
-							</div>
-						{/each}
-					</div>
-
-					<div class="day-card__footer">
-						{#if day.overtime > 0}
-							<span class="badge badge--positive"
-								>+{formatHoursMinutes(day.overtime * 60)} extra</span
-							>
-						{/if}
-						{#if day.deficit > 0}
-							<span class="badge badge--negative"
-								>-{formatHoursMinutes(day.deficit * 60)} déficit</span
-							>
-						{/if}
-					</div>
+					{#if isOpen}
+						<div class="day__details">
+							{#each day.punches as punch (punch)}
+								<div class="day__punch">
+									<div class="day__punch-head">
+										<span class="day__punch-dot" style="background: {PUNCH_DOT[punch.type]};"
+										></span>
+										<span class="day__punch-label">{PUNCH_LABELS[punch.type]}</span>
+									</div>
+									<span class="day__punch-time">{formatTime(punch.timestamp)}</span>
+								</div>
+							{/each}
+						</div>
+					{/if}
 				</div>
 			{/each}
 		</div>
-	{:else}
-		<p class="historico__empty">Nenhum registro encontrado nos últimos 30 dias.</p>
 	{/if}
 </section>
 
@@ -102,103 +169,204 @@
 	.historico {
 		max-width: 640px;
 		margin: 0 auto;
-	}
-
-	.historico__list {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
-		margin-top: 1.5rem;
+		gap: 1.25rem;
 	}
 
-	.day-card {
-		background: #fff;
-		border-radius: 0.75rem;
-		padding: 1.25rem;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-	}
-
-	.day-card__header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 0.75rem;
-		padding-bottom: 0.75rem;
-		border-bottom: 1px solid #e2e8f0;
-	}
-
-	.day-card__date {
+	.historico h1 {
+		margin: 0;
+		font-size: 1.375rem;
 		font-weight: 700;
-		color: #0f172a;
+		color: var(--color-text);
+		letter-spacing: -0.02em;
 	}
 
-	.day-card__hours {
-		font-weight: 600;
-		color: #2563eb;
-		font-variant-numeric: tabular-nums;
-	}
-
-	.day-card__punches {
+	.summary {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+		grid-template-columns: repeat(3, 1fr);
+		gap: 0.75rem;
+	}
+
+	.summary__label {
+		display: block;
+		font-size: 0.75rem;
+		color: var(--color-text-muted);
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.summary__value {
+		display: block;
+		font-size: 1.25rem;
+		font-weight: 800;
+		color: var(--color-text);
+		letter-spacing: -0.02em;
+		font-variant-numeric: tabular-nums;
+		margin-top: 0.25rem;
+	}
+
+	.tabs {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.tab {
+		padding: 0.375rem 0.875rem;
+		border-radius: var(--radius-pill);
+		font-size: 0.8125rem;
+		font-weight: 500;
+		cursor: pointer;
+		font-family: inherit;
+		background: var(--color-surface);
+		color: var(--color-text-muted);
+		border: 1px solid var(--color-border);
+	}
+
+	.tab.is-active {
+		background: var(--color-primary);
+		color: #fff;
+		border-color: var(--color-primary);
+	}
+
+	.list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.625rem;
+	}
+
+	.day {
+		background: var(--color-surface);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-card);
+		overflow: hidden;
+	}
+
+	.day__header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 1rem 1.25rem;
+		font-family: inherit;
+		text-align: left;
+	}
+
+	.day__title {
+		min-width: 0;
+	}
+
+	.day__date {
+		font-weight: 700;
+		color: var(--color-text);
+		font-size: 0.9375rem;
+		text-transform: capitalize;
+	}
+
+	.day__sub {
+		font-size: 0.75rem;
+		color: var(--color-text-subtle);
+		margin-top: 0.125rem;
+	}
+
+	.day__right {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.badge {
+		font-size: 0.7rem;
+		font-weight: 700;
+		padding: 0.2rem 0.5rem;
+		border-radius: 0.375rem;
+	}
+
+	.badge--success {
+		background: var(--color-success-bg);
+		color: var(--color-success);
+	}
+
+	.badge--danger {
+		background: var(--color-danger-bg);
+		color: var(--color-danger);
+	}
+
+	.day__hours {
+		font-weight: 700;
+		color: var(--color-primary);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.9375rem;
+	}
+
+	.day__chevron {
+		display: inline-flex;
+		color: var(--color-text-subtle);
+		transition: transform 200ms ease;
+	}
+
+	.day__chevron.is-open {
+		transform: rotate(180deg);
+	}
+
+	.day__details {
+		border-top: 1px solid var(--color-border-soft);
+		padding: 0.875rem 1.25rem;
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
 		gap: 0.5rem;
 	}
 
-	.day-card__punch {
+	.day__punch {
 		display: flex;
 		flex-direction: column;
 		gap: 0.125rem;
 	}
 
-	.punch__label {
-		font-size: 0.75rem;
-		color: #64748b;
-		text-transform: uppercase;
-		letter-spacing: 0.025em;
-	}
-
-	.punch__time {
-		font-weight: 600;
-		color: #334155;
-		font-variant-numeric: tabular-nums;
-	}
-
-	.day-card__footer {
+	.day__punch-head {
 		display: flex;
-		gap: 0.5rem;
-		margin-top: 0.75rem;
+		align-items: center;
+		gap: 0.375rem;
 	}
 
-	.badge {
-		font-size: 0.75rem;
+	.day__punch-dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+	}
+
+	.day__punch-label {
+		font-size: 0.7rem;
+		color: var(--color-text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
 		font-weight: 600;
-		padding: 0.25rem 0.5rem;
-		border-radius: 0.375rem;
 	}
 
-	.badge--positive {
-		background: #f0fdf4;
-		color: #16a34a;
+	.day__punch-time {
+		font-weight: 700;
+		color: var(--color-text);
+		font-variant-numeric: tabular-nums;
+		font-size: 1rem;
+		padding-left: 1rem;
 	}
 
-	.badge--negative {
-		background: #fef2f2;
-		color: #dc2626;
-	}
-
-	.historico__loading,
-	.historico__empty {
+	.empty {
 		text-align: center;
-		color: #94a3b8;
+		color: var(--color-text-subtle);
 		padding: 2rem;
 	}
 
 	.error {
-		background: #fef2f2;
-		color: #dc2626;
+		background: var(--color-danger-bg);
+		color: var(--color-danger);
 		padding: 0.75rem 1rem;
-		border-radius: 0.5rem;
-		margin-top: 1rem;
+		border-radius: var(--radius-sm);
 		text-align: center;
 	}
 </style>

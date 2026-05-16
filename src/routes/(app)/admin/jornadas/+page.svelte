@@ -549,21 +549,21 @@
 	.jornadas__title {
 		font-size: 1.5rem;
 		font-weight: 700;
-		color: #0f172a;
+		color: var(--color-text);
 	}
 
 	.jornadas__error {
-		background: #fef2f2;
-		color: #dc2626;
+		background: var(--color-danger-bg);
+		color: var(--color-danger);
 		padding: 0.75rem 1rem;
-		border-radius: 0.5rem;
+		border-radius: var(--radius-sm);
 		margin-bottom: 1rem;
 		font-size: 0.875rem;
 	}
 
 	.jornadas__empty {
 		text-align: center;
-		color: #94a3b8;
+		color: var(--color-text-subtle);
 		padding: 4rem 2rem;
 	}
 
@@ -576,10 +576,10 @@
 
 	/* ── Card ───────────────────────────────────────────────── */
 	.jornada-card {
-		background: #fff;
-		border-radius: 0.75rem;
+		background: var(--color-surface);
+		border-radius: var(--radius-md);
 		padding: 1.25rem;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+		box-shadow: var(--shadow-card);
 		display: flex;
 		flex-direction: column;
 		gap: 0.875rem;
@@ -594,7 +594,7 @@
 
 	.jornada-card__nome {
 		font-weight: 700;
-		color: #0f172a;
+		color: var(--color-text);
 		font-size: 1rem;
 		line-height: 1.3;
 	}
@@ -637,7 +637,7 @@
 	}
 
 	.dia-row__sep {
-		color: #94a3b8;
+		color: var(--color-text-subtle);
 		margin: 0 0.25rem;
 	}
 
@@ -652,7 +652,7 @@
 	}
 
 	.dia-row__folga-label {
-		color: #94a3b8;
+		color: var(--color-text-subtle);
 		font-size: 0.75rem;
 		grid-column: 2 / -1;
 	}
@@ -678,8 +678,8 @@
 		color: #2563eb;
 	}
 	.badge--muted {
-		background: #f1f5f9;
-		color: #64748b;
+		background: var(--color-bg);
+		color: var(--color-text-muted);
 	}
 
 	/* ── Modal ──────────────────────────────────────────────── */
@@ -695,8 +695,8 @@
 	}
 
 	.modal {
-		background: #fff;
-		border-radius: 0.75rem;
+		background: var(--color-surface);
+		border-radius: var(--radius-md);
 		width: 100%;
 		max-width: 520px;
 		max-height: 90vh;
@@ -710,14 +710,14 @@
 		justify-content: space-between;
 		align-items: center;
 		padding: 1.25rem 1.5rem;
-		border-bottom: 1px solid #e2e8f0;
+		border-bottom: 1px solid var(--color-border);
 		flex-shrink: 0;
 	}
 
 	.modal__title {
 		font-size: 1.1rem;
 		font-weight: 700;
-		color: #0f172a;
+		color: var(--color-text);
 	}
 
 	.modal__close {
@@ -725,15 +725,15 @@
 		border: none;
 		font-size: 1.5rem;
 		line-height: 1;
-		color: #64748b;
+		color: var(--color-text-muted);
 		cursor: pointer;
 		padding: 0.25rem;
 		border-radius: 0.25rem;
 	}
 
 	.modal__close:hover {
-		color: #0f172a;
-		background: #f1f5f9;
+		color: var(--color-text);
+		background: var(--color-bg);
 	}
 
 	.modal__body {
@@ -751,7 +751,7 @@
 		gap: 0.5rem;
 		padding-top: 1rem;
 		margin-top: auto;
-		border-top: 1px solid #e2e8f0;
+		border-top: 1px solid var(--color-border);
 	}
 
 	.modal__footer-spacer {
@@ -768,19 +768,19 @@
 	.field label {
 		font-size: 0.8rem;
 		font-weight: 600;
-		color: #0f172a;
+		color: var(--color-text);
 	}
 
 	.field input[type='text'],
 	.field input[type='time'] {
 		border: 1.5px solid #cbd5e1;
-		border-radius: 0.5rem;
+		border-radius: var(--radius-sm);
 		padding: 0.5rem 0.75rem;
 		font-size: 0.9rem;
 		outline: none;
 		transition: border-color 150ms;
-		color: #0f172a;
-		background: #fff;
+		color: var(--color-text);
+		background: var(--color-surface);
 	}
 
 	.field input:focus {
@@ -788,12 +788,12 @@
 	}
 
 	.field--error input {
-		border-color: #dc2626;
+		border-color: var(--color-danger);
 	}
 
 	.field__error {
 		font-size: 0.75rem;
-		color: #dc2626;
+		color: var(--color-danger);
 	}
 
 	.time-grid {
@@ -830,8 +830,8 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
-		background: #f8fafc;
-		border-radius: 0.5rem;
+		background: var(--color-surface-muted);
+		border-radius: var(--radius-sm);
 		padding: 1rem;
 	}
 
@@ -839,11 +839,11 @@
 		display: flex;
 		gap: 1.5rem;
 		font-size: 0.8rem;
-		color: #64748b;
+		color: var(--color-text-muted);
 	}
 
 	.preview-bar strong {
-		color: #0f172a;
+		color: var(--color-text);
 	}
 
 	/* ── Label de seção ─────────────────────────────────────── */
@@ -852,7 +852,7 @@
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
-		color: #94a3b8;
+		color: var(--color-text-subtle);
 	}
 
 	/* ── Chips de dias ──────────────────────────────────────── */
@@ -868,11 +868,11 @@
 		gap: 0.25rem;
 		padding: 0.375rem 0.75rem;
 		border-radius: 999px;
-		border: 1.5px solid #e2e8f0;
-		background: #f8fafc;
+		border: 1px solid var(--color-border);
+		background: var(--color-surface-muted);
 		font-size: 0.8rem;
 		font-weight: 600;
-		color: #64748b;
+		color: var(--color-text-muted);
 		cursor: pointer;
 		user-select: none;
 		transition: all 150ms;
@@ -896,8 +896,8 @@
 	}
 
 	.dia-bloco {
-		border: 1.5px solid #e2e8f0;
-		border-radius: 0.5rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
 		overflow: hidden;
 	}
 
@@ -911,7 +911,7 @@
 		gap: 0.5rem;
 		padding: 0.625rem 0.875rem;
 		cursor: pointer;
-		background: #f8fafc;
+		background: var(--color-surface-muted);
 		user-select: none;
 	}
 
@@ -931,6 +931,6 @@
 
 	.dia-bloco__horarios {
 		padding: 0.875rem;
-		background: #fff;
+		background: var(--color-surface);
 	}
 </style>

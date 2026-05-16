@@ -176,9 +176,9 @@
 		gap: 1.5rem;
 	}
 	.card {
-		background: #fff;
-		border: 1px solid #e2e8f0;
-		border-radius: 0.75rem;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
 		padding: 1.5rem;
 	}
 	.card h2 {
@@ -196,8 +196,8 @@
 		width: 100%;
 		margin-top: 0.25rem;
 		padding: 0.5rem 0.75rem;
-		border: 1.5px solid #e2e8f0;
-		border-radius: 0.5rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
 		font-size: 0.9rem;
 	}
 	.row {
@@ -210,10 +210,10 @@
 	.btn {
 		margin-top: 0.5rem;
 		padding: 0.625rem 1.25rem;
-		background: #3b82f6;
+		background: var(--color-primary);
 		color: #fff;
 		border: none;
-		border-radius: 0.5rem;
+		border-radius: var(--radius-sm);
 		font-weight: 500;
 		cursor: pointer;
 	}
@@ -267,7 +267,7 @@
 		left: 2px;
 		width: 1rem;
 		height: 1rem;
-		background: #fff;
+		background: var(--color-surface);
 		border-radius: 50%;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 		transition: transform 150ms ease;
@@ -290,10 +290,10 @@
 
 	.qr-off {
 		padding: 2rem 1rem;
-		color: #64748b;
-		background: #f8fafc;
+		color: var(--color-text-muted);
+		background: var(--color-surface-muted);
 		border: 1px dashed #cbd5e1;
-		border-radius: 0.5rem;
+		border-radius: var(--radius-sm);
 		margin-top: 0.5rem;
 	}
 	.qr-off__icon {
@@ -317,18 +317,18 @@
 		margin: 0.5rem 0;
 	}
 	.countdown {
-		color: #64748b;
+		color: var(--color-text-muted);
 		font-size: 0.875rem;
 	}
 	.muted {
-		color: #64748b;
+		color: var(--color-text-muted);
 		font-size: 0.875rem;
 	}
 	.error {
-		background: #fef2f2;
-		color: #b91c1c;
+		background: var(--color-danger-bg);
+		color: var(--color-danger);
 		padding: 0.75rem;
-		border-radius: 0.5rem;
+		border-radius: var(--radius-sm);
 		margin-bottom: 1rem;
 	}
 	@media (max-width: 700px) {

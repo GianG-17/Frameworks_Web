@@ -28,35 +28,6 @@
 		}
 	}
 
-	function handleFileChange(e: Event) {
-		const target = e.target as HTMLInputElement;
-		const file = target.files?.[0];
-		if (file) {
-			if (!file.type.startsWith('image/')) {
-				errorMsg = 'Por favor, selecione uma imagem válida.';
-				return;
-			}
-			if (file.size > 5 * 1024 * 1024) {
-				errorMsg = 'A imagem não pode exceder 5MB.';
-				return;
-			}
-			form.fotoFile = file;
-			errorMsg = '';
-		}
-	}
-
-	async function enviarComFoto(file: File): Promise<string> {
-		return new Promise((resolve, reject) => {
-			const reader = new FileReader();
-			reader.onload = () => {
-				const base64 = reader.result as string;
-				resolve(base64);
-			};
-			reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
-			reader.readAsDataURL(file);
-		});
-	}
-
 	async function criar(e: Event) {
 		e.preventDefault();
 		errorMsg = '';
@@ -66,27 +37,17 @@
 			return;
 		}
 
-		loading = true;
-		let anexoUrl = form.anexoUrl;
-
-		if (form.fotoFile) {
-			anexoUrl = await enviarComFoto(form.fotoFile);
-		}
-
 		try {
 			await justificativaService.create({
 				colaboradorId: form.colaboradorId,
 				data: form.data,
 				motivo: form.motivo,
-				anexoUrl: anexoUrl || undefined
+				anexoUrl: form.anexoUrl || undefined
 			});
-			form = { colaboradorId: '', data: '', motivo: '', anexoUrl: '', fotoFile: null };
-			if (fileInput) fileInput.value = '';
+			form = { colaboradorId: '', data: '', motivo: '', anexoUrl: '' };
 			await carregar();
 		} catch {
 			errorMsg = 'Erro ao cadastrar justificativa.';
-		} finally {
-			loading = false;
 		}
 	}
 
@@ -189,27 +150,6 @@
 		</div>
 	{/if}
 </section>
-
-{#if previewUrl}
-	<div
-		class="preview-backdrop"
-		role="button"
-		tabindex="0"
-		onclick={fecharPreview}
-		onkeydown={(e) => e.key === 'Escape' && fecharPreview()}
-	>
-		<div
-			class="preview-modal"
-			role="dialog"
-			aria-modal="true"
-			aria-label="Visualização de anexo"
-			onclick={(e) => e.stopPropagation()}
-		>
-			<button type="button" class="preview-close" onclick={fecharPreview}>Fechar</button>
-			<img src={previewUrl} alt="Anexo da justificativa" />
-		</div>
-	</div>
-{/if}
 
 <style>
 	.page {

@@ -17,5 +17,20 @@ services:
       timeout: 5s
       retries: 10
 
+  app:
+    build: .
+    container_name: ponto_digital_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://ponto:ponto@postgres:5432/ponto_digital?schema=public
+      NODE_ENV: production
+      PORT: '3000'
+      ORIGIN: http://localhost:3000
+    ports:
+      - '3000:3000'
+
 volumes:
   postgres_data:

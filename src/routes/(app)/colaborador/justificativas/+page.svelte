@@ -203,7 +203,7 @@
 							<td>{j.motivo}</td>
 							<td>
 								{#if j.anexoUrl}
-									<button class="link-button" type="button" onclick={() => abrirAnexo(j.anexoUrl)}>
+									<button class="link-button" type="button" onclick={() => abrirAnexo(j.anexoUrl!)}>
 										{j.anexoUrl.startsWith('data:') ? '🖼️ Foto' : 'ver'}
 									</button>
 								{:else}

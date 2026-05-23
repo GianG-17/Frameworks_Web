@@ -67,17 +67,11 @@
 	<div class="modal-backdrop" onclick={handleBackdrop}>
 		<form class="modal" role="dialog" aria-modal="true" onsubmit={handleSubmit}>
 			<header class="modal-header">
-				<h2>Anular batida</h2>
+				<h2>Anular Marcação</h2>
 				<button type="button" class="btn-fechar" onclick={onFechar} aria-label="Fechar">✕</button>
 			</header>
 
 			<div class="modal-body">
-				<p class="aviso">
-					A batida <strong>não será apagada</strong>. Será criado um registro de anulação paralelo,
-					conforme exige a Portaria 671/2021. A batida continuará visível no histórico marcada como
-					anulada.
-				</p>
-
 				<dl class="info">
 					<div>
 						<dt>Tipo</dt>
@@ -94,12 +88,12 @@
 				</dl>
 
 				<div class="campo">
-					<label for="motivo">Motivo da anulação *</label>
+					<label for="motivo">Motivo*</label>
 					<textarea
 						id="motivo"
 						bind:value={motivo}
 						rows="3"
-						placeholder="Ex.: Batida duplicada — colaborador clicou duas vezes."
+						placeholder="Ex.: Marcação duplicada — colaborador clicou duas vezes."
 						required
 					></textarea>
 				</div>
@@ -112,7 +106,7 @@
 					Cancelar
 				</button>
 				<button type="submit" class="btn btn--perigo" disabled={salvando}>
-					{salvando ? 'Anulando...' : 'Confirmar anulação'}
+					{salvando ? 'Anulando...' : 'Confirmar'}
 				</button>
 			</footer>
 		</form>

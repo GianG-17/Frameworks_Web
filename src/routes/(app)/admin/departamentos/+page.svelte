@@ -130,11 +130,11 @@
 	<title>Departamentos — Ponto Digital</title>
 </svelte:head>
 
-<section class="departamentos">
-	<div class="departamentos__header">
-		<h1 class="departamentos__title">Departamentos</h1>
+<section class="admin-page">
+	<header class="admin-page__header">
+		<h1>Departamentos</h1>
 		<Button variant="primary" size="sm" onclick={openCreate}>Novo Departamento</Button>
-	</div>
+	</header>
 
 	{#if errorMsg}
 		<div class="alert alert--error" role="alert">{errorMsg}</div>
@@ -269,28 +269,9 @@
 {/if}
 
 <style>
-	.departamentos {
-		padding: 2rem;
-		max-width: 1200px;
-	}
-
-	.departamentos__header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 1.5rem;
-	}
-
-	.departamentos__title {
-		font-size: 1.5rem;
-		font-weight: 700;
-		color: var(--color-text);
-	}
-
 	.alert {
 		padding: 0.75rem 1rem;
 		border-radius: var(--radius-sm);
-		margin-bottom: 1rem;
 		font-size: 0.875rem;
 	}
 

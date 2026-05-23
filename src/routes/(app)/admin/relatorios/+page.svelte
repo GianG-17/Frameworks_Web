@@ -133,8 +133,8 @@
 
 <svelte:head><title>Relatórios — Admin</title></svelte:head>
 
-<section class="page">
-	<header class="header">
+<section class="admin-page">
+	<header class="admin-page__header">
 		<h1>Relatórios</h1>
 		{#if aba === 'consolidado' && conResult}
 			<button class="export-btn" onclick={exportarCsv}>
@@ -188,8 +188,6 @@
 
 		{#if espColaboradorId && colaboradorSelecionado}
 			<Card>
-				<h2>{colaboradorSelecionado.nome}</h2>
-				<p class="muted">Espelho de {espMes}</p>
 				<EspelhoMensal
 					colaboradorId={espColaboradorId}
 					colaboradorNome={colaboradorSelecionado.nome}
@@ -342,30 +340,6 @@
 </section>
 
 <style>
-	.page {
-		max-width: 1200px;
-		margin: 0 auto;
-		display: flex;
-		flex-direction: column;
-		gap: 1.25rem;
-	}
-
-	.header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 0.75rem;
-		flex-wrap: wrap;
-	}
-
-	h1 {
-		margin: 0;
-		font-size: 1.375rem;
-		font-weight: 700;
-		color: var(--color-text);
-		letter-spacing: -0.02em;
-	}
-
 	.export-btn {
 		display: inline-flex;
 		align-items: center;

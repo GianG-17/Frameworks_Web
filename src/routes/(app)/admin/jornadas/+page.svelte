@@ -270,11 +270,11 @@
 	<title>Jornadas — Ponto Digital</title>
 </svelte:head>
 
-<section class="jornadas">
-	<div class="jornadas__header">
-		<h1 class="jornadas__title">Jornadas de Trabalho</h1>
+<section class="admin-page">
+	<header class="admin-page__header">
+		<h1>Jornadas de Trabalho</h1>
 		<Button variant="primary" size="sm" onclick={openCreate}>Nova Jornada</Button>
-	</div>
+	</header>
 
 	{#if errorMsg}
 		<div class="jornadas__error" role="alert">{errorMsg}</div>
@@ -534,30 +534,11 @@
 
 <style>
 	/* ── Página ─────────────────────────────────────────────── */
-	.jornadas {
-		padding: 2rem;
-		max-width: 1200px;
-	}
-
-	.jornadas__header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 1.5rem;
-	}
-
-	.jornadas__title {
-		font-size: 1.5rem;
-		font-weight: 700;
-		color: var(--color-text);
-	}
-
 	.jornadas__error {
 		background: var(--color-danger-bg);
 		color: var(--color-danger);
 		padding: 0.75rem 1rem;
 		border-radius: var(--radius-sm);
-		margin-bottom: 1rem;
 		font-size: 0.875rem;
 	}
 

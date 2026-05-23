@@ -97,8 +97,8 @@
 	<title>Dashboard — Ponto Digital</title>
 </svelte:head>
 
-<section class="dashboard">
-	<header class="dashboard__header">
+<section class="admin-page">
+	<header class="admin-page__header dashboard__header">
 		<div>
 			<h1>Dashboard</h1>
 			<p class="dashboard__sub">
@@ -189,30 +189,6 @@
 </section>
 
 <style>
-	.dashboard {
-		max-width: 1200px;
-		margin: 0 auto;
-		display: flex;
-		flex-direction: column;
-		gap: 1.25rem;
-	}
-
-	.dashboard__header {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 1rem;
-		flex-wrap: wrap;
-	}
-
-	.dashboard__header h1 {
-		margin: 0;
-		font-size: 1.375rem;
-		font-weight: 700;
-		color: var(--color-text);
-		letter-spacing: -0.02em;
-	}
-
 	.dashboard__sub {
 		margin: 0.125rem 0 0;
 		color: var(--color-text-muted);

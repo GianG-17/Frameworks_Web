@@ -28,23 +28,22 @@
 		}
 	}
 
+	const ANEXO_MIME_PERMITIDOS = ['image/png', 'image/jpeg', 'application/pdf'];
+
 	function handleFileChange(e: Event) {
 		const target = e.target as HTMLInputElement;
 		const file = target.files?.[0];
-		if (file) {
-			// Validar tipo de arquivo
-			if (!file.type.startsWith('image/')) {
-				errorMsg = 'Por favor, selecione uma imagem válida.';
-				return;
-			}
-			// Validar tamanho (máx 5MB)
-			if (file.size > 5 * 1024 * 1024) {
-				errorMsg = 'A imagem não pode exceder 5MB.';
-				return;
-			}
-			form.fotoFile = file;
-			errorMsg = '';
+		if (!file) return;
+		if (!ANEXO_MIME_PERMITIDOS.includes(file.type)) {
+			errorMsg = 'Anexo deve ser PNG, JPG ou PDF.';
+			return;
 		}
+		if (file.size > 5 * 1024 * 1024) {
+			errorMsg = 'O arquivo não pode exceder 5MB.';
+			return;
+		}
+		form.fotoFile = file;
+		errorMsg = '';
 	}
 
 	async function enviarComFoto(file: File): Promise<string> {
@@ -164,10 +163,10 @@
 		</label>
 
 		<label>
-			Adicionar foto (opcional)
+			Anexo (PNG, JPG ou PDF, opcional)
 			<input
 				type="file"
-				accept="image/*"
+				accept="image/png,image/jpeg,application/pdf"
 				onchange={handleFileChange}
 				disabled={loading}
 				bind:this={fileInput}
@@ -203,9 +202,23 @@
 							<td>{j.motivo}</td>
 							<td>
 								{#if j.anexoUrl}
-									<button class="link-button" type="button" onclick={() => abrirAnexo(j.anexoUrl)}>
-										{j.anexoUrl.startsWith('data:') ? '🖼️ Foto' : 'ver'}
-									</button>
+									{#if j.anexoUrl.startsWith('data:image/')}
+										<button
+											class="link-button"
+											type="button"
+											onclick={() => abrirAnexo(j.anexoUrl!)}
+										>
+											🖼️ Foto
+										</button>
+									{:else if j.anexoUrl.startsWith('data:application/pdf')}
+										<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+										<a class="link-button" href={j.anexoUrl} target="_blank" rel="noopener">
+											📄 PDF
+										</a>
+									{:else}
+										<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+										<a class="link-button" href={j.anexoUrl} target="_blank" rel="noopener">ver</a>
+									{/if}
 								{:else}
 									—
 								{/if}

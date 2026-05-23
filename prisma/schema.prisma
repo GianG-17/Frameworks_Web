@@ -25,6 +25,7 @@ model Empresa {
 
   users          User[]
   jornadas       Jornada[]
+  departamentos  Departamento[]
   punches        Punch[]
   ferias         Ferias[]
   justificativas Justificativa[]
@@ -40,7 +41,8 @@ model User {
   password     String
   role         String    // "admin" | "colaborador"
   cargo        String?
-  departamento String?
+  departamentoId String?
+  departamento Departamento? @relation(fields: [departamentoId], references: [id], onDelete: SetNull)
   telefone     String?
   dataAdmissao DateTime?
   status       String?   // "ativo" | "inativo" | "ferias" | "afastado"
@@ -52,6 +54,19 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  @@index([empresaId])
+}
+
+model Departamento {
+  id        String   @id @default(cuid())
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  nome      String
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([empresaId, nome])
   @@index([empresaId])
 }
 

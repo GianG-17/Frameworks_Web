@@ -32,6 +32,7 @@
 		{ href: resolve('/admin/dashboard', {}), label: 'Dashboard', icon: 'dashboard' },
 		{ href: resolve('/admin/empresa', {}), label: 'Empresa', icon: 'qr' },
 		{ href: resolve('/admin/colaboradores', {}), label: 'Colaboradores', icon: 'approval' },
+		{ href: resolve('/admin/departamentos', {}), label: 'Departamentos', icon: 'approval' },
 		{ href: resolve('/admin/jornadas', {}), label: 'Jornadas', icon: 'clock' },
 		{ href: resolve('/admin/justificativas', {}), label: 'Justificativas', icon: 'approval' },
 		{ href: resolve('/admin/ferias', {}), label: 'Férias', icon: 'history' },

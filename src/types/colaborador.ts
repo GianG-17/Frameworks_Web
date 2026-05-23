@@ -8,11 +8,22 @@ export interface Colaborador {
 	email: string;
 	cpf: string;
 	cargo: string;
-	departamento: string;
+	departamentoId: string | null;
+	departamento: { id: string; nome: string } | null;
 	dataAdmissao: string; // ISO date string
 	status: StatusColaborador;
 	telefone?: string;
 	jornadaId?: string;
 }
 
-export type ColaboradorFormData = Omit<Colaborador, 'id'>;
+export interface ColaboradorFormData {
+	nome: string;
+	email: string;
+	cpf: string;
+	cargo: string;
+	departamentoId: string;
+	dataAdmissao: string;
+	status: StatusColaborador;
+	telefone?: string;
+	jornadaId?: string;
+}

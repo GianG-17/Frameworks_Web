@@ -32,7 +32,7 @@
 				c.nome.toLowerCase().includes(termo) ||
 				c.email.toLowerCase().includes(termo) ||
 				c.cargo.toLowerCase().includes(termo) ||
-				c.departamento.toLowerCase().includes(termo);
+				(c.departamento?.nome.toLowerCase().includes(termo) ?? false);
 
 			const matchStatus = filtroStatus === 'todos' || c.status === filtroStatus;
 
@@ -220,7 +220,7 @@
 							</td>
 							<td>
 								<span class="colaborador-cargo">{colaborador.cargo}</span>
-								<span class="colaborador-depto">{colaborador.departamento}</span>
+								<span class="colaborador-depto">{colaborador.departamento?.nome ?? '—'}</span>
 							</td>
 							<td class="td-data">{formatarData(colaborador.dataAdmissao)}</td>
 							<td>

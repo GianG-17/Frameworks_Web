@@ -16,6 +16,7 @@ export const GET: RequestHandler = async ({ request }) => {
 
 	const users = await prisma.user.findMany({
 		where: { role: 'colaborador', empresaId: admin.empresaId },
+		include: { departamento: true },
 		orderBy: { name: 'asc' }
 	});
 
@@ -35,7 +36,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		email: string;
 		cpf: string;
 		cargo: string;
-		departamento: string;
+		departamentoId: string;
 		dataAdmissao: string;
 		status: string;
 		telefone: string;
@@ -50,6 +51,17 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	if (!body.nome || !body.email || !body.cpf) {
 		return jsonError('nome, email e cpf são obrigatórios', 400);
+	}
+
+	if (!body.departamentoId) {
+		return jsonError('departamentoId é obrigatório', 400);
+	}
+
+	const departamento = await prisma.departamento.findUnique({
+		where: { id: body.departamentoId }
+	});
+	if (!departamento || departamento.empresaId !== admin.empresaId) {
+		return jsonError('Departamento inválido', 400);
 	}
 
 	const existing = await prisma.user.findFirst({
@@ -68,12 +80,13 @@ export const POST: RequestHandler = async ({ request }) => {
 			password: await bcrypt.hash(SENHA_PADRAO, 10),
 			role: 'colaborador',
 			cargo: body.cargo ?? null,
-			departamento: body.departamento ?? null,
+			departamentoId: body.departamentoId,
 			telefone: body.telefone ?? null,
 			dataAdmissao: body.dataAdmissao ? new Date(body.dataAdmissao) : null,
 			status: body.status ?? 'ativo',
 			jornadaId: body.jornadaId ?? null
-		}
+		},
+		include: { departamento: true }
 	});
 
 	return jsonOk(toColaboradorDTO(user), 201);

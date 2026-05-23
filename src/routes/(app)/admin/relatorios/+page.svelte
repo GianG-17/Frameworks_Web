@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 	import { relatorioService, type ConsolidadoRelatorio } from '@/services/relatorio.service';
 	import { colaboradorService } from '@/services/colaborador.service';
 	import type { Colaborador } from '@/types/colaborador';
@@ -35,12 +36,30 @@
 	let conResult = $state<ConsolidadoRelatorio | null>(null);
 	let conLoading = $state(false);
 	let filtro = $state<Filtro>('todos');
+	let filtroDepartamentoId = $state<string>('todos');
+
+	const departamentosDisponiveis = $derived.by(() => {
+		const mapa = new SvelteMap<string, string>();
+		for (const c of colaboradores) {
+			if (c.departamento) mapa.set(c.departamento.id, c.departamento.nome);
+		}
+		return [...mapa.entries()]
+			.map(([id, nome]) => ({ id, nome }))
+			.sort((a, b) => a.nome.localeCompare(b.nome));
+	});
 
 	const linhasFiltradas = $derived.by(() => {
 		if (!conResult) return [];
-		if (filtro === 'extras') return conResult.linhas.filter((l) => l.extras > 0);
-		if (filtro === 'deficit') return conResult.linhas.filter((l) => l.deficit > 0);
-		return conResult.linhas;
+		let linhas = conResult.linhas;
+		if (filtroDepartamentoId !== 'todos') {
+			const idsDoDepto = new Set(
+				colaboradores.filter((c) => c.departamentoId === filtroDepartamentoId).map((c) => c.id)
+			);
+			linhas = linhas.filter((l) => idsDoDepto.has(l.colaboradorId));
+		}
+		if (filtro === 'extras') return linhas.filter((l) => l.extras > 0);
+		if (filtro === 'deficit') return linhas.filter((l) => l.deficit > 0);
+		return linhas;
 	});
 
 	const totais = $derived.by(() => {
@@ -186,6 +205,15 @@
 				<label class="field">
 					<span>Mês</span>
 					<input type="month" bind:value={mes} required />
+				</label>
+				<label class="field">
+					<span>Departamento</span>
+					<select bind:value={filtroDepartamentoId}>
+						<option value="todos">Todos</option>
+						{#each departamentosDisponiveis as d (d.id)}
+							<option value={d.id}>{d.nome}</option>
+						{/each}
+					</select>
 				</label>
 				<Button type="submit" variant="primary" loading={conLoading}>Gerar</Button>
 			</form>

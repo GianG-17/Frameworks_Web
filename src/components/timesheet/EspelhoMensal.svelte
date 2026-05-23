@@ -113,6 +113,13 @@
 		return `${dd}/${mm}`;
 	}
 
+	function formatTotalHoras(horas: number): string {
+		const totalMin = Math.round(horas * 60);
+		const hh = Math.floor(totalMin / 60);
+		const mm = totalMin % 60;
+		return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+	}
+
 	function abrirModalManual(date: string, tipo: PunchType) {
 		// Pré-preenche com horário sugerido por tipo
 		const horarioPadrao: Record<PunchType, string> = {
@@ -171,7 +178,6 @@
 					<th class="col-data">Data</th>
 					{#each TIPOS_ORDEM as t (t)}<th class="col-batida">{TIPO_LABEL[t]}</th>{/each}
 					<th class="col-total">Total</th>
-					<th class="col-saldo">Saldo</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -210,16 +216,7 @@
 								</td>
 							{/if}
 						{/each}
-						<td class="total">{dia.summary?.totalHours ?? 0}h</td>
-						<td class="saldo">
-							{#if dia.summary && dia.summary.overtime > 0}
-								<span class="extra">+{dia.summary.overtime}h</span>
-							{:else if dia.summary && dia.summary.deficit > 0}
-								<span class="deficit">−{dia.summary.deficit}h</span>
-							{:else}
-								<span class="muted">—</span>
-							{/if}
-						</td>
+						<td class="total">{formatTotalHoras(dia.summary?.totalHours ?? 0)}</td>
 					</tr>
 				{/each}
 			</tbody>
@@ -305,14 +302,11 @@
 		width: auto;
 	}
 	.col-total {
-		width: 70px;
-	}
-	.col-saldo {
 		width: 80px;
 	}
 	.grid th {
 		background: #f8fafc;
-		text-align: left;
+		text-align: center;
 		padding: 0.625rem 0.75rem;
 		font-size: 0.75rem;
 		text-transform: uppercase;
@@ -405,22 +399,8 @@
 	.total {
 		font-weight: 600;
 		color: #334155;
-		text-align: right;
-	}
-	.saldo {
-		text-align: right;
-		font-size: 0.825rem;
-	}
-	.saldo .extra {
-		color: #059669;
-		font-weight: 500;
-	}
-	.saldo .deficit {
-		color: #dc2626;
-		font-weight: 500;
-	}
-	.saldo .muted {
-		color: #cbd5e1;
+		text-align: center;
+		font-variant-numeric: tabular-nums;
 	}
 
 	.leg {

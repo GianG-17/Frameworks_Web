@@ -39,16 +39,18 @@
 		}
 	}
 
+	const ANEXO_MIME_PERMITIDOS = ['image/png', 'image/jpeg', 'application/pdf'];
+
 	function handleFileChange(e: Event) {
 		const target = e.target as HTMLInputElement;
 		const file = target.files?.[0];
 		if (!file) return;
-		if (!file.type.startsWith('image/')) {
-			errorMsg = 'Por favor, selecione uma imagem válida.';
+		if (!ANEXO_MIME_PERMITIDOS.includes(file.type)) {
+			errorMsg = 'Anexo deve ser PNG, JPG ou PDF.';
 			return;
 		}
 		if (file.size > 5 * 1024 * 1024) {
-			errorMsg = 'A imagem não pode exceder 5MB.';
+			errorMsg = 'O arquivo não pode exceder 5MB.';
 			return;
 		}
 		form.fotoFile = file;
@@ -188,20 +190,16 @@
 				<input bind:value={form.motivo} required disabled={loading} />
 			</label>
 			<label class="field">
-				<span>URL do anexo (opcional)</span>
-				<input type="url" bind:value={form.anexoUrl} disabled={loading} />
-			</label>
-			<label class="field">
-				<span>Adicionar foto (opcional)</span>
+				<span>Anexo (PNG, JPG ou PDF, opcional)</span>
 				<input
 					type="file"
-					accept="image/*"
+					accept="image/png,image/jpeg,application/pdf"
 					onchange={handleFileChange}
 					disabled={loading}
 					bind:this={fileInput}
 				/>
 				{#if form.fotoFile}
-					<small class="hint-success">Foto selecionada: {form.fotoFile.name}</small>
+					<small class="hint-success">Arquivo selecionado: {form.fotoFile.name}</small>
 				{/if}
 			</label>
 			<Button type="submit" variant="primary" disabled={loading}>
@@ -241,7 +239,7 @@
 						{#if j.anexoUrl}
 							<div class="row">
 								<span class="row__label">Anexo</span>
-								{#if j.anexoUrl.startsWith('data:')}
+								{#if j.anexoUrl.startsWith('data:image/')}
 									<button type="button" class="row__link" onclick={() => abrirAnexo(j.anexoUrl!)}>
 										Ver foto
 									</button>

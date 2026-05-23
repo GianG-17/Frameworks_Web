@@ -19,6 +19,7 @@
 	let openId = $state<string | null>(null);
 	let loading = $state(false);
 	let previewUrl = $state<string | null>(null);
+	let formularioAberto = $state(false);
 	let fileInput: HTMLInputElement | undefined;
 	let form = $state({
 		colaboradorId: '',
@@ -90,6 +91,7 @@
 			});
 			form = { colaboradorId: '', data: '', motivo: '', anexoUrl: '', fotoFile: null };
 			if (fileInput) fileInput.value = '';
+			formularioAberto = false;
 			await carregar();
 		} catch {
 			errorMsg = 'Erro ao cadastrar justificativa.';
@@ -165,48 +167,67 @@
 <svelte:head><title>Justificativas — Admin</title></svelte:head>
 
 <section class="page">
-	<h1>Justificativas de Falta</h1>
+	<header class="page-header">
+		<h1>Justificativas de Falta</h1>
+		<Button variant="primary" onclick={() => (formularioAberto = !formularioAberto)}>
+			{formularioAberto ? '✕ Cancelar' : '+ Nova justificativa'}
+		</Button>
+	</header>
 
 	{#if errorMsg}<div class="error">{errorMsg}</div>{/if}
 
-	<Card>
-		<h2>Nova justificativa</h2>
-		<form class="form" onsubmit={criar}>
-			<label class="field">
-				<span>Colaborador</span>
-				<select bind:value={form.colaboradorId} required disabled={loading}>
-					<option value="">Selecione…</option>
-					{#each colaboradores as c (c.id)}
-						<option value={c.id}>{c.nome}</option>
-					{/each}
-				</select>
-			</label>
-			<label class="field">
-				<span>Data da falta</span>
-				<input type="date" bind:value={form.data} required disabled={loading} />
-			</label>
-			<label class="field">
-				<span>Motivo</span>
-				<input bind:value={form.motivo} required disabled={loading} />
-			</label>
-			<label class="field">
-				<span>Anexo (PNG, JPG ou PDF, opcional)</span>
-				<input
-					type="file"
-					accept="image/png,image/jpeg,application/pdf"
-					onchange={handleFileChange}
-					disabled={loading}
-					bind:this={fileInput}
-				/>
-				{#if form.fotoFile}
-					<small class="hint-success">Arquivo selecionado: {form.fotoFile.name}</small>
-				{/if}
-			</label>
-			<Button type="submit" variant="primary" disabled={loading}>
-				{loading ? 'Enviando…' : 'Cadastrar'}
-			</Button>
-		</form>
-	</Card>
+	{#if formularioAberto}
+		<div class="form-wrapper" role="region" aria-label="Formulário de nova justificativa">
+			<Card>
+				<h2>Nova justificativa</h2>
+				<form class="form" onsubmit={criar}>
+					<label class="field">
+						<span>Colaborador</span>
+						<select bind:value={form.colaboradorId} required disabled={loading}>
+							<option value="">Selecione…</option>
+							{#each colaboradores as c (c.id)}
+								<option value={c.id}>{c.nome}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="field">
+						<span>Data da falta</span>
+						<input type="date" bind:value={form.data} required disabled={loading} />
+					</label>
+					<label class="field">
+						<span>Motivo</span>
+						<input bind:value={form.motivo} required disabled={loading} />
+					</label>
+					<label class="field">
+						<span>Anexo (PNG, JPG ou PDF, opcional)</span>
+						<input
+							type="file"
+							accept="image/png,image/jpeg,application/pdf"
+							onchange={handleFileChange}
+							disabled={loading}
+							bind:this={fileInput}
+						/>
+						{#if form.fotoFile}
+							<small class="hint-success">Arquivo selecionado: {form.fotoFile.name}</small>
+						{/if}
+					</label>
+					<div class="form-actions">
+						<Button
+							type="button"
+							variant="secondary"
+							onclick={() => (formularioAberto = false)}
+							disabled={loading}
+						>
+							Cancelar
+						</Button>
+						<Button type="submit" variant="primary" disabled={loading}>
+							{loading ? 'Enviando…' : 'Cadastrar'}
+						</Button>
+					</div>
+				</form>
+			</Card>
+		</div>
+	{/if}
 
 	<div class="section-label">Cadastradas ({lista.length})</div>
 
@@ -298,6 +319,14 @@
 		gap: 1.25rem;
 	}
 
+	.page-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 1rem;
+	}
+
 	h1 {
 		margin: 0;
 		font-size: 1.375rem;
@@ -313,10 +342,31 @@
 		color: var(--color-text);
 	}
 
+	.form-wrapper {
+		animation: slideDown 0.2s ease;
+	}
+
+	@keyframes slideDown {
+		from {
+			opacity: 0;
+			transform: translateY(-8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
 	.form {
 		display: flex;
 		flex-direction: column;
 		gap: 0.875rem;
+	}
+
+	.form-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.75rem;
 	}
 
 	.field {

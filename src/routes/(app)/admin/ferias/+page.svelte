@@ -15,6 +15,7 @@
 	let colaboradores = $state<Colaborador[]>([]);
 	let errorMsg = $state('');
 	let openId = $state<string | null>(null);
+	let formularioAberto = $state(false);
 	let form = $state({ colaboradorId: '', dataInicio: '', dataFim: '', observacao: '' });
 
 	async function carregar() {
@@ -38,6 +39,7 @@
 				observacao: form.observacao || undefined
 			});
 			form = { colaboradorId: '', dataInicio: '', dataFim: '', observacao: '' };
+			formularioAberto = false;
 			await carregar();
 		} catch {
 			errorMsg = 'Erro ao cadastrar férias.';
@@ -73,39 +75,53 @@
 <svelte:head><title>Férias — Admin</title></svelte:head>
 
 <section class="page">
-	<h1>Férias</h1>
+	<header class="page-header">
+		<h1>Férias</h1>
+		<Button variant="primary" onclick={() => (formularioAberto = !formularioAberto)}>
+			{formularioAberto ? '✕ Cancelar' : '+ Novo período'}
+		</Button>
+	</header>
 
 	{#if errorMsg}<div class="error">{errorMsg}</div>{/if}
 
-	<Card>
-		<h2>Novo período</h2>
-		<form class="form" onsubmit={criar}>
-			<label class="field">
-				<span>Colaborador</span>
-				<select bind:value={form.colaboradorId} required>
-					<option value="">Selecione…</option>
-					{#each colaboradores as c (c.id)}
-						<option value={c.id}>{c.nome}</option>
-					{/each}
-				</select>
-			</label>
-			<div class="row-2">
-				<label class="field">
-					<span>Início</span>
-					<input type="date" bind:value={form.dataInicio} required />
-				</label>
-				<label class="field">
-					<span>Fim</span>
-					<input type="date" bind:value={form.dataFim} required />
-				</label>
-			</div>
-			<label class="field">
-				<span>Observação</span>
-				<input bind:value={form.observacao} />
-			</label>
-			<Button type="submit" variant="primary">Cadastrar</Button>
-		</form>
-	</Card>
+	{#if formularioAberto}
+		<div class="form-wrapper" role="region" aria-label="Formulário de novo período de férias">
+			<Card>
+				<h2>Novo período</h2>
+				<form class="form" onsubmit={criar}>
+					<label class="field">
+						<span>Colaborador</span>
+						<select bind:value={form.colaboradorId} required>
+							<option value="">Selecione…</option>
+							{#each colaboradores as c (c.id)}
+								<option value={c.id}>{c.nome}</option>
+							{/each}
+						</select>
+					</label>
+					<div class="row-2">
+						<label class="field">
+							<span>Início</span>
+							<input type="date" bind:value={form.dataInicio} required />
+						</label>
+						<label class="field">
+							<span>Fim</span>
+							<input type="date" bind:value={form.dataFim} required />
+						</label>
+					</div>
+					<label class="field">
+						<span>Observação</span>
+						<input bind:value={form.observacao} />
+					</label>
+					<div class="form-actions">
+						<Button type="button" variant="secondary" onclick={() => (formularioAberto = false)}>
+							Cancelar
+						</Button>
+						<Button type="submit" variant="primary">Cadastrar</Button>
+					</div>
+				</form>
+			</Card>
+		</div>
+	{/if}
 
 	<div class="section-label">Cadastradas ({lista.length})</div>
 
@@ -158,6 +174,14 @@
 		gap: 1.25rem;
 	}
 
+	.page-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 1rem;
+	}
+
 	h1 {
 		margin: 0;
 		font-size: 1.375rem;
@@ -173,10 +197,31 @@
 		color: var(--color-text);
 	}
 
+	.form-wrapper {
+		animation: slideDown 0.2s ease;
+	}
+
+	@keyframes slideDown {
+		from {
+			opacity: 0;
+			transform: translateY(-8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
 	.form {
 		display: flex;
 		flex-direction: column;
 		gap: 0.875rem;
+	}
+
+	.form-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.75rem;
 	}
 
 	.field {

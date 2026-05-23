@@ -49,7 +49,7 @@
 
 <svelte:head><title>Empresa — Admin</title></svelte:head>
 
-<section class="page">
+<section class="admin-page">
 	<h1>Empresa</h1>
 
 	{#if errorMsg}<div class="error">{errorMsg}</div>{/if}
@@ -71,14 +71,6 @@
 </section>
 
 <style>
-	.page {
-		padding: 2rem;
-		max-width: 1200px;
-		margin: 0 auto;
-	}
-	h1 {
-		margin: 0 0 1.5rem;
-	}
 	.grid {
 		display: grid;
 		grid-template-columns: 1fr;
@@ -90,10 +82,6 @@
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-md);
 		padding: 1.5rem;
-	}
-	.card h2 {
-		margin: 0 0 1rem;
-		font-size: 1.125rem;
 	}
 	label {
 		display: block;

@@ -99,3 +99,36 @@ textarea:focus {
 		transform: rotate(360deg);
 	}
 }
+
+/* Layout padrão das páginas admin */
+.admin-page {
+	max-width: 1200px;
+	margin: 0 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+}
+
+.admin-page__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	flex-wrap: wrap;
+}
+
+.admin-page__header h1,
+.admin-page > h1 {
+	margin: 0;
+	font-size: 1.875rem;
+	font-weight: 700;
+	color: var(--color-text);
+	letter-spacing: -0.02em;
+}
+
+.admin-page h2 {
+	margin: 0 0 1rem;
+	font-size: 1.125rem;
+	font-weight: 700;
+	color: var(--color-text);
+}

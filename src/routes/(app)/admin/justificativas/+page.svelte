@@ -166,8 +166,8 @@
 
 <svelte:head><title>Justificativas — Admin</title></svelte:head>
 
-<section class="page">
-	<header class="page-header">
+<section class="admin-page">
+	<header class="admin-page__header">
 		<h1>Justificativas de Falta</h1>
 		<Button variant="primary" onclick={() => (formularioAberto = !formularioAberto)}>
 			{formularioAberto ? '✕ Cancelar' : '+ Nova justificativa'}
@@ -311,37 +311,6 @@
 {/if}
 
 <style>
-	.page {
-		max-width: 1200px;
-		margin: 0 auto;
-		display: flex;
-		flex-direction: column;
-		gap: 1.25rem;
-	}
-
-	.page-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		flex-wrap: wrap;
-		gap: 1rem;
-	}
-
-	h1 {
-		margin: 0;
-		font-size: 1.375rem;
-		font-weight: 700;
-		color: var(--color-text);
-		letter-spacing: -0.02em;
-	}
-
-	h2 {
-		margin: 0 0 1rem;
-		font-size: 0.9375rem;
-		font-weight: 700;
-		color: var(--color-text);
-	}
-
 	.form-wrapper {
 		animation: slideDown 0.2s ease;
 	}

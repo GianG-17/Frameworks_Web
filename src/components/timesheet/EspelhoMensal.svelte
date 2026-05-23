@@ -25,10 +25,10 @@
 
 	const TIPOS_ORDEM: PunchType[] = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'];
 	const TIPO_LABEL: Record<PunchType, string> = {
-		entrada: 'Entrada',
-		saida_almoco: 'Saída Almoço',
-		retorno_almoco: 'Retorno',
-		saida: 'Saída'
+		entrada: 'Entrada 1',
+		saida_almoco: 'Saída 1',
+		retorno_almoco: 'Entrada 2',
+		saida: 'Saída 2'
 	};
 	const DIA_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -108,6 +108,11 @@
 		return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 	}
 
+	function formatDataCurta(date: string): string {
+		const [, mm, dd] = date.split('-');
+		return `${dd}/${mm}`;
+	}
+
 	function abrirModalManual(date: string, tipo: PunchType) {
 		// Pré-preenche com horário sugerido por tipo
 		const horarioPadrao: Record<PunchType, string> = {
@@ -154,27 +159,26 @@
 	</div>
 
 	<div class="legenda">
-		<span class="leg leg--vazia">— sem batida (clique p/ adicionar)</span>
-		<span class="leg leg--ok">batida válida</span>
-		<span class="leg leg--manual">batida manual ✏️</span>
-		<span class="leg leg--anulada">anulada ⛔</span>
+		<span class="leg leg--ok">Ponto válido</span>
+		<span class="leg leg--manual">Ponto manual</span>
+		<span class="leg leg--anulada">Ponto anulado</span>
 	</div>
 
 	<div class="grid-wrap">
 		<table class="grid">
 			<thead>
 				<tr>
-					<th>Dia</th>
-					{#each TIPOS_ORDEM as t (t)}<th>{TIPO_LABEL[t]}</th>{/each}
-					<th>Total</th>
-					<th>Saldo</th>
+					<th class="col-data">Data</th>
+					{#each TIPOS_ORDEM as t (t)}<th class="col-batida">{TIPO_LABEL[t]}</th>{/each}
+					<th class="col-total">Total</th>
+					<th class="col-saldo">Saldo</th>
 				</tr>
 			</thead>
 			<tbody>
 				{#each dias as dia (dia.date)}
 					<tr class:fim-semana={dia.isFimSemana}>
 						<td class="dia">
-							<span class="dia-num">{dia.diaNum}</span>
+							<span class="dia-num">{formatDataCurta(dia.date)}</span>
 							<span class="dia-sem">{DIA_SEMANA[dia.diaSemana]}</span>
 						</td>
 						{#each TIPOS_ORDEM as tipo (tipo)}
@@ -193,8 +197,6 @@
 										disabled={!!punch.anulacao}
 									>
 										{formatHora(punch.timestamp)}
-										{#if punch.method === 'manual'}<span class="ico">✏️</span>{/if}
-										{#if punch.anulacao}<span class="ico">⛔</span>{/if}
 									</button>
 								</td>
 							{:else}
@@ -294,6 +296,19 @@
 		border-collapse: collapse;
 		font-size: 0.875rem;
 		background: #fff;
+		table-layout: fixed;
+	}
+	.col-data {
+		width: 90px;
+	}
+	.col-batida {
+		width: auto;
+	}
+	.col-total {
+		width: 70px;
+	}
+	.col-saldo {
+		width: 80px;
 	}
 	.grid th {
 		background: #f8fafc;
@@ -319,7 +334,6 @@
 	}
 
 	.dia {
-		width: 70px;
 		white-space: nowrap;
 	}
 	.dia-num {
@@ -392,11 +406,9 @@
 		font-weight: 600;
 		color: #334155;
 		text-align: right;
-		width: 60px;
 	}
 	.saldo {
 		text-align: right;
-		width: 70px;
 		font-size: 0.825rem;
 	}
 	.saldo .extra {

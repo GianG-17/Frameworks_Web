@@ -127,11 +127,11 @@
 	<title>Colaboradores — Admin</title>
 </svelte:head>
 
-<section class="page">
+<section class="admin-page">
 	<!-- Cabeçalho da página -->
-	<header class="page-header">
+	<header class="admin-page__header">
 		<div>
-			<h1 class="page-titulo">Colaboradores</h1>
+			<h1>Colaboradores</h1>
 			<p class="page-subtitulo">
 				{$colaboradoresStore.length} colaborador{$colaboradoresStore.length !== 1 ? 'es' : ''} cadastrado{$colaboradoresStore.length !==
 				1
@@ -266,29 +266,6 @@
 />
 
 <style>
-	.page {
-		padding: 2rem;
-		max-width: 1200px;
-		margin: 0 auto;
-	}
-
-	/* ── Cabeçalho ── */
-	.page-header {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 1rem;
-		margin-bottom: 1.5rem;
-		flex-wrap: wrap;
-	}
-
-	.page-titulo {
-		font-size: 1.75rem;
-		font-weight: 700;
-		margin: 0;
-		color: var(--color-text, #111);
-	}
-
 	.page-subtitulo {
 		font-size: 0.875rem;
 		color: var(--color-text-muted, #666);

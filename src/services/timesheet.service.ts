@@ -20,7 +20,7 @@ export interface PunchRecord {
 	timestamp: string;
 	latitude?: number | null;
 	longitude?: number | null;
-	method: 'qrcode' | 'manual';
+	method: 'manual';
 	createdBy: string | null;
 	createdReason: string | null;
 	anulacao: PunchAnulacao | null;
@@ -37,14 +37,6 @@ export interface DailySummary {
 export const timesheetService = {
 	punch: (data: { type: PunchType; method: PunchRecord['method'] }) =>
 		post<PunchRecord>('/timesheet/punch', data),
-
-	punchQr: (data: {
-		empresaId: string;
-		token: string;
-		type: PunchType;
-		latitude?: number;
-		longitude?: number;
-	}) => post<PunchRecord>('/timesheet/punch/qr', data),
 
 	today: () => get<DailySummary>('/timesheet/today'),
 

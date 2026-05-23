@@ -177,8 +177,6 @@
 		</div>
 
 		<Button type="submit" variant="primary" {loading}>Entrar</Button>
-
-		<a href={resolve('/auth/qrcode', {})} class="qr-link">Registrar ponto via QR Code</a>
 	</form>
 </div>
 
@@ -285,17 +283,5 @@
 		border-radius: var(--radius-sm);
 		text-align: center;
 		font-size: 0.875rem;
-	}
-
-	.qr-link {
-		text-align: center;
-		color: var(--color-primary);
-		font-size: 0.875rem;
-		text-decoration: none;
-		margin-top: 0.5rem;
-	}
-
-	.qr-link:hover {
-		text-decoration: underline;
 	}
 </style>

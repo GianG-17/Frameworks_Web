@@ -1,6 +1,6 @@
 /**
  * @module services/auth.service
- * @description Serviço de autenticação — login por credenciais e QR Code.
+ * @description Serviço de autenticação — login por credenciais.
  */
 
 import { post, get } from './api';
@@ -22,15 +22,8 @@ export interface AuthResponse {
 	};
 }
 
-export interface QrCodePayload {
-	code: string;
-	timestamp: number;
-}
-
 export const authService = {
 	login: (credentials: LoginCredentials) => post<AuthResponse>('/auth/login', credentials),
-
-	loginByQrCode: (payload: QrCodePayload) => post<AuthResponse>('/auth/qrcode', payload),
 
 	logout: () => post<void>('/auth/logout', {}),
 

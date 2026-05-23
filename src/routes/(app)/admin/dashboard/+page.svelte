@@ -10,7 +10,7 @@
 		type DashboardMetrics,
 		type EntradaStatus
 	} from '@/services/admin.service';
-	import { formatDate, formatTime } from '@/utils/date';
+	import { formatTime } from '@/utils/date';
 	import Badge from '@/components/ui/Badge.svelte';
 	import Card from '@/components/ui/Card.svelte';
 	import StatCard from '@/components/ui/StatCard.svelte';
@@ -67,10 +67,6 @@
 		sem_jornada: 'info'
 	};
 
-	function maxHoras(serie: { horas: number }[]): number {
-		return Math.max(1, ...serie.map((p) => p.horas));
-	}
-
 	function formatAtraso(min: number): string {
 		if (min <= 0) return '—';
 		if (min < 60) return `+${min} min`;
@@ -92,6 +88,9 @@
 	const avatarColors = ['#2563eb', '#7c3aed', '#0891b2', '#16a34a', '#d97706'];
 
 	const pendentes = $derived(metrics?.justificativasMes ?? 0);
+
+	// Férias que começam nos próximos 7 dias (se a API retornar)
+	const feriasAtivasNoMes = $derived(metrics?.feriasAtivasNoMes ?? 0);
 </script>
 
 <svelte:head>
@@ -114,12 +113,12 @@
 			{#if pendentes > 0}
 				<a href={resolve('/admin/justificativas', {})} class="alert-btn">
 					<Icon name="alert" size={14} />
-					{pendentes} justificativa{pendentes > 1 ? 's' : ''} no mês
+					{pendentes} justificativa{pendentes > 1 ? 's' : ''} pendente{pendentes > 1 ? 's' : ''}
 				</a>
 			{/if}
 			<label class="dashboard__data-label">
 				<span>Data</span>
-				<input type="date" bind:value={dataRef} />
+				<input type="date" bind:value={dataRef} onchange={recarregar} />
 			</label>
 			<button class="refresh-btn" onclick={recarregar} disabled={loading}>
 				{loading ? 'Atualizando…' : 'Atualizar'}
@@ -131,6 +130,7 @@
 		<div class="error" role="alert">{errorMsg}</div>
 	{/if}
 
+	<!-- 4 cards essenciais -->
 	<div class="stats">
 		<StatCard
 			tone="info"
@@ -143,128 +143,47 @@
 			value={loading ? '—' : (metrics?.pontosHoje ?? '—')}
 		/>
 		<StatCard
-			tone={metrics && metrics.atrasosHoje === 0 ? 'success' : 'danger'}
-			label="Atrasos no dia"
-			value={loading ? '—' : (metrics?.atrasosHoje ?? '—')}
-		/>
-		<StatCard
-			tone={metrics && metrics.faltasHoje === 0 ? 'success' : 'danger'}
-			label="Faltas no dia"
-			value={loading ? '—' : (metrics?.faltasHoje ?? '—')}
-		/>
-		<StatCard
-			tone="success"
-			label="Horas extras (mês)"
-			value={loading ? '—' : `${metrics?.horasExtrasMes ?? '—'}h`}
-		/>
-		<StatCard
-			tone="warning"
-			label="Déficit (mês)"
-			value={loading ? '—' : `${metrics?.horasDeficitMes ?? '—'}h`}
-		/>
-		<StatCard
-			tone="neutral"
+			tone={pendentes > 0 ? 'warning' : 'success'}
 			label="Justificativas (mês)"
 			value={loading ? '—' : (metrics?.justificativasMes ?? '—')}
 		/>
-		<StatCard
-			tone="neutral"
-			label="Férias ativas"
-			value={loading ? '—' : (metrics?.feriasAtivasNoMes ?? '—')}
-		/>
+		<StatCard tone="neutral" label="Férias ativas" value={loading ? '—' : feriasAtivasNoMes} />
 	</div>
 
-	<div class="grid">
-		<Card>
-			<header class="panel__header">
-				<h2>Entradas do dia</h2>
-				<span class="panel__hint">tolerância &gt; 10 min para "atrasado"</span>
-			</header>
-			{#if loading}
-				<p class="panel__empty">Carregando…</p>
-			{:else if !metrics || metrics.entradasHoje.length === 0}
-				<p class="panel__empty">Nenhum colaborador ativo.</p>
-			{:else}
-				<div class="entradas">
-					{#each metrics.entradasHoje as e, i (e.colaboradorId)}
-						<div class="entrada">
-							<Avatar
-								initials={initialsFromName(e.nome)}
-								size={36}
-								color={avatarColors[i % avatarColors.length]}
-							/>
-							<div class="entrada__meta">
-								<div class="entrada__nome">{e.nome}</div>
-								<div class="entrada__sub">
-									Previsto {e.jornadaEntrada ?? '—'} · Bateu {e.batidaEntrada
-										? formatTime(e.batidaEntrada)
-										: '—'}
-								</div>
-							</div>
-							<div class="entrada__right">
-								<Badge variant={statusVariant[e.status]} dot>{statusLabels[e.status]}</Badge>
-								<span class="entrada__atraso">{formatAtraso(e.atrasoMin)}</span>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</Card>
-
-		<Card>
-			<header class="panel__header">
-				<h2>Top 5 — Horas extras no mês</h2>
-			</header>
-			{#if loading}
-				<p class="panel__empty">Carregando…</p>
-			{:else if !metrics || metrics.topExtras.length === 0}
-				<p class="panel__empty">Nenhuma hora extra registrada no mês.</p>
-			{:else}
-				{@const max = maxHoras(metrics.topExtras)}
-				<ul class="ranking">
-					{#each metrics.topExtras as t (t.colaboradorId)}
-						<li class="ranking__item">
-							<span class="ranking__nome">{t.nome}</span>
-							<div class="ranking__bar">
-								<div class="ranking__bar-fill" style="width: {(t.horas / max) * 100}%"></div>
-							</div>
-							<span class="ranking__valor">{t.horas}h</span>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</Card>
-	</div>
-
+	<!-- Tabela de entradas ocupa toda a largura -->
 	<Card>
 		<header class="panel__header">
-			<h2>Horas extras por dia — mês de referência</h2>
+			<h2>Entradas do dia</h2>
+			<span class="panel__hint">tolerância &gt; 10 min para "atrasado"</span>
 		</header>
 		{#if loading}
 			<p class="panel__empty">Carregando…</p>
-		{:else if !metrics || metrics.horasExtrasPorDia.every((p) => p.horas === 0)}
-			<p class="panel__empty">Sem horas extras registradas no mês.</p>
+		{:else if !metrics || metrics.entradasHoje.length === 0}
+			<p class="panel__empty">Nenhum colaborador ativo.</p>
 		{:else}
-			{@const serie = metrics.horasExtrasPorDia}
-			{@const max = maxHoras(serie)}
-			<div class="chart">
-				{#each serie as p (p.date)}
-					{@const altura = (p.horas / max) * 100}
-					<div class="chart__col" title="{formatDate(p.date)} — {p.horas}h">
-						<div class="chart__bar" style="height: {altura}%"></div>
-						<span class="chart__label">{p.date.slice(8, 10)}</span>
+			<div class="entradas">
+				{#each metrics.entradasHoje as e, i (e.colaboradorId)}
+					<div class="entrada">
+						<Avatar
+							initials={initialsFromName(e.nome)}
+							size={36}
+							color={avatarColors[i % avatarColors.length]}
+						/>
+						<div class="entrada__meta">
+							<div class="entrada__nome">{e.nome}</div>
+							<div class="entrada__sub">
+								Previsto {e.jornadaEntrada ?? '—'} · Bateu {e.batidaEntrada
+									? formatTime(e.batidaEntrada)
+									: '—'}
+							</div>
+						</div>
+						<div class="entrada__right">
+							<Badge variant={statusVariant[e.status]} dot>{statusLabels[e.status]}</Badge>
+							<span class="entrada__atraso">{formatAtraso(e.atrasoMin)}</span>
+						</div>
 					</div>
 				{/each}
 			</div>
-			<p class="chart__hint">
-				Total: <strong>{metrics.horasExtrasMes}h</strong> · Pico no dia
-				<strong>
-					{(() => {
-						const top = [...serie].sort((a, b) => b.horas - a.horas)[0];
-						return top.horas > 0 ? `${formatDate(top.date)} (${top.horas}h)` : '—';
-					})()}
-				</strong>
-			</p>
 		{/if}
 	</Card>
 </section>
@@ -360,20 +279,21 @@
 		height: 2.25rem;
 	}
 
+	/* 4 cards lado a lado */
 	.stats {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+		grid-template-columns: repeat(4, 1fr);
 		gap: 0.75rem;
 	}
 
-	.grid {
-		display: grid;
-		grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-		gap: 1rem;
+	@media (max-width: 768px) {
+		.stats {
+			grid-template-columns: repeat(2, 1fr);
+		}
 	}
 
-	@media (max-width: 900px) {
-		.grid {
+	@media (max-width: 480px) {
+		.stats {
 			grid-template-columns: 1fr;
 		}
 	}
@@ -449,87 +369,6 @@
 		font-size: 0.7rem;
 		color: var(--color-text-subtle);
 		font-variant-numeric: tabular-nums;
-	}
-
-	.ranking {
-		list-style: none;
-		padding: 0;
-		margin: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.ranking__item {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
-		align-items: center;
-		gap: 0.75rem;
-		font-size: 0.875rem;
-	}
-
-	.ranking__nome {
-		color: #334155;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.ranking__bar {
-		background: var(--color-border-soft);
-		border-radius: var(--radius-pill);
-		height: 0.5rem;
-		overflow: hidden;
-	}
-
-	.ranking__bar-fill {
-		background: linear-gradient(90deg, #3b82f6, var(--color-primary));
-		height: 100%;
-		border-radius: var(--radius-pill);
-	}
-
-	.ranking__valor {
-		font-variant-numeric: tabular-nums;
-		color: var(--color-text);
-		font-weight: 700;
-	}
-
-	.chart {
-		display: flex;
-		align-items: flex-end;
-		gap: 0.25rem;
-		height: 180px;
-		padding-top: 0.5rem;
-	}
-
-	.chart__col {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: flex-end;
-		gap: 0.25rem;
-		height: 100%;
-	}
-
-	.chart__bar {
-		width: 100%;
-		min-height: 1px;
-		background: linear-gradient(180deg, #60a5fa, var(--color-primary));
-		border-radius: 0.25rem 0.25rem 0 0;
-		transition: height 200ms ease;
-	}
-
-	.chart__label {
-		font-size: 0.65rem;
-		color: var(--color-text-subtle);
-		font-variant-numeric: tabular-nums;
-	}
-
-	.chart__hint {
-		margin: 0.75rem 0 0;
-		font-size: 0.8125rem;
-		color: var(--color-text-muted);
 	}
 
 	.error {

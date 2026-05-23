@@ -11,7 +11,10 @@ export const GET: RequestHandler = async ({ request, params }) => {
 		return response as Response;
 	}
 
-	const user = await prisma.user.findUnique({ where: { id: params.id } });
+	const user = await prisma.user.findUnique({
+		where: { id: params.id },
+		include: { departamento: true }
+	});
 	if (!user || user.role !== 'colaborador' || user.empresaId !== admin.empresaId) {
 		return jsonError('Colaborador não encontrado', 404);
 	}
@@ -32,7 +35,7 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 		email: string;
 		cpf: string;
 		cargo: string;
-		departamento: string;
+		departamentoId: string | null;
 		dataAdmissao: string;
 		status: string;
 		telefone: string;
@@ -50,6 +53,18 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 		return jsonError('Colaborador não encontrado', 404);
 	}
 
+	if (body.departamentoId === null) {
+		return jsonError('departamentoId é obrigatório', 400);
+	}
+	if (body.departamentoId !== undefined) {
+		const departamento = await prisma.departamento.findUnique({
+			where: { id: body.departamentoId }
+		});
+		if (!departamento || departamento.empresaId !== admin.empresaId) {
+			return jsonError('Departamento inválido', 400);
+		}
+	}
+
 	const user = await prisma.user.update({
 		where: { id: params.id },
 		data: {
@@ -57,12 +72,13 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 			email: body.email ?? undefined,
 			cpf: body.cpf ?? undefined,
 			cargo: body.cargo ?? undefined,
-			departamento: body.departamento ?? undefined,
+			departamentoId: body.departamentoId ?? undefined,
 			telefone: body.telefone ?? undefined,
 			dataAdmissao: body.dataAdmissao ? new Date(body.dataAdmissao) : undefined,
 			status: body.status ?? undefined,
 			jornadaId: body.jornadaId === null ? null : (body.jornadaId ?? undefined)
-		}
+		},
+		include: { departamento: true }
 	});
 
 	return jsonOk(toColaboradorDTO(user));

@@ -316,6 +316,7 @@ async function main() {
 	await prisma.punch.deleteMany();
 	await prisma.user.deleteMany();
 	await prisma.jornada.deleteMany();
+	await prisma.departamento.deleteMany();
 	await prisma.empresa.deleteMany();
 
 	const empresa = await prisma.empresa.create({
@@ -327,6 +328,14 @@ async function main() {
 			qrSecret: generateSecret()
 		}
 	});
+
+	// Departamentos (cria todos os distintos a partir do seed de colaboradores)
+	const nomesDepartamentos = Array.from(new Set(colaboradoresSeed.map((c) => c.departamento)));
+	const departamentosMap = new Map<string, string>();
+	for (const nome of nomesDepartamentos) {
+		const d = await prisma.departamento.create({ data: { empresaId: empresa.id, nome } });
+		departamentosMap.set(nome, d.id);
+	}
 
 	const comercial = await prisma.jornada.create({
 		data: { empresaId: empresa.id, nome: 'Comercial 8h', dias: JSON.stringify(jornadaComercial) }
@@ -369,7 +378,7 @@ async function main() {
 				password: senhaHash,
 				role: 'colaborador',
 				cargo: c.cargo,
-				departamento: c.departamento,
+				departamentoId: departamentosMap.get(c.departamento)!,
 				telefone: c.telefone,
 				dataAdmissao: new Date(c.dataAdmissao),
 				status: c.status,

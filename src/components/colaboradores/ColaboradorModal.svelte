@@ -1,12 +1,14 @@
 <!-- src/components/colaboradores/ColaboradorModal.svelte -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 	import type {
 		Colaborador,
 		ColaboradorFormData,
 		StatusColaborador
 	} from '../../types/colaborador';
 	import { jornadaService, type Jornada } from '../../services/jornada.service';
+	import { departamentoService, type Departamento } from '../../services/departamento.service';
 
 	interface Props {
 		aberto: boolean;
@@ -30,7 +32,7 @@
 		email: '',
 		cpf: '',
 		cargo: '',
-		departamento: '',
+		departamentoId: '',
 		dataAdmissao: '',
 		status: 'ativo',
 		telefone: '',
@@ -41,16 +43,20 @@
 
 	let aba = $state<'dados' | 'jornada'>('dados');
 	let jornadas = $state<Jornada[]>([]);
-	let carregandoJornadas = $state(false);
+	let departamentos = $state<Departamento[]>([]);
+	let carregandoListas = $state(false);
 
 	onMount(async () => {
-		carregandoJornadas = true;
+		carregandoListas = true;
 		try {
-			jornadas = await jornadaService.list();
+			const [jors, deps] = await Promise.all([jornadaService.list(), departamentoService.list()]);
+			jornadas = jors;
+			departamentos = deps;
 		} catch {
 			jornadas = [];
+			departamentos = [];
 		} finally {
-			carregandoJornadas = false;
+			carregandoListas = false;
 		}
 	});
 
@@ -61,7 +67,7 @@
 				email: colaborador.email,
 				cpf: colaborador.cpf,
 				cargo: colaborador.cargo,
-				departamento: colaborador.departamento,
+				departamentoId: colaborador.departamentoId ?? '',
 				dataAdmissao: colaborador.dataAdmissao,
 				status: colaborador.status,
 				telefone: colaborador.telefone ?? '',
@@ -73,7 +79,7 @@
 				email: '',
 				cpf: '',
 				cargo: '',
-				departamento: '',
+				departamentoId: '',
 				dataAdmissao: '',
 				status: 'ativo',
 				telefone: '',
@@ -122,7 +128,7 @@
 		else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) novosErros.email = 'E-mail inválido';
 		if (!form.cpf.trim()) novosErros.cpf = 'CPF é obrigatório';
 		if (!form.cargo.trim()) novosErros.cargo = 'Cargo é obrigatório';
-		if (!form.departamento.trim()) novosErros.departamento = 'Departamento é obrigatório';
+		if (!form.departamentoId) novosErros.departamentoId = 'Departamento é obrigatório';
 		if (!form.dataAdmissao) novosErros.dataAdmissao = 'Data de admissão é obrigatória';
 		if (erros.telefone) novosErros.telefone = erros.telefone;
 
@@ -145,19 +151,21 @@
 </script>
 
 {#if aberto}
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="modal-backdrop" onclick={handleBackdropClick}>
+	<div
+		class="modal-backdrop"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="modal-titulo"
+		tabindex="-1"
+		onclick={handleBackdropClick}
+		onkeydown={handleKeydown}
+	>
 		<form
 			class="modal"
-			role="dialog"
-			aria-modal="true"
-			aria-labelledby="modal-titulo"
 			onsubmit={(e) => {
 				e.preventDefault();
 				handleSubmit();
 			}}
-			onkeydown={handleKeydown}
 		>
 			<header class="modal-header">
 				<h2 id="modal-titulo">{colaborador ? 'Editar Colaborador' : 'Novo Colaborador'}</h2>
@@ -268,20 +276,32 @@
 
 						<!-- Departamento -->
 						<div class="campo">
-							<label for="departamento">Departamento *</label>
-							<input
-								id="departamento"
-								type="text"
-								bind:value={form.departamento}
-								class:erro={!!erros.departamento}
-								placeholder="Ex: Tecnologia"
-								aria-required="true"
-								aria-invalid={!!erros.departamento}
-								aria-describedby={erros.departamento ? 'erro-departamento' : undefined}
-							/>
-							{#if erros.departamento}
+							<label for="departamentoId">Departamento *</label>
+							{#if carregandoListas}
+								<p class="msg-hint">Carregando departamentos…</p>
+							{:else if departamentos.length === 0}
+								<p class="msg-hint">
+									Nenhum departamento cadastrado. Cadastre um em
+									<a href={resolve('/admin/departamentos', {})}>Departamentos</a> antes.
+								</p>
+							{:else}
+								<select
+									id="departamentoId"
+									bind:value={form.departamentoId}
+									class:erro={!!erros.departamentoId}
+									aria-required="true"
+									aria-invalid={!!erros.departamentoId}
+									aria-describedby={erros.departamentoId ? 'erro-departamento' : undefined}
+								>
+									<option value="">Selecione…</option>
+									{#each departamentos as d (d.id)}
+										<option value={d.id}>{d.nome}</option>
+									{/each}
+								</select>
+							{/if}
+							{#if erros.departamentoId}
 								<span id="erro-departamento" class="msg-erro" role="alert"
-									>{erros.departamento}</span
+									>{erros.departamentoId}</span
 								>
 							{/if}
 						</div>
@@ -338,7 +358,7 @@
 					<div class="aba-jornada">
 						<div class="campo campo--full">
 							<label for="jornadaId">Jornada de trabalho</label>
-							{#if carregandoJornadas}
+							{#if carregandoListas}
 								<p class="aba-jornada__hint">Carregando jornadas…</p>
 							{:else if jornadas.length === 0}
 								<p class="aba-jornada__hint">
@@ -514,6 +534,16 @@
 	.msg-erro {
 		font-size: 0.75rem;
 		color: var(--color-danger, #ef4444);
+	}
+
+	.msg-hint {
+		font-size: 0.75rem;
+		color: var(--color-text-muted, #64748b);
+		margin: 0;
+	}
+
+	.msg-hint a {
+		color: var(--color-primary, #3b82f6);
 	}
 
 	.modal-footer {

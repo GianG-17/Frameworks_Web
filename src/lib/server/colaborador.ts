@@ -3,7 +3,7 @@
  * @description Mapeamento User (Prisma) → Colaborador (DTO) usado pelo frontend.
  */
 
-import type { User } from '@prisma/client';
+import type { Departamento, User } from '@prisma/client';
 
 export interface ColaboradorDTO {
 	id: string;
@@ -11,21 +11,27 @@ export interface ColaboradorDTO {
 	email: string;
 	cpf: string;
 	cargo: string;
-	departamento: string;
+	departamentoId: string | null;
+	departamento: { id: string; nome: string } | null;
 	dataAdmissao: string;
 	status: string;
 	telefone?: string;
 	jornadaId?: string;
 }
 
-export function toColaboradorDTO(user: User): ColaboradorDTO {
+type UserComDepartamento = User & { departamento?: Departamento | null };
+
+export function toColaboradorDTO(user: UserComDepartamento): ColaboradorDTO {
 	return {
 		id: user.id,
 		nome: user.name,
 		email: user.email,
 		cpf: user.cpf,
 		cargo: user.cargo ?? '',
-		departamento: user.departamento ?? '',
+		departamentoId: user.departamentoId ?? null,
+		departamento: user.departamento
+			? { id: user.departamento.id, nome: user.departamento.nome }
+			: null,
 		dataAdmissao: user.dataAdmissao ? user.dataAdmissao.toISOString().split('T')[0] : '',
 		status: user.status ?? 'ativo',
 		telefone: user.telefone ?? undefined,

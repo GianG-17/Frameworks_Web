@@ -30,12 +30,12 @@
 
 	const NAV_ADMIN: NavItem[] = [
 		{ href: resolve('/admin/dashboard', {}), label: 'Dashboard', icon: 'dashboard' },
-		{ href: resolve('/admin/empresa', {}), label: 'Empresa', icon: 'qr' },
-		{ href: resolve('/admin/colaboradores', {}), label: 'Colaboradores', icon: 'approval' },
-		{ href: resolve('/admin/departamentos', {}), label: 'Departamentos', icon: 'approval' },
+		{ href: resolve('/admin/empresa', {}), label: 'Empresa', icon: 'building' },
+		{ href: resolve('/admin/colaboradores', {}), label: 'Colaboradores', icon: 'users' },
+		{ href: resolve('/admin/departamentos', {}), label: 'Departamentos', icon: 'handshake' },
 		{ href: resolve('/admin/jornadas', {}), label: 'Jornadas', icon: 'clock' },
 		{ href: resolve('/admin/justificativas', {}), label: 'Justificativas', icon: 'approval' },
-		{ href: resolve('/admin/ferias', {}), label: 'Férias', icon: 'history' },
+		{ href: resolve('/admin/ferias', {}), label: 'Férias', icon: 'vacations' },
 		{ href: resolve('/admin/relatorios', {}), label: 'Relatórios', icon: 'report' }
 	];
 
@@ -162,18 +162,18 @@
 	.sidebar__nav {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: 0.375rem;
 	}
 
 	.nav-item {
 		display: flex;
 		align-items: center;
-		gap: 0.625rem;
-		padding: 0.625rem 1rem;
+		gap: 0.75rem;
+		padding: 0.75rem 1rem;
 		border-radius: var(--radius-sm);
 		color: var(--color-sidebar-item-fg);
 		text-decoration: none;
-		font-size: 0.875rem;
+		font-size: 0.9375rem;
 		font-weight: 400;
 		transition: all 0.15s;
 	}

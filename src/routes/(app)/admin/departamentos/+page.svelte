@@ -16,7 +16,6 @@
 	let editingId = $state<string | null>(null);
 	let formNome = $state('');
 	let saving = $state(false);
-	let deleteConfirmId = $state<string | null>(null);
 
 	// Modal bulk jornada
 	let jornadaModalOpen = $state(false);
@@ -41,21 +40,18 @@
 	function openCreate() {
 		editingId = null;
 		formNome = '';
-		deleteConfirmId = null;
 		modalOpen = true;
 	}
 
 	function openEdit(d: Departamento) {
 		editingId = d.id;
 		formNome = d.nome;
-		deleteConfirmId = null;
 		modalOpen = true;
 	}
 
 	function closeModal() {
 		modalOpen = false;
 		editingId = null;
-		deleteConfirmId = null;
 	}
 
 	async function handleSave() {
@@ -89,7 +85,6 @@
 			await departamentoService.remove(id);
 			departamentos = departamentos.filter((d) => d.id !== id);
 			departamentosStore.remove(id);
-			deleteConfirmId = null;
 			closeModal();
 		} catch {
 			errorMsg = 'Erro ao excluir departamento.';
@@ -195,18 +190,7 @@
 
 				<div class="modal__footer">
 					{#if editingId}
-						{#if deleteConfirmId === editingId}
-							<Button variant="danger" size="sm" onclick={() => handleDelete(editingId!)}>
-								Confirmar exclusão
-							</Button>
-							<Button variant="secondary" size="sm" onclick={() => (deleteConfirmId = null)}>
-								Cancelar
-							</Button>
-						{:else}
-							<Button variant="danger" size="sm" onclick={() => (deleteConfirmId = editingId)}>
-								Excluir
-							</Button>
-						{/if}
+						<Button variant="danger" onclick={() => handleDelete(editingId!)}>Excluir</Button>
 					{/if}
 					<div class="modal__footer-spacer"></div>
 					<Button variant="outline" onclick={closeModal}>Cancelar</Button>

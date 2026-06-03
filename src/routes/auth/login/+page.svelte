@@ -99,7 +99,7 @@
 		</div>
 
 		<h1>Entrar</h1>
-		<p class="subtitle">Acesse seu painel de ponto eletrônic</p>
+		<p class="subtitle">Acesse seu painel de ponto eletrônico</p>
 
 		<div class="tabs" role="tablist">
 			<button

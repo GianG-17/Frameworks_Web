@@ -58,7 +58,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		prisma.colaborador.count({ where: { status: 'ativo', empresaId } })
 	]);
 
-	const pontosHoje = await prisma.punch.count({
+	const pontosHoje = await prisma.registro.count({
 		where: { empresaId, timestamp: { gte: refDayStart, lte: refDayEnd } }
 	});
 
@@ -68,17 +68,17 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		Date.UTC(refDate.getUTCFullYear(), refDate.getUTCMonth() + 1, 0, 23, 59, 59, 999)
 	);
 
-	const punchesMes = await prisma.punch.findMany({
+	const registrosMes = await prisma.registro.findMany({
 		where: { empresaId, timestamp: { gte: mesStart, lte: mesEnd } },
 		orderBy: { timestamp: 'asc' }
 	});
 
 	// Index por usuário
-	const punchesByUser = new Map<string, typeof punchesMes>();
-	for (const p of punchesMes) {
-		const list = punchesByUser.get(p.colaboradorId) ?? [];
+	const registrosPorColaborador = new Map<string, typeof registrosMes>();
+	for (const p of registrosMes) {
+		const list = registrosPorColaborador.get(p.colaboradorId) ?? [];
 		list.push(p);
-		punchesByUser.set(p.colaboradorId, list);
+		registrosPorColaborador.set(p.colaboradorId, list);
 	}
 
 	// Soma horas extras / déficit por dia (todos os colaboradores) e por colaborador
@@ -86,7 +86,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	const extrasPorUser = new Map<string, number>();
 	const deficitPorUser = new Map<string, number>();
 
-	for (const [userId, list] of punchesByUser.entries()) {
+	for (const [userId, list] of registrosPorColaborador.entries()) {
 		const sumarios = buildDailySummaries(list);
 		let extrasUser = 0;
 		let deficitUser = 0;
@@ -134,11 +134,11 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		.slice(0, 5);
 
 	// ── Entradas do dia (status: pontual / atrasado / falta / sem_jornada) ────
-	const punchesDia = await prisma.punch.findMany({
+	const registrosDia = await prisma.registro.findMany({
 		where: { empresaId, timestamp: { gte: refDayStart, lte: refDayEnd }, type: 'entrada' },
 		orderBy: { timestamp: 'asc' }
 	});
-	const entradaByUser = new Map(punchesDia.map((p) => [p.colaboradorId, p]));
+	const entradaByUser = new Map(registrosDia.map((p) => [p.colaboradorId, p]));
 
 	const dowKey = diaKeyFromDate(refDate);
 	const entradasHoje = colaboradores
@@ -169,11 +169,11 @@ export const GET: RequestHandler = async ({ request, url }) => {
 				};
 			}
 
-			const punch = entradaByUser.get(c.id);
+			const registro = entradaByUser.get(c.id);
 			const previsto = cfg.entrada;
 			const previstoMin = timeStringToMinutes(previsto);
 
-			if (!punch) {
+			if (!registro) {
 				// Sem batida: se ainda não passou da hora prevista no dia atual, marcar como pendente.
 				const agora = new Date();
 				const ehHoje = refKey === dateKey(agora);
@@ -191,14 +191,14 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
 			// Tem batida: calcula atraso em minutos relativo ao horário previsto local (UTC-3)
 			const isoPrevisto = new Date(`${refKey}T${previsto}:00-03:00`);
-			const atrasoMin = Math.round((punch.timestamp.getTime() - isoPrevisto.getTime()) / 60_000);
+			const atrasoMin = Math.round((registro.timestamp.getTime() - isoPrevisto.getTime()) / 60_000);
 			const atrasado = atrasoMin > TOLERANCIA_ATRASO_MIN;
 
 			return {
 				colaboradorId: c.id,
 				nome: c.name,
 				jornadaEntrada: previsto,
-				batidaEntrada: punch.timestamp.toISOString(),
+				batidaEntrada: registro.timestamp.toISOString(),
 				atrasoMin,
 				status: atrasado ? ('atrasado' as const) : ('pontual' as const)
 			};

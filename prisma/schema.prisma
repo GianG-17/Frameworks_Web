@@ -27,7 +27,7 @@ model Empresa {
   colaboradores  Colaborador[]
   jornadas       Jornada[]
   departamentos  Departamento[]
-  punches        Punch[]
+  registros      Registro[]
   ferias         Ferias[]
   justificativas Justificativa[]
 
@@ -67,7 +67,7 @@ model Colaborador {
   status         String?       // "ativo" | "inativo" | "ferias" | "afastado"
   jornadaId      String?
   jornada        Jornada?      @relation(fields: [jornadaId], references: [id], onDelete: SetNull)
-  punches        Punch[]
+  registros      Registro[]
   ferias         Ferias[]
   justificativas Justificativa[]
   createdAt      DateTime      @default(now())
@@ -106,7 +106,8 @@ model Jornada {
   @@map("jornadas")
 }
 
-model Punch {
+// Registro de ponto (batida) — imutável conforme Portaria 671/2021.
+model Registro {
   id            String      @id @default(cuid())
   colaboradorId String
   colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
@@ -121,26 +122,26 @@ model Punch {
   // createdBy preenchido apenas quando admin cria batida em nome de um colaborador (Usuario.id).
   createdBy     String?
   createdReason String?
-  anulacao      PunchAnulacao?
+  anulacao      RegistroAnulacao?
 
   @@index([colaboradorId, timestamp])
   @@index([empresaId, timestamp])
-  @@map("punches")
+  @@map("registros")
 }
 
-// Anulação de batida — registro complementar que invalida um Punch sem apagá-lo.
-// Cálculo do espelho ignora punches com anulacao; AFD legal exporta ambos.
-model PunchAnulacao {
+// Anulação de registro — complementa um Registro invalidando-o sem apagá-lo.
+// Cálculo do espelho ignora registros com anulacao; AFD legal exporta ambos.
+model RegistroAnulacao {
   id         String   @id @default(cuid())
-  punchId    String   @unique
-  punch      Punch    @relation(fields: [punchId], references: [id], onDelete: Cascade)
+  registroId String   @unique
+  registro   Registro @relation(fields: [registroId], references: [id], onDelete: Cascade)
   empresaId  String
   motivo     String
   anuladoPor String   // Usuario.id do admin
   anuladoEm  DateTime @default(now())
 
   @@index([empresaId])
-  @@map("punch_anulacoes")
+  @@map("registro_anulacoes")
 }
 
 model Ferias {

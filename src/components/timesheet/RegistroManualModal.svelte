@@ -1,25 +1,29 @@
 <!--
-  @component PunchManualModal
+  @component RegistroManualModal
   @description Modal para admin registrar batida retroativa de um colaborador.
   Conformidade Portaria 671: cria registro novo (não altera nenhum existente).
 -->
 <script lang="ts">
-	import type { PunchType } from '@/services/timesheet.service';
+	import type { RegistroType } from '@/services/timesheet.service';
 
 	interface Props {
 		aberto: boolean;
 		colaboradorNome: string;
 		/** Data inicial do datetime-local (YYYY-MM-DDTHH:mm) */
 		dataInicial: string;
-		tipoInicial: PunchType;
+		tipoInicial: RegistroType;
 		onFechar: () => void;
-		onConfirmar: (dados: { type: PunchType; timestamp: string; reason: string }) => Promise<void>;
+		onConfirmar: (dados: {
+			type: RegistroType;
+			timestamp: string;
+			reason: string;
+		}) => Promise<void>;
 	}
 
 	let { aberto, colaboradorNome, dataInicial, tipoInicial, onFechar, onConfirmar }: Props =
 		$props();
 
-	let tipo = $state<PunchType>('entrada');
+	let tipo = $state<RegistroType>('entrada');
 	let dataHora = $state('');
 	let motivo = $state('');
 	let salvando = $state(false);

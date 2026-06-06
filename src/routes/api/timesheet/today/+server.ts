@@ -17,8 +17,8 @@ export const GET: RequestHandler = async ({ request }) => {
 	const end = new Date(now);
 	end.setUTCHours(23, 59, 59, 999);
 
-	const [punches, justificativas] = await Promise.all([
-		prisma.punch.findMany({
+	const [registros, justificativas] = await Promise.all([
+		prisma.registro.findMany({
 			where: { colaboradorId: user.id, timestamp: { gte: start, lte: end } },
 			orderBy: { timestamp: 'asc' },
 			include: { anulacao: true }
@@ -29,5 +29,5 @@ export const GET: RequestHandler = async ({ request }) => {
 	]);
 
 	const abonado = justificativas.length > 0;
-	return jsonOk(buildSummary(dateKey(now), punches, abonado));
+	return jsonOk(buildSummary(dateKey(now), registros, abonado));
 };

@@ -25,8 +25,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		return jsonError('Datas inválidas', 400);
 	}
 
-	const [punches, justificativas] = await Promise.all([
-		prisma.punch.findMany({
+	const [registros, justificativas] = await Promise.all([
+		prisma.registro.findMany({
 			where: { colaboradorId: user.id, timestamp: { gte: start, lte: end } },
 			orderBy: { timestamp: 'asc' },
 			include: { anulacao: true }
@@ -37,5 +37,5 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	]);
 
 	const datasAbonadas = new Set(justificativas.map((j) => dateKey(j.data)));
-	return jsonOk(buildDailySummaries(punches, datasAbonadas));
+	return jsonOk(buildDailySummaries(registros, datasAbonadas));
 };

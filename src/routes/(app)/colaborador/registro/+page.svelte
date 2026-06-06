@@ -1,6 +1,6 @@
 <!--
   @page /colaborador/registro
-  @description Página de registro de ponto — bater ponto e ver punches do dia.
+  @description Página de registro de ponto — bater ponto e ver registros do dia.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -8,19 +8,19 @@
 	import Card from '@/components/ui/Card.svelte';
 	import Icon from '@/components/ui/Icon.svelte';
 	import { timesheetService } from '@/services/timesheet.service';
-	import type { PunchType, DailySummary } from '@/services/timesheet.service';
+	import type { RegistroType, DailySummary } from '@/services/timesheet.service';
 	import { formatTime, diffInMinutes } from '@/utils/date';
 
-	const PUNCH_LABELS: Record<PunchType, string> = {
+	const REGISTRO_LABELS: Record<RegistroType, string> = {
 		entrada: 'Entrada',
 		saida_almoco: 'Saída Almoço',
 		retorno_almoco: 'Retorno Almoço',
 		saida: 'Saída'
 	};
 
-	const PUNCH_SEQUENCE: PunchType[] = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'];
+	const REGISTRO_SEQUENCE: RegistroType[] = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'];
 
-	const PUNCH_DOT: Record<PunchType, string> = {
+	const REGISTRO_DOT: Record<RegistroType, string> = {
 		entrada: '#22c55e',
 		saida_almoco: '#f97316',
 		retorno_almoco: '#3b82f6',
@@ -29,20 +29,20 @@
 
 	let summary = $state<DailySummary | null>(null);
 	let loading = $state(false);
-	let punching = $state(false);
+	let registrando = $state(false);
 	let errorMsg = $state('');
 	let now = $state(new Date());
 	let lastSuccess = $state('');
 
-	const nextPunchType: PunchType | null = $derived.by(() => {
+	const nextRegistroType: RegistroType | null = $derived.by(() => {
 		if (!summary) return 'entrada';
-		const registered = summary.punches.map((p) => p.type);
-		return PUNCH_SEQUENCE.find((type) => !registered.includes(type)) ?? null;
+		const registered = summary.registros.map((p) => p.type);
+		return REGISTRO_SEQUENCE.find((type) => !registered.includes(type)) ?? null;
 	});
 
 	const totalMinutes = $derived.by(() => {
-		if (!summary || summary.punches.length < 2) return 0;
-		const byType = new Map(summary.punches.map((p) => [p.type, p.timestamp]));
+		if (!summary || summary.registros.length < 2) return 0;
+		const byType = new Map(summary.registros.map((p) => [p.type, p.timestamp]));
 		let total = 0;
 		const ent = byType.get('entrada');
 		const saA = byType.get('saida_almoco');
@@ -65,21 +65,21 @@
 		}
 	}
 
-	async function handlePunch(): Promise<void> {
-		const type = nextPunchType;
+	async function handleRegistrar(): Promise<void> {
+		const type = nextRegistroType;
 		if (!type) return;
 
-		punching = true;
+		registrando = true;
 		errorMsg = '';
 		try {
-			await timesheetService.punch({ type, method: 'manual' });
-			lastSuccess = PUNCH_LABELS[type];
+			await timesheetService.registrar({ type, method: 'manual' });
+			lastSuccess = REGISTRO_LABELS[type];
 			setTimeout(() => (lastSuccess = ''), 3000);
 			await loadToday();
 		} catch {
 			errorMsg = 'Erro ao registrar ponto.';
 		} finally {
-			punching = false;
+			registrando = false;
 		}
 	}
 
@@ -89,8 +89,8 @@
 		return () => clearInterval(timer);
 	});
 
-	function punchAt(type: PunchType): string | null {
-		return summary?.punches.find((p) => p.type === type)?.timestamp ?? null;
+	function registroAt(type: RegistroType): string | null {
+		return summary?.registros.find((p) => p.type === type)?.timestamp ?? null;
 	}
 </script>
 
@@ -121,10 +121,10 @@
 
 	<Card>
 		<div class="steps">
-			{#each PUNCH_SEQUENCE as type, i (type)}
-				{@const ts = punchAt(type)}
+			{#each REGISTRO_SEQUENCE as type, i (type)}
+				{@const ts = registroAt(type)}
 				{@const isDone = !!ts}
-				{@const isNext = !isDone && nextPunchType === type}
+				{@const isNext = !isDone && nextRegistroType === type}
 				<div class="step">
 					<div class="step__dot" class:is-done={isDone} class:is-next={isNext}>
 						{#if isDone}
@@ -134,13 +134,13 @@
 						{/if}
 					</div>
 					<span class="step__label" class:is-done={isDone} class:is-next={isNext}>
-						{PUNCH_LABELS[type]}
+						{REGISTRO_LABELS[type]}
 						{#if isDone}
 							<br /><span class="step__time">{formatTime(ts!)}</span>
 						{/if}
 					</span>
 				</div>
-				{#if i < PUNCH_SEQUENCE.length - 1}
+				{#if i < REGISTRO_SEQUENCE.length - 1}
 					<div class="step__line" class:is-done={isDone}></div>
 				{/if}
 			{/each}
@@ -152,9 +152,9 @@
 	{/if}
 
 	<div class="action">
-		{#if nextPunchType}
-			<Button variant="primary" size="lg" loading={punching} onclick={handlePunch}>
-				{PUNCH_LABELS[nextPunchType]}
+		{#if nextRegistroType}
+			<Button variant="primary" size="lg" loading={registrando} onclick={handleRegistrar}>
+				{REGISTRO_LABELS[nextRegistroType]}
 			</Button>
 		{:else}
 			<div class="done-box">
@@ -170,17 +170,17 @@
 		{/if}
 	</div>
 
-	{#if summary && summary.punches.length > 0}
+	{#if summary && summary.registros.length > 0}
 		<Card>
 			<h2 class="list-title">Registros de hoje</h2>
 			<div class="punches">
-				{#each summary.punches as punch (punch)}
+				{#each summary.registros as registro (registro)}
 					<div class="punch">
 						<div class="punch__left">
-							<span class="punch__dot" style="background: {PUNCH_DOT[punch.type]};"></span>
-							<span class="punch__type">{PUNCH_LABELS[punch.type]}</span>
+							<span class="punch__dot" style="background: {REGISTRO_DOT[registro.type]};"></span>
+							<span class="punch__type">{REGISTRO_LABELS[registro.type]}</span>
 						</div>
-						<span class="punch__time">{formatTime(punch.timestamp)}</span>
+						<span class="punch__time">{formatTime(registro.timestamp)}</span>
 					</div>
 				{/each}
 			</div>

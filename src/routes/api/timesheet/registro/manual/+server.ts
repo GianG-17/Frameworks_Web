@@ -1,5 +1,5 @@
 /**
- * @endpoint POST /api/timesheet/punch/manual
+ * @endpoint POST /api/timesheet/registro/manual
  * @description Admin cria batida retroativa para um colaborador da própria empresa.
  *
  * Conformidade Portaria 671/2021: a batida é criada como registro novo (imutável)
@@ -8,7 +8,7 @@
  */
 import type { RequestHandler } from '@sveltejs/kit';
 import { prisma } from '@/lib/server/db';
-import { toPunchDTO } from '@/lib/server/timesheet';
+import { toRegistroDTO } from '@/lib/server/timesheet';
 import { requireAdmin, jsonError, jsonOk } from '../../../_lib/auth-helpers';
 
 const VALID_TYPES = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'];
@@ -52,7 +52,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		return jsonError('Colaborador não encontrado', 404);
 	}
 
-	const punch = await prisma.punch.create({
+	const registro = await prisma.registro.create({
 		data: {
 			colaboradorId: colaborador.id,
 			empresaId: admin.empresaId,
@@ -65,5 +65,5 @@ export const POST: RequestHandler = async ({ request }) => {
 		include: { anulacao: true }
 	});
 
-	return jsonOk(toPunchDTO(punch), 201);
+	return jsonOk(toRegistroDTO(registro), 201);
 };

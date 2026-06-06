@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { prisma } from '@/lib/server/db';
-import { toPunchDTO } from '@/lib/server/timesheet';
+import { toRegistroDTO } from '@/lib/server/timesheet';
 import { requireUser, jsonError, jsonOk } from '../../_lib/auth-helpers';
 
 const VALID_TYPES = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'];
@@ -28,7 +28,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		return jsonError(`method deve ser um de: ${VALID_METHODS.join(', ')}`, 400);
 	}
 
-	const punch = await prisma.punch.create({
+	const registro = await prisma.registro.create({
 		data: {
 			colaboradorId: user.id,
 			empresaId: user.empresaId,
@@ -39,5 +39,5 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 	});
 
-	return jsonOk(toPunchDTO(punch), 201);
+	return jsonOk(toRegistroDTO(registro), 201);
 };

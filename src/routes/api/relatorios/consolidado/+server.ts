@@ -27,7 +27,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		include: { jornada: true }
 	});
 
-	const punches = await prisma.punch.findMany({
+	const registros = await prisma.registro.findMany({
 		where: { empresaId: admin.empresaId, timestamp: { gte: start, lte: end } },
 		orderBy: { timestamp: 'asc' }
 	});
@@ -44,8 +44,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		where: { empresaId: admin.empresaId, data: { gte: start, lte: end } }
 	});
 
-	const byUser = new Map<string, typeof punches>();
-	for (const p of punches) {
+	const byUser = new Map<string, typeof registros>();
+	for (const p of registros) {
 		const list = byUser.get(p.colaboradorId) ?? [];
 		list.push(p);
 		byUser.set(p.colaboradorId, list);

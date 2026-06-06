@@ -137,10 +137,10 @@ function* iterDates(year: number, month: number): Generator<{ iso: string; dow: 
 }
 
 // ── Geração de pontos de um dia ──────────────────────────────────────────────
-type PunchType = 'entrada' | 'saida_almoco' | 'retorno_almoco' | 'saida';
+type RegistroType = 'entrada' | 'saida_almoco' | 'retorno_almoco' | 'saida';
 
-interface PunchSpec {
-	type: PunchType;
+interface RegistroSpec {
+	type: RegistroType;
 	timestamp: Date;
 	method: 'qrcode' | 'manual';
 }
@@ -159,11 +159,11 @@ function gerarPontosDoDia(
 	dateISO: string,
 	diaConfig: DiaConfig[keyof DiaConfig],
 	comportamento: DayBehavior
-): PunchSpec[] {
+): RegistroSpec[] {
 	if (!diaConfig.ativo) return [];
 	if (chance(rng, comportamento.faltaProb)) return [];
 
-	const planejado: { type: PunchType; horario: string }[] = [
+	const planejado: { type: RegistroType; horario: string }[] = [
 		{ type: 'entrada', horario: diaConfig.entrada },
 		{ type: 'saida_almoco', horario: diaConfig.saida_almoco },
 		{ type: 'retorno_almoco', horario: diaConfig.retorno_almoco },
@@ -173,7 +173,7 @@ function gerarPontosDoDia(
 	// Atraso grave concentrado na entrada, "puxa" o dia
 	const atrasoGrave = chance(rng, comportamento.atrasoGraveProb);
 
-	const pontos: PunchSpec[] = planejado.map((p, i) => {
+	const pontos: RegistroSpec[] = planejado.map((p, i) => {
 		let offset: number;
 		if (i === 0 && atrasoGrave) {
 			offset = randInt(rng, 30, 65);
@@ -313,7 +313,7 @@ async function main() {
 
 	await prisma.justificativa.deleteMany();
 	await prisma.ferias.deleteMany();
-	await prisma.punch.deleteMany();
+	await prisma.registro.deleteMany();
 	await prisma.colaborador.deleteMany();
 	await prisma.usuario.deleteMany();
 	await prisma.jornada.deleteMany();
@@ -364,7 +364,7 @@ async function main() {
 		meioPeriodo: { id: meioPeriodo.id, dias: jornadaMeioPeriodo }
 	};
 
-	let totalPunches = 0;
+	let totalRegistros = 0;
 
 	for (const c of colaboradoresSeed) {
 		const jornada = jornadasMap[c.jornada];
@@ -421,10 +421,10 @@ async function main() {
 		}
 		const justSet = new Set((c.justificativas ?? []).map((j) => j.data));
 
-		const punchesData: {
+		const registrosData: {
 			colaboradorId: string;
 			empresaId: string;
-			type: PunchType;
+			type: RegistroType;
 			timestamp: Date;
 			method: 'qrcode' | 'manual';
 		}[] = [];
@@ -434,7 +434,7 @@ async function main() {
 			const diaConfig = jornada.dias[dow];
 			const pontos = gerarPontosDoDia(rng, iso, diaConfig, c.comportamento);
 			for (const p of pontos) {
-				punchesData.push({
+				registrosData.push({
 					colaboradorId: user.id,
 					empresaId: empresa.id,
 					type: p.type,
@@ -444,14 +444,14 @@ async function main() {
 			}
 		}
 
-		if (punchesData.length > 0) {
-			await prisma.punch.createMany({ data: punchesData });
-			totalPunches += punchesData.length;
+		if (registrosData.length > 0) {
+			await prisma.registro.createMany({ data: registrosData });
+			totalRegistros += registrosData.length;
 		}
 	}
 
 	console.log(
-		`✓ Seed concluído: 1 empresa, 2 jornadas, 1 admin, ${colaboradoresSeed.length} colaboradores, ${totalPunches} pontos em Jan/2026.`
+		`✓ Seed concluído: 1 empresa, 2 jornadas, 1 admin, ${colaboradoresSeed.length} colaboradores, ${totalRegistros} pontos em Jan/2026.`
 	);
 	console.log(`  Senha padrão para todos: Senha123`);
 }

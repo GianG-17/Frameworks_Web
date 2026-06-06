@@ -1,6 +1,6 @@
 /**
- * @module services/punch-admin
- * @description Operações administrativas sobre batidas — somente para perfil admin.
+ * @module services/registro-admin
+ * @description Operações administrativas sobre registros de ponto — somente para perfil admin.
  *
  * Conformidade Portaria 671/2021: nenhuma operação altera ou remove batidas
  * existentes. `criarManual` adiciona um novo registro retroativo; `anular`
@@ -9,16 +9,16 @@
  */
 
 import { post } from './api';
-import type { PunchRecord, PunchType } from './timesheet.service';
+import type { RegistroRecord, RegistroType } from './timesheet.service';
 
-export const punchAdminService = {
+export const registroAdminService = {
 	criarManual: (data: {
 		colaboradorId: string;
-		type: PunchType;
+		type: RegistroType;
 		timestamp: string;
 		reason: string;
-	}) => post<PunchRecord>('/timesheet/punch/manual', data),
+	}) => post<RegistroRecord>('/timesheet/registro/manual', data),
 
-	anular: (punchId: string, motivo: string) =>
-		post<PunchRecord>(`/timesheet/punch/${punchId}/anular`, { motivo })
+	anular: (registroId: string, motivo: string) =>
+		post<RegistroRecord>(`/timesheet/registro/${registroId}/anular`, { motivo })
 };

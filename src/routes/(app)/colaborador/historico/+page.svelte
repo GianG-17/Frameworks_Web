@@ -5,20 +5,20 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { timesheetService } from '@/services/timesheet.service';
-	import type { DailySummary, PunchType } from '@/services/timesheet.service';
+	import type { DailySummary, RegistroType } from '@/services/timesheet.service';
 	import { formatTime, formatHoursMinutes } from '@/utils/date';
 	import { SvelteDate } from 'svelte/reactivity';
 	import Card from '@/components/ui/Card.svelte';
 	import Icon from '@/components/ui/Icon.svelte';
 
-	const PUNCH_LABELS: Record<PunchType, string> = {
+	const REGISTRO_LABELS: Record<RegistroType, string> = {
 		entrada: 'Entrada',
 		saida_almoco: 'Saída Almoço',
 		retorno_almoco: 'Retorno Almoço',
 		saida: 'Saída'
 	};
 
-	const PUNCH_DOT: Record<PunchType, string> = {
+	const REGISTRO_DOT: Record<RegistroType, string> = {
 		entrada: '#22c55e',
 		saida_almoco: '#f97316',
 		retorno_almoco: '#3b82f6',
@@ -129,7 +129,7 @@
 					<button class="day__header" onclick={() => (openDay = isOpen ? null : day.date)}>
 						<div class="day__title">
 							<div class="day__date">{formatDayHeader(day.date)}</div>
-							<div class="day__sub">{day.punches.length} registros</div>
+							<div class="day__sub">{day.registros.length} registros</div>
 						</div>
 						<div class="day__right">
 							{#if day.overtime > 0}
@@ -147,14 +147,14 @@
 
 					{#if isOpen}
 						<div class="day__details">
-							{#each day.punches as punch (punch)}
+							{#each day.registros as registro (registro)}
 								<div class="day__punch">
 									<div class="day__punch-head">
-										<span class="day__punch-dot" style="background: {PUNCH_DOT[punch.type]};"
+										<span class="day__punch-dot" style="background: {REGISTRO_DOT[registro.type]};"
 										></span>
-										<span class="day__punch-label">{PUNCH_LABELS[punch.type]}</span>
+										<span class="day__punch-label">{REGISTRO_LABELS[registro.type]}</span>
 									</div>
-									<span class="day__punch-time">{formatTime(punch.timestamp)}</span>
+									<span class="day__punch-time">{formatTime(registro.timestamp)}</span>
 								</div>
 							{/each}
 						</div>

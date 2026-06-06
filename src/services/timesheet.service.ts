@@ -5,38 +5,38 @@
 
 import { post, get } from './api';
 
-export type PunchType = 'entrada' | 'saida_almoco' | 'retorno_almoco' | 'saida';
+export type RegistroType = 'entrada' | 'saida_almoco' | 'retorno_almoco' | 'saida';
 
-export interface PunchAnulacao {
+export interface RegistroAnulacao {
 	motivo: string;
 	anuladoPor: string;
 	anuladoEm: string;
 }
 
-export interface PunchRecord {
+export interface RegistroRecord {
 	id: string;
 	colaboradorId: string;
-	type: PunchType;
+	type: RegistroType;
 	timestamp: string;
 	latitude?: number | null;
 	longitude?: number | null;
 	method: 'manual';
 	createdBy: string | null;
 	createdReason: string | null;
-	anulacao: PunchAnulacao | null;
+	anulacao: RegistroAnulacao | null;
 }
 
 export interface DailySummary {
 	date: string;
-	punches: PunchRecord[];
+	registros: RegistroRecord[];
 	totalHours: number;
 	overtime: number;
 	deficit: number;
 }
 
 export const timesheetService = {
-	punch: (data: { type: PunchType; method: PunchRecord['method'] }) =>
-		post<PunchRecord>('/timesheet/punch', data),
+	registrar: (data: { type: RegistroType; method: RegistroRecord['method'] }) =>
+		post<RegistroRecord>('/timesheet/registro', data),
 
 	today: () => get<DailySummary>('/timesheet/today'),
 

@@ -3,13 +3,13 @@
  * @description Utilitários server-side para cálculo de resumo diário de ponto.
  *
  * Conformidade com Portaria 671/2021:
- *  - Registros (Punch) são imutáveis.
- *  - Correções via batidas manuais (createdBy) ou anulações (PunchAnulacao).
+ *  - Registros são imutáveis.
+ *  - Correções via batidas manuais (createdBy) ou anulações (RegistroAnulacao).
  *  - Cálculo ignora batidas anuladas, mas o DTO continua expondo a anulação
  *    para que o front exiba a marcação visual e o AFD futuro liste tudo.
  */
 
-import type { Punch, PunchAnulacao } from '@prisma/client';
+import type { Registro, RegistroAnulacao } from '@prisma/client';
 
 export interface AnulacaoDTO {
 	motivo: string;
@@ -17,7 +17,7 @@ export interface AnulacaoDTO {
 	anuladoEm: string;
 }
 
-export interface PunchDTO {
+export interface RegistroDTO {
 	id: string;
 	colaboradorId: string;
 	type: string;
@@ -32,16 +32,16 @@ export interface PunchDTO {
 
 export interface DailySummaryDTO {
 	date: string;
-	punches: PunchDTO[];
+	registros: RegistroDTO[];
 	totalHours: number;
 	overtime: number;
 	deficit: number;
 	abonado: boolean;
 }
 
-export type PunchWithAnulacao = Punch & { anulacao?: PunchAnulacao | null };
+export type RegistroComAnulacao = Registro & { anulacao?: RegistroAnulacao | null };
 
-export function toPunchDTO(p: PunchWithAnulacao): PunchDTO {
+export function toRegistroDTO(p: RegistroComAnulacao): RegistroDTO {
 	return {
 		id: p.id,
 		colaboradorId: p.colaboradorId,
@@ -74,12 +74,12 @@ export function dateKey(date: Date): string {
  * Dias com justificativa aprovada (abonado) têm deficit zerado.
  */
 export function buildDailySummaries(
-	punches: PunchWithAnulacao[],
+	registros: RegistroComAnulacao[],
 	datasAbonadas: Set<string> = new Set()
 ): DailySummaryDTO[] {
-	const byDay = new Map<string, PunchWithAnulacao[]>();
+	const byDay = new Map<string, RegistroComAnulacao[]>();
 
-	for (const p of punches) {
+	for (const p of registros) {
 		const key = dateKey(p.timestamp);
 		const list = byDay.get(key) ?? [];
 		list.push(p);
@@ -87,9 +87,9 @@ export function buildDailySummaries(
 	}
 
 	const summaries: DailySummaryDTO[] = [];
-	for (const [date, dayPunches] of byDay.entries()) {
-		dayPunches.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-		summaries.push(buildSummary(date, dayPunches, datasAbonadas.has(date)));
+	for (const [date, dayRegistros] of byDay.entries()) {
+		dayRegistros.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+		summaries.push(buildSummary(date, dayRegistros, datasAbonadas.has(date)));
 	}
 
 	summaries.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
@@ -98,10 +98,10 @@ export function buildDailySummaries(
 
 export function buildSummary(
 	date: string,
-	punches: PunchWithAnulacao[],
+	registros: RegistroComAnulacao[],
 	abonado = false
 ): DailySummaryDTO {
-	const validas = punches.filter((p) => !p.anulacao);
+	const validas = registros.filter((p) => !p.anulacao);
 	const byType = new Map(validas.map((p) => [p.type, p]));
 	const entrada = byType.get('entrada');
 	const saidaAlmoco = byType.get('saida_almoco');
@@ -125,7 +125,7 @@ export function buildSummary(
 
 	return {
 		date,
-		punches: punches.map(toPunchDTO),
+		registros: registros.map(toRegistroDTO),
 		totalHours,
 		overtime,
 		deficit,

@@ -1,20 +1,20 @@
 <!--
-  @component PunchAnularModal
+  @component RegistroAnularModal
   @description Modal para admin anular uma batida existente.
   Conformidade Portaria 671: cria registro de anulação paralelo. A batida
   original é mantida no banco e exibida no histórico/AFD.
 -->
 <script lang="ts">
-	import type { PunchRecord } from '@/services/timesheet.service';
+	import type { RegistroRecord } from '@/services/timesheet.service';
 
 	interface Props {
 		aberto: boolean;
-		punch: PunchRecord | null;
+		registro: RegistroRecord | null;
 		onFechar: () => void;
 		onConfirmar: (motivo: string) => Promise<void>;
 	}
 
-	let { aberto, punch, onFechar, onConfirmar }: Props = $props();
+	let { aberto, registro, onFechar, onConfirmar }: Props = $props();
 
 	let motivo = $state('');
 	let salvando = $state(false);
@@ -61,7 +61,7 @@
 	}
 </script>
 
-{#if aberto && punch}
+{#if aberto && registro}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="modal-backdrop" onclick={handleBackdrop}>
@@ -75,15 +75,15 @@
 				<dl class="info">
 					<div>
 						<dt>Tipo</dt>
-						<dd>{tipoLabel[punch.type] ?? punch.type}</dd>
+						<dd>{tipoLabel[registro.type] ?? registro.type}</dd>
 					</div>
 					<div>
 						<dt>Data/hora</dt>
-						<dd>{formatHora(punch.timestamp)}</dd>
+						<dd>{formatHora(registro.timestamp)}</dd>
 					</div>
 					<div>
 						<dt>Origem</dt>
-						<dd>{punch.method === 'manual' ? 'Manual' : 'QR Code'}</dd>
+						<dd>{registro.method === 'manual' ? 'Manual' : 'QR Code'}</dd>
 					</div>
 				</dl>
 

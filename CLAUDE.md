@@ -43,7 +43,7 @@ Híbrida Camada + Feature:
 ## Persistência (Prisma + PostgreSQL)
 
 - Postgres em container via `docker-compose.yml` (porta 5432, user `ponto`/`ponto`, DB `ponto_digital`). Em produção: `DATABASE_URL` apontando para Postgres gerenciado (Neon/Supabase/Railway).
-- Schema em `prisma/schema.prisma` — modelos `Empresa`, `Usuario` (admin), `Colaborador`, `Departamento`, `Jornada`, `Punch`, `PunchAnulacao`, `Ferias`, `Justificativa`. Admins e colaboradores vivem em tabelas separadas (`usuarios` × `colaboradores`); não há mais campo `role` no banco (o papel é derivado de qual tabela autenticou e gravado só no token). Tabelas mapeadas para plural snake_case via `@@map`.
+- Schema em `prisma/schema.prisma` — modelos `Empresa`, `Usuario` (admin), `Colaborador`, `Departamento`, `Jornada`, `Registro` (batida de ponto), `RegistroAnulacao`, `Ferias`, `Justificativa`. Admins e colaboradores vivem em tabelas separadas (`usuarios` × `colaboradores`); não há mais campo `role` no banco (o papel é derivado de qual tabela autenticou e gravado só no token). Tabelas mapeadas para plural snake_case via `@@map`.
 - Singleton do client: `src/lib/server/db.ts` (usado em `+server.ts`).
 - Senhas com `bcryptjs`. `Jornada.dias` serializada como JSON string (compatibilidade com `src/lib/server/jornada.ts`).
 - **Multi-tenancy**: todas as entidades são escopadas por `empresaId`. Admin só enxerga dados da própria empresa.
@@ -60,7 +60,7 @@ Híbrida Camada + Feature:
 - Cada empresa tem um `qrSecret` base32 no DB.
 - `src/lib/server/totp.ts` (`otplib`) gera tokens de 6 dígitos, passo 30s, janela ±1.
 - Admin vê o QR rotativo em `/admin/empresa` (polling 30s).
-- Colaborador registra ponto via `POST /api/timesheet/punch/qr` com `{ empresaId, token, type }`.
+- Colaborador registra ponto via `POST /api/timesheet/registro/qr` com `{ empresaId, token, type }`.
 
 ## Setup em nova máquina
 

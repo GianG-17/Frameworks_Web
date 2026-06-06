@@ -8,10 +8,10 @@
 -->
 <script lang="ts">
 	import { relatorioService, type EspelhoRelatorio } from '@/services/relatorio.service';
-	import { punchAdminService } from '@/services/punch-admin.service';
-	import type { PunchRecord, PunchType, DailySummary } from '@/services/timesheet.service';
-	import PunchManualModal from './PunchManualModal.svelte';
-	import PunchAnularModal from './PunchAnularModal.svelte';
+	import { registroAdminService } from '@/services/registro-admin.service';
+	import type { RegistroRecord, RegistroType, DailySummary } from '@/services/timesheet.service';
+	import RegistroManualModal from './RegistroManualModal.svelte';
+	import RegistroAnularModal from './RegistroAnularModal.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 
 	interface Props {
@@ -23,8 +23,8 @@
 
 	let { colaboradorId, colaboradorNome, mes }: Props = $props();
 
-	const TIPOS_ORDEM: PunchType[] = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'];
-	const TIPO_LABEL: Record<PunchType, string> = {
+	const TIPOS_ORDEM: RegistroType[] = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'];
+	const TIPO_LABEL: Record<RegistroType, string> = {
 		entrada: 'Entrada 1',
 		saida_almoco: 'Saída 1',
 		retorno_almoco: 'Entrada 2',
@@ -39,8 +39,8 @@
 	let modalManualAberto = $state(false);
 	let modalAnularAberto = $state(false);
 	let dataInicialModal = $state('');
-	let tipoInicialModal = $state<PunchType>('entrada');
-	let punchSelecionado = $state<PunchRecord | null>(null);
+	let tipoInicialModal = $state<RegistroType>('entrada');
+	let registroSelecionado = $state<RegistroRecord | null>(null);
 
 	/** Gera a lista de dias do mês com batidas mescladas. */
 	let dias = $derived.by(() => {
@@ -95,12 +95,12 @@
 		if (colaboradorId && mes) carregar();
 	});
 
-	function batidaDoDia(summary: DailySummary | null, tipo: PunchType): PunchRecord | null {
+	function batidaDoDia(summary: DailySummary | null, tipo: RegistroType): RegistroRecord | null {
 		if (!summary) return null;
 		// Pega a primeira não-anulada do tipo; se todas anuladas, pega a última anulada (pra exibir).
-		const validas = summary.punches.filter((p) => p.type === tipo && !p.anulacao);
+		const validas = summary.registros.filter((p) => p.type === tipo && !p.anulacao);
 		if (validas.length > 0) return validas[0];
-		const anuladas = summary.punches.filter((p) => p.type === tipo && p.anulacao);
+		const anuladas = summary.registros.filter((p) => p.type === tipo && p.anulacao);
 		return anuladas[anuladas.length - 1] ?? null;
 	}
 
@@ -120,9 +120,9 @@
 		return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 	}
 
-	function abrirModalManual(date: string, tipo: PunchType) {
+	function abrirModalManual(date: string, tipo: RegistroType) {
 		// Pré-preenche com horário sugerido por tipo
-		const horarioPadrao: Record<PunchType, string> = {
+		const horarioPadrao: Record<RegistroType, string> = {
 			entrada: '08:00',
 			saida_almoco: '12:00',
 			retorno_almoco: '13:00',
@@ -133,23 +133,23 @@
 		modalManualAberto = true;
 	}
 
-	function abrirModalAnular(punch: PunchRecord) {
-		if (punch.anulacao) return; // já anulada
-		punchSelecionado = punch;
+	function abrirModalAnular(registro: RegistroRecord) {
+		if (registro.anulacao) return; // já anulada
+		registroSelecionado = registro;
 		modalAnularAberto = true;
 	}
 
-	async function confirmarManual(dados: { type: PunchType; timestamp: string; reason: string }) {
-		await punchAdminService.criarManual({ colaboradorId, ...dados });
+	async function confirmarManual(dados: { type: RegistroType; timestamp: string; reason: string }) {
+		await registroAdminService.criarManual({ colaboradorId, ...dados });
 		modalManualAberto = false;
 		await carregar();
 	}
 
 	async function confirmarAnular(motivo: string) {
-		if (!punchSelecionado) return;
-		await punchAdminService.anular(punchSelecionado.id, motivo);
+		if (!registroSelecionado) return;
+		await registroAdminService.anular(registroSelecionado.id, motivo);
 		modalAnularAberto = false;
-		punchSelecionado = null;
+		registroSelecionado = null;
 		await carregar();
 	}
 </script>
@@ -188,21 +188,21 @@
 							<span class="dia-sem">{DIA_SEMANA[dia.diaSemana]}</span>
 						</td>
 						{#each TIPOS_ORDEM as tipo (tipo)}
-							{@const punch = batidaDoDia(dia.summary, tipo)}
-							{#if punch}
+							{@const registro = batidaDoDia(dia.summary, tipo)}
+							{#if registro}
 								<td class="cel">
 									<button
 										type="button"
 										class="batida"
-										class:batida--manual={punch.method === 'manual'}
-										class:batida--anulada={!!punch.anulacao}
-										title={punch.anulacao
-											? `Anulada: ${punch.anulacao.motivo}`
-											: (punch.createdReason ?? 'Clique para anular')}
-										onclick={() => abrirModalAnular(punch)}
-										disabled={!!punch.anulacao}
+										class:batida--manual={registro.method === 'manual'}
+										class:batida--anulada={!!registro.anulacao}
+										title={registro.anulacao
+											? `Anulada: ${registro.anulacao.motivo}`
+											: (registro.createdReason ?? 'Clique para anular')}
+										onclick={() => abrirModalAnular(registro)}
+										disabled={!!registro.anulacao}
 									>
-										{formatHora(punch.timestamp)}
+										{formatHora(registro.timestamp)}
 									</button>
 								</td>
 							{:else}
@@ -224,7 +224,7 @@
 	</div>
 {/if}
 
-<PunchManualModal
+<RegistroManualModal
 	aberto={modalManualAberto}
 	{colaboradorNome}
 	dataInicial={dataInicialModal}
@@ -233,12 +233,12 @@
 	onConfirmar={confirmarManual}
 />
 
-<PunchAnularModal
+<RegistroAnularModal
 	aberto={modalAnularAberto}
-	punch={punchSelecionado}
+	registro={registroSelecionado}
 	onFechar={() => {
 		modalAnularAberto = false;
-		punchSelecionado = null;
+		registroSelecionado = null;
 	}}
 	onConfirmar={confirmarAnular}
 />

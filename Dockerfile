@@ -28,5 +28,5 @@ COPY --from=build /app/prisma ./prisma
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x docker-entrypoint.sh && chown -R node:node /app
 USER node
-EXPOSE 3000
+EXPOSE 3050
 CMD ["./docker-entrypoint.sh"]

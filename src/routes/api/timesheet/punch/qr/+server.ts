@@ -46,7 +46,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const punch = await prisma.punch.create({
 		data: {
-			userId: user.id,
+			colaboradorId: user.id,
 			empresaId: empresa.id,
 			type: body.type,
 			method: 'qrcode',

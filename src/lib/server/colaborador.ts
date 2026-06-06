@@ -1,9 +1,9 @@
 /**
  * @module lib/server/colaborador
- * @description Mapeamento User (Prisma) → Colaborador (DTO) usado pelo frontend.
+ * @description Mapeamento Colaborador (Prisma) → ColaboradorDTO usado pelo frontend.
  */
 
-import type { Departamento, User } from '@prisma/client';
+import type { Colaborador, Departamento } from '@prisma/client';
 
 export interface ColaboradorDTO {
 	id: string;
@@ -19,9 +19,9 @@ export interface ColaboradorDTO {
 	jornadaId?: string;
 }
 
-type UserComDepartamento = User & { departamento?: Departamento | null };
+type ColaboradorComDepartamento = Colaborador & { departamento?: Departamento | null };
 
-export function toColaboradorDTO(user: UserComDepartamento): ColaboradorDTO {
+export function toColaboradorDTO(user: ColaboradorComDepartamento): ColaboradorDTO {
 	return {
 		id: user.id,
 		nome: user.name,

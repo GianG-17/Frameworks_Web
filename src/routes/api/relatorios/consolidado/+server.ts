@@ -21,8 +21,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	const start = new Date(Date.UTC(ano, mesNum - 1, 1));
 	const end = new Date(Date.UTC(ano, mesNum, 0, 23, 59, 59, 999));
 
-	const colaboradores = await prisma.user.findMany({
-		where: { empresaId: admin.empresaId, role: 'colaborador' },
+	const colaboradores = await prisma.colaborador.findMany({
+		where: { empresaId: admin.empresaId },
 		orderBy: { name: 'asc' },
 		include: { jornada: true }
 	});
@@ -46,9 +46,9 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
 	const byUser = new Map<string, typeof punches>();
 	for (const p of punches) {
-		const list = byUser.get(p.userId) ?? [];
+		const list = byUser.get(p.colaboradorId) ?? [];
 		list.push(p);
-		byUser.set(p.userId, list);
+		byUser.set(p.colaboradorId, list);
 	}
 
 	const linhas = colaboradores.map((c) => {

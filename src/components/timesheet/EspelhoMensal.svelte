@@ -140,7 +140,7 @@
 	}
 
 	async function confirmarManual(dados: { type: PunchType; timestamp: string; reason: string }) {
-		await punchAdminService.criarManual({ userId: colaboradorId, ...dados });
+		await punchAdminService.criarManual({ colaboradorId, ...dados });
 		modalManualAberto = false;
 		await carregar();
 	}

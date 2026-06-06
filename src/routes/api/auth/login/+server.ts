@@ -22,20 +22,21 @@ export const POST: RequestHandler = async ({ request }) => {
 	const isEmail = identifier.includes('@');
 	const normalizedCpf = identifier.replace(/\D/g, '');
 
-	const user = await prisma.user.findFirst({
-		where: isEmail
-			? { email: identifier }
-			: {
-					OR: [{ cpf: identifier }, { cpf: formatCpf(normalizedCpf) }]
-				}
-	});
+	const where = isEmail
+		? { email: identifier }
+		: { OR: [{ cpf: identifier }, { cpf: formatCpf(normalizedCpf) }] };
 
-	if (!user) return jsonError('Credenciais inválidas', 401);
+	// Busca em ambas as tabelas: admin (Usuario) tem precedência sobre Colaborador.
+	const admin = await prisma.usuario.findFirst({ where });
+	const colaborador = admin ? null : await prisma.colaborador.findFirst({ where });
 
-	const ok = await bcrypt.compare(password, user.password);
+	const account = admin ?? colaborador;
+	if (!account) return jsonError('Credenciais inválidas', 401);
+
+	const ok = await bcrypt.compare(password, account.password);
 	if (!ok) return jsonError('Credenciais inválidas', 401);
 
-	const payload = toPayload(user);
+	const payload = toPayload(account, admin ? 'admin' : 'colaborador');
 	const token = encodeToken(payload);
 
 	return jsonOk({ token, user: payload });

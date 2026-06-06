@@ -19,7 +19,7 @@ export interface AnulacaoDTO {
 
 export interface PunchDTO {
 	id: string;
-	userId: string;
+	colaboradorId: string;
 	type: string;
 	timestamp: string;
 	method: string;
@@ -44,7 +44,7 @@ export type PunchWithAnulacao = Punch & { anulacao?: PunchAnulacao | null };
 export function toPunchDTO(p: PunchWithAnulacao): PunchDTO {
 	return {
 		id: p.id,
-		userId: p.userId,
+		colaboradorId: p.colaboradorId,
 		type: p.type,
 		timestamp: p.timestamp.toISOString(),
 		method: p.method,

@@ -27,7 +27,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
 	const [punches, justificativas] = await Promise.all([
 		prisma.punch.findMany({
-			where: { userId: user.id, timestamp: { gte: start, lte: end } },
+			where: { colaboradorId: user.id, timestamp: { gte: start, lte: end } },
 			orderBy: { timestamp: 'asc' },
 			include: { anulacao: true }
 		}),

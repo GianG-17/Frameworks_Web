@@ -11,8 +11,12 @@ export const GET: RequestHandler = async ({ request }) => {
 		return response as Response;
 	}
 
-	const user = await prisma.user.findUnique({ where: { id: tokenUser.id } });
+	const role = tokenUser.role === 'admin' ? 'admin' : 'colaborador';
+	const user =
+		role === 'admin'
+			? await prisma.usuario.findUnique({ where: { id: tokenUser.id } })
+			: await prisma.colaborador.findUnique({ where: { id: tokenUser.id } });
 	if (!user) return jsonError('Usuário não encontrado', 404);
 
-	return jsonOk(toPayload(user));
+	return jsonOk(toPayload(user, role));
 };

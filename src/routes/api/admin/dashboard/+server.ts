@@ -53,10 +53,9 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	const refDayEnd = new Date(`${refKey}T23:59:59.999Z`);
 
 	// ── KPIs simples ───────────────────────────────────────────────────────────
-	const [totalColaboradores, colaboradoresAtivos, totalUsuarios] = await Promise.all([
-		prisma.user.count({ where: { role: 'colaborador', empresaId } }),
-		prisma.user.count({ where: { role: 'colaborador', status: 'ativo', empresaId } }),
-		prisma.user.count({ where: { empresaId } })
+	const [totalColaboradores, colaboradoresAtivos] = await Promise.all([
+		prisma.colaborador.count({ where: { empresaId } }),
+		prisma.colaborador.count({ where: { status: 'ativo', empresaId } })
 	]);
 
 	const pontosHoje = await prisma.punch.count({
@@ -77,9 +76,9 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	// Index por usuário
 	const punchesByUser = new Map<string, typeof punchesMes>();
 	for (const p of punchesMes) {
-		const list = punchesByUser.get(p.userId) ?? [];
+		const list = punchesByUser.get(p.colaboradorId) ?? [];
 		list.push(p);
-		punchesByUser.set(p.userId, list);
+		punchesByUser.set(p.colaboradorId, list);
 	}
 
 	// Soma horas extras / déficit por dia (todos os colaboradores) e por colaborador
@@ -115,8 +114,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	}
 
 	// ── Top 5 horas extras no mês ──────────────────────────────────────────────
-	const colaboradores = await prisma.user.findMany({
-		where: { role: 'colaborador', empresaId },
+	const colaboradores = await prisma.colaborador.findMany({
+		where: { empresaId },
 		select: {
 			id: true,
 			name: true,
@@ -139,7 +138,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		where: { empresaId, timestamp: { gte: refDayStart, lte: refDayEnd }, type: 'entrada' },
 		orderBy: { timestamp: 'asc' }
 	});
-	const entradaByUser = new Map(punchesDia.map((p) => [p.userId, p]));
+	const entradaByUser = new Map(punchesDia.map((p) => [p.colaboradorId, p]));
 
 	const dowKey = diaKeyFromDate(refDate);
 	const entradasHoje = colaboradores
@@ -229,7 +228,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	return jsonOk({
 		referenciaData: refKey,
 		colaboradoresAtivos,
-		totalColaboradores: totalUsuarios,
+		totalColaboradores,
 		totalColaboradoresRegistrados: totalColaboradores,
 		pontosHoje,
 		atrasosHoje,

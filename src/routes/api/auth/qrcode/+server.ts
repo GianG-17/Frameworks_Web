@@ -16,13 +16,13 @@ export const POST: RequestHandler = async ({ request }) => {
 		return jsonError('QR Code inválido', 400);
 	}
 
-	const user = await prisma.user.findFirst({
-		where: { role: 'colaborador', status: 'ativo' }
+	const user = await prisma.colaborador.findFirst({
+		where: { status: 'ativo' }
 	});
 
 	if (!user) return jsonError('Nenhum colaborador disponível', 404);
 
-	const payload = toPayload(user);
+	const payload = toPayload(user, 'colaborador');
 	const token = encodeToken(payload);
 	return jsonOk({ token, user: payload });
 };

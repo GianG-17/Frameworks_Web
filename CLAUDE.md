@@ -43,14 +43,14 @@ Híbrida Camada + Feature:
 ## Persistência (Prisma + PostgreSQL)
 
 - Postgres em container via `docker-compose.yml` (porta 5432, user `ponto`/`ponto`, DB `ponto_digital`). Em produção: `DATABASE_URL` apontando para Postgres gerenciado (Neon/Supabase/Railway).
-- Schema em `prisma/schema.prisma` — modelos `Empresa`, `User`, `Jornada`, `Punch`, `Ferias`, `Justificativa`.
+- Schema em `prisma/schema.prisma` — modelos `Empresa`, `Usuario` (admin), `Colaborador`, `Departamento`, `Jornada`, `Punch`, `PunchAnulacao`, `Ferias`, `Justificativa`. Admins e colaboradores vivem em tabelas separadas (`usuarios` × `colaboradores`); não há mais campo `role` no banco (o papel é derivado de qual tabela autenticou e gravado só no token). Tabelas mapeadas para plural snake_case via `@@map`.
 - Singleton do client: `src/lib/server/db.ts` (usado em `+server.ts`).
 - Senhas com `bcryptjs`. `Jornada.dias` serializada como JSON string (compatibilidade com `src/lib/server/jornada.ts`).
 - **Multi-tenancy**: todas as entidades são escopadas por `empresaId`. Admin só enxerga dados da própria empresa.
 
 ## Autenticação
 
-- **Token**: Base64(JSON do payload do usuário, incluindo `empresaId` e `role`). Codificado/decodificado em `src/lib/server/token.ts`.
+- **Token**: Base64(JSON do payload do usuário, incluindo `empresaId` e `role`). Codificado/decodificado em `src/lib/server/token.ts`. `toPayload(entity, role)` recebe o `role` explicitamente — o login busca em `usuario` (→ `admin`) e, se não achar, em `colaborador` (→ `colaborador`).
 - **Persistência client**: gravado em `localStorage` (para `api.ts`) e `document.cookie` (para `hooks.server.ts`).
 - **Servidor**: `hooks.server.ts` lê o cookie, decodifica via `token.ts` e popula `event.locals.user` (com `empresaId`). Helpers em `src/routes/api/_lib/auth-helpers.ts`.
 - **Proteção de rotas**: sem token → `/auth/login`; colaborador em `/admin/*` → `/colaborador/registro`. Raiz `/` redireciona por papel em `+page.server.ts`.

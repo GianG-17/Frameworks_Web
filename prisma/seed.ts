@@ -314,7 +314,8 @@ async function main() {
 	await prisma.justificativa.deleteMany();
 	await prisma.ferias.deleteMany();
 	await prisma.punch.deleteMany();
-	await prisma.user.deleteMany();
+	await prisma.colaborador.deleteMany();
+	await prisma.usuario.deleteMany();
 	await prisma.jornada.deleteMany();
 	await prisma.departamento.deleteMany();
 	await prisma.empresa.deleteMany();
@@ -348,14 +349,13 @@ async function main() {
 		}
 	});
 
-	await prisma.user.create({
+	await prisma.usuario.create({
 		data: {
 			empresaId: empresa.id,
 			name: 'Admin',
 			email: 'admin@teste.com',
 			cpf: '123.456.789-00',
-			password: senhaHash,
-			role: 'admin'
+			password: senhaHash
 		}
 	});
 
@@ -369,14 +369,13 @@ async function main() {
 	for (const c of colaboradoresSeed) {
 		const jornada = jornadasMap[c.jornada];
 
-		const user = await prisma.user.create({
+		const user = await prisma.colaborador.create({
 			data: {
 				empresaId: empresa.id,
 				name: c.name,
 				email: c.email,
 				cpf: c.cpf,
 				password: senhaHash,
-				role: 'colaborador',
 				cargo: c.cargo,
 				departamentoId: departamentosMap.get(c.departamento)!,
 				telefone: c.telefone,
@@ -423,7 +422,7 @@ async function main() {
 		const justSet = new Set((c.justificativas ?? []).map((j) => j.data));
 
 		const punchesData: {
-			userId: string;
+			colaboradorId: string;
 			empresaId: string;
 			type: PunchType;
 			timestamp: Date;
@@ -436,7 +435,7 @@ async function main() {
 			const pontos = gerarPontosDoDia(rng, iso, diaConfig, c.comportamento);
 			for (const p of pontos) {
 				punchesData.push({
-					userId: user.id,
+					colaboradorId: user.id,
 					empresaId: empresa.id,
 					type: p.type,
 					timestamp: p.timestamp,

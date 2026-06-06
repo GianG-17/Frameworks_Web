@@ -15,7 +15,7 @@ export interface PunchAnulacao {
 
 export interface PunchRecord {
 	id: string;
-	userId: string;
+	colaboradorId: string;
 	type: PunchType;
 	timestamp: string;
 	latitude?: number | null;

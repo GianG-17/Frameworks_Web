@@ -14,8 +14,8 @@ export const GET: RequestHandler = async ({ request }) => {
 		return response as Response;
 	}
 
-	const users = await prisma.user.findMany({
-		where: { role: 'colaborador', empresaId: admin.empresaId },
+	const users = await prisma.colaborador.findMany({
+		where: { empresaId: admin.empresaId },
 		include: { departamento: true },
 		orderBy: { name: 'asc' }
 	});
@@ -64,21 +64,23 @@ export const POST: RequestHandler = async ({ request }) => {
 		return jsonError('Departamento inválido', 400);
 	}
 
-	const existing = await prisma.user.findFirst({
-		where: { OR: [{ email: body.email }, { cpf: body.cpf }] }
-	});
-	if (existing) {
+	const orEmailCpf = { OR: [{ email: body.email }, { cpf: body.cpf }] };
+	// E-mail/CPF devem ser únicos entre colaboradores E administradores.
+	const [existingColaborador, existingAdmin] = await Promise.all([
+		prisma.colaborador.findFirst({ where: orEmailCpf }),
+		prisma.usuario.findFirst({ where: orEmailCpf })
+	]);
+	if (existingColaborador || existingAdmin) {
 		return jsonError('E-mail ou CPF já cadastrado', 409);
 	}
 
-	const user = await prisma.user.create({
+	const user = await prisma.colaborador.create({
 		data: {
 			empresaId: admin.empresaId,
 			name: body.nome,
 			email: body.email,
 			cpf: body.cpf,
 			password: await bcrypt.hash(SENHA_PADRAO, 10),
-			role: 'colaborador',
 			cargo: body.cargo ?? null,
 			departamentoId: body.departamentoId,
 			telefone: body.telefone ?? null,

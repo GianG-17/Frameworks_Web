@@ -19,7 +19,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		return jsonError('colaboradorId, inicio e fim são obrigatórios', 400);
 	}
 
-	const colaborador = await prisma.user.findUnique({ where: { id: colaboradorId } });
+	const colaborador = await prisma.colaborador.findUnique({ where: { id: colaboradorId } });
 	if (!colaborador || colaborador.empresaId !== admin.empresaId) {
 		return jsonError('Colaborador não encontrado', 404);
 	}
@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
 	const [punches, justificativas] = await Promise.all([
 		prisma.punch.findMany({
-			where: { userId: colaboradorId, timestamp: { gte: start, lte: end } },
+			where: { colaboradorId, timestamp: { gte: start, lte: end } },
 			orderBy: { timestamp: 'asc' },
 			include: { anulacao: true }
 		}),

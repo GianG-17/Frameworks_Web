@@ -11,11 +11,11 @@ export const GET: RequestHandler = async ({ request, params }) => {
 		return response as Response;
 	}
 
-	const user = await prisma.user.findUnique({
+	const user = await prisma.colaborador.findUnique({
 		where: { id: params.id },
 		include: { departamento: true }
 	});
-	if (!user || user.role !== 'colaborador' || user.empresaId !== admin.empresaId) {
+	if (!user || user.empresaId !== admin.empresaId) {
 		return jsonError('Colaborador não encontrado', 404);
 	}
 
@@ -48,8 +48,8 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 		return jsonError('Corpo da requisição inválido', 400);
 	}
 
-	const existing = await prisma.user.findUnique({ where: { id: params.id } });
-	if (!existing || existing.role !== 'colaborador' || existing.empresaId !== admin.empresaId) {
+	const existing = await prisma.colaborador.findUnique({ where: { id: params.id } });
+	if (!existing || existing.empresaId !== admin.empresaId) {
 		return jsonError('Colaborador não encontrado', 404);
 	}
 
@@ -65,7 +65,7 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 		}
 	}
 
-	const user = await prisma.user.update({
+	const user = await prisma.colaborador.update({
 		where: { id: params.id },
 		data: {
 			name: body.nome ?? undefined,
@@ -92,11 +92,11 @@ export const DELETE: RequestHandler = async ({ request, params }) => {
 		return response as Response;
 	}
 
-	const existing = await prisma.user.findUnique({ where: { id: params.id } });
-	if (!existing || existing.role !== 'colaborador' || existing.empresaId !== admin.empresaId) {
+	const existing = await prisma.colaborador.findUnique({ where: { id: params.id } });
+	if (!existing || existing.empresaId !== admin.empresaId) {
 		return jsonError('Colaborador não encontrado', 404);
 	}
 
-	await prisma.user.delete({ where: { id: params.id } });
+	await prisma.colaborador.delete({ where: { id: params.id } });
 	return new Response(null, { status: 204 });
 };

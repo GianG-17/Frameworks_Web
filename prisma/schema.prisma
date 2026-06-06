@@ -23,86 +23,109 @@ model Empresa {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  users          User[]
+  usuarios       Usuario[]
+  colaboradores  Colaborador[]
   jornadas       Jornada[]
   departamentos  Departamento[]
   punches        Punch[]
   ferias         Ferias[]
   justificativas Justificativa[]
+
+  @@map("empresas")
 }
 
-model User {
-  id           String    @id @default(cuid())
-  empresaId    String
-  empresa      Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  name         String
-  email        String    @unique
-  cpf          String    @unique
-  password     String
-  role         String    // "admin" | "colaborador"
-  cargo        String?
-  departamentoId String?
-  departamento Departamento? @relation(fields: [departamentoId], references: [id], onDelete: SetNull)
-  telefone     String?
-  dataAdmissao DateTime?
-  status       String?   // "ativo" | "inativo" | "ferias" | "afastado"
-  jornadaId    String?
-  jornada      Jornada?  @relation(fields: [jornadaId], references: [id], onDelete: SetNull)
-  punches      Punch[]
-  ferias       Ferias[]
-  justificativas Justificativa[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+// Usuário administrador — gerencia colaboradores, jornadas e dashboard.
+model Usuario {
+  id        String   @id @default(cuid())
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  name      String
+  email     String   @unique
+  cpf       String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([empresaId])
+  @@map("usuarios")
+}
+
+// Colaborador — registra ponto via QR Code ou login manual.
+model Colaborador {
+  id             String        @id @default(cuid())
+  empresaId      String
+  empresa        Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  name           String
+  email          String        @unique
+  cpf            String        @unique
+  password       String
+  cargo          String?
+  departamentoId String?
+  departamento   Departamento? @relation(fields: [departamentoId], references: [id], onDelete: SetNull)
+  telefone       String?
+  dataAdmissao   DateTime?
+  status         String?       // "ativo" | "inativo" | "ferias" | "afastado"
+  jornadaId      String?
+  jornada        Jornada?      @relation(fields: [jornadaId], references: [id], onDelete: SetNull)
+  punches        Punch[]
+  ferias         Ferias[]
+  justificativas Justificativa[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([empresaId])
+  @@map("colaboradores")
 }
 
 model Departamento {
-  id        String   @id @default(cuid())
-  empresaId String
-  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  nome      String
-  users     User[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String        @id @default(cuid())
+  empresaId     String
+  empresa       Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  nome          String
+  colaboradores Colaborador[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@unique([empresaId, nome])
   @@index([empresaId])
+  @@map("departamentos")
 }
 
 model Jornada {
-  id        String   @id @default(cuid())
-  empresaId String
-  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  nome      String
+  id            String        @id @default(cuid())
+  empresaId     String
+  empresa       Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  nome          String
   // JSON serializado com os 7 dias (segunda..domingo)
-  dias      String
-  users     User[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  dias          String
+  colaboradores Colaborador[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@index([empresaId])
+  @@map("jornadas")
 }
 
 model Punch {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  colaboradorId String
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
   empresaId     String
-  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  type          String   // "entrada" | "saida_almoco" | "retorno_almoco" | "saida"
-  timestamp     DateTime @default(now())
-  method        String   // "qrcode" | "manual"
+  empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  type          String      // "entrada" | "saida_almoco" | "retorno_almoco" | "saida"
+  timestamp     DateTime    @default(now())
+  method        String      // "qrcode" | "manual"
   latitude      Float?
   longitude     Float?
   // Auditoria — Portaria 671/2021: registros são imutáveis.
-  // createdBy preenchido apenas quando admin cria batida em nome de outro usuário.
+  // createdBy preenchido apenas quando admin cria batida em nome de um colaborador (Usuario.id).
   createdBy     String?
   createdReason String?
   anulacao      PunchAnulacao?
 
-  @@index([userId, timestamp])
+  @@index([colaboradorId, timestamp])
   @@index([empresaId, timestamp])
+  @@map("punches")
 }
 
 // Anulação de batida — registro complementar que invalida um Punch sem apagá-lo.
@@ -113,42 +136,45 @@ model PunchAnulacao {
   punch      Punch    @relation(fields: [punchId], references: [id], onDelete: Cascade)
   empresaId  String
   motivo     String
-  anuladoPor String   // User.id do admin
+  anuladoPor String   // Usuario.id do admin
   anuladoEm  DateTime @default(now())
 
   @@index([empresaId])
+  @@map("punch_anulacoes")
 }
 
 model Ferias {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   colaboradorId String
-  colaborador   User     @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
   empresaId     String
-  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   dataInicio    DateTime
   dataFim       DateTime
   observacao    String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime    @default(now())
 
   @@index([empresaId])
   @@index([colaboradorId])
+  @@map("ferias")
 }
 
 model Justificativa {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   colaboradorId String
-  colaborador   User     @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
   empresaId     String
-  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   data          DateTime
   motivo        String
   anexoUrl      String?
-  status        String   @default("pending") // "pending" | "approved" | "rejected"
-  approvedBy    String?  // User.id do admin que aprovou
+  status        String      @default("pending") // "pending" | "approved" | "rejected"
+  approvedBy    String?     // Usuario.id do admin que aprovou
   approvedAt    DateTime?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime    @default(now())
   @@index([status])
 
   @@index([empresaId])
   @@index([colaboradorId])
+  @@map("justificativas")
 }

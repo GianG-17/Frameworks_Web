@@ -4,8 +4,6 @@
  * Formato atual: Base64(JSON do usuário). Simples para dev; trocar por JWT/sessão opaca em produção.
  */
 
-import type { User } from '@prisma/client';
-
 export interface TokenPayload {
 	id: string;
 	name: string;
@@ -15,15 +13,23 @@ export interface TokenPayload {
 	empresaId: string;
 }
 
-export function toPayload(
-	user: Pick<User, 'id' | 'name' | 'email' | 'cpf' | 'role' | 'empresaId'>
-): TokenPayload {
+// Entidade autenticável: Usuario (admin) ou Colaborador. O `role` não vive mais
+// na tabela — é derivado de qual modelo originou o login e injetado aqui.
+type Autenticavel = {
+	id: string;
+	name: string;
+	email: string;
+	cpf: string;
+	empresaId: string;
+};
+
+export function toPayload(user: Autenticavel, role: 'admin' | 'colaborador'): TokenPayload {
 	return {
 		id: user.id,
 		name: user.name,
 		email: user.email,
 		cpf: user.cpf,
-		role: user.role,
+		role,
 		empresaId: user.empresaId
 	};
 }

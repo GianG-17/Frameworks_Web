@@ -38,10 +38,9 @@ export const PATCH: RequestHandler = async ({ request, params }) => {
 		}
 	}
 
-	const resultado = await prisma.user.updateMany({
+	const resultado = await prisma.colaborador.updateMany({
 		where: {
 			empresaId: admin.empresaId,
-			role: 'colaborador',
 			departamentoId: params.id
 		},
 		data: { jornadaId: body.jornadaId }

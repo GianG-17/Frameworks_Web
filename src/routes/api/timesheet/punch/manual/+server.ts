@@ -22,7 +22,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	let body: {
-		userId?: string;
+		colaboradorId?: string;
 		type?: string;
 		timestamp?: string;
 		reason?: string;
@@ -33,7 +33,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		return jsonError('Corpo da requisição inválido', 400);
 	}
 
-	if (!body.userId) return jsonError('userId é obrigatório', 400);
+	if (!body.colaboradorId) return jsonError('colaboradorId é obrigatório', 400);
 	if (!body.type || !VALID_TYPES.includes(body.type)) {
 		return jsonError(`type deve ser um de: ${VALID_TYPES.join(', ')}`, 400);
 	}
@@ -47,14 +47,14 @@ export const POST: RequestHandler = async ({ request }) => {
 		return jsonError('Motivo é obrigatório (mínimo 5 caracteres)', 400);
 	}
 
-	const colaborador = await prisma.user.findUnique({ where: { id: body.userId } });
+	const colaborador = await prisma.colaborador.findUnique({ where: { id: body.colaboradorId } });
 	if (!colaborador || colaborador.empresaId !== admin.empresaId) {
 		return jsonError('Colaborador não encontrado', 404);
 	}
 
 	const punch = await prisma.punch.create({
 		data: {
-			userId: colaborador.id,
+			colaboradorId: colaborador.id,
 			empresaId: admin.empresaId,
 			type: body.type,
 			timestamp: ts,

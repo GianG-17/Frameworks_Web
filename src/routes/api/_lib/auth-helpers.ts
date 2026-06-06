@@ -31,8 +31,8 @@ export function requireEmpresaId(request: Request): string {
 	return user.empresaId;
 }
 
-export function jsonError(message: string, status: number): Response {
-	return new Response(JSON.stringify({ error: message }), {
+export function jsonError(message: string, status: number, field?: string): Response {
+	return new Response(JSON.stringify({ error: message, ...(field ? { field } : {}) }), {
 		status,
 		headers: { 'Content-Type': 'application/json' }
 	});

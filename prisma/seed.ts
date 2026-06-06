@@ -354,7 +354,7 @@ async function main() {
 			empresaId: empresa.id,
 			name: 'Admin',
 			email: 'admin@teste.com',
-			cpf: '123.456.789-00',
+			cpf: '12345678900',
 			password: senhaHash
 		}
 	});
@@ -374,7 +374,7 @@ async function main() {
 				empresaId: empresa.id,
 				name: c.name,
 				email: c.email,
-				cpf: c.cpf,
+				cpf: c.cpf.replace(/\D/g, ''),
 				password: senhaHash,
 				cargo: c.cargo,
 				departamentoId: departamentosMap.get(c.departamento)!,

@@ -68,19 +68,16 @@
 		colaboradorEditando = null;
 	}
 
+	// Erros são propagados (throw) para o ColaboradorModal exibir inline/por campo.
 	async function handleSalvar(dados: ColaboradorFormData) {
-		try {
-			if (colaboradorEditando) {
-				const atualizado = await colaboradorService.atualizar(colaboradorEditando.id, dados);
-				colaboradoresStore.update(colaboradorEditando.id, atualizado);
-			} else {
-				const novo = await colaboradorService.criar(dados);
-				colaboradoresStore.add(novo);
-			}
-			fecharModal();
-		} catch {
-			erro = 'Erro ao salvar colaborador.';
+		if (colaboradorEditando) {
+			const atualizado = await colaboradorService.atualizar(colaboradorEditando.id, dados);
+			colaboradoresStore.update(colaboradorEditando.id, atualizado);
+		} else {
+			const novo = await colaboradorService.criar(dados);
+			colaboradoresStore.add(novo);
 		}
+		fecharModal();
 	}
 
 	function abrirExclusao(colaborador: Colaborador) {
@@ -93,8 +90,9 @@
 		try {
 			await colaboradorService.remover(colaboradorParaExcluir.id);
 			colaboradoresStore.remove(colaboradorParaExcluir.id);
-		} catch {
-			erro = 'Erro ao remover colaborador.';
+		} catch (e) {
+			const err = e as { details?: { error?: string } };
+			erro = err.details?.error ?? 'Erro ao remover colaborador.';
 		} finally {
 			exclusaoAberta = false;
 			colaboradorParaExcluir = null;

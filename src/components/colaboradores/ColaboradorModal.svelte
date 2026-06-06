@@ -9,12 +9,16 @@
 	} from '../../types/colaborador';
 	import { jornadaService, type Jornada } from '../../services/jornada.service';
 	import { departamentoService, type Departamento } from '../../services/departamento.service';
+	import {
+		colaboradorCreateSchema,
+		colaboradorUpdateSchema
+	} from '$lib/schemas/colaborador.schema';
 
 	interface Props {
 		aberto: boolean;
 		colaborador?: Colaborador | null;
 		onFechar: () => void;
-		onSalvar: (dados: ColaboradorFormData) => void;
+		onSalvar: (dados: ColaboradorFormData) => Promise<void>;
 		onExcluir?: () => void;
 	}
 
@@ -40,6 +44,8 @@
 	});
 
 	let erros = $state<Partial<Record<keyof ColaboradorFormData, string>>>({});
+	let erroServidor = $state<string | null>(null);
+	let salvando = $state(false);
 
 	let aba = $state<'dados' | 'jornada'>('dados');
 	let jornadas = $state<Jornada[]>([]);
@@ -88,6 +94,7 @@
 		}
 		aba = 'dados';
 		erros = {};
+		erroServidor = null;
 	});
 
 	function handleCpfInput(e: Event): void {
@@ -121,24 +128,44 @@
 	}
 
 	function validar(): boolean {
-		const novosErros: typeof erros = {};
+		// Mesmo schema Zod usado no servidor (fonte única de validação de formato).
+		const schema = colaborador ? colaboradorUpdateSchema : colaboradorCreateSchema;
+		const resultado = schema.safeParse({ ...form });
 
-		if (!form.nome.trim()) novosErros.nome = 'Nome é obrigatório';
-		if (!form.email.trim()) novosErros.email = 'E-mail é obrigatório';
-		else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) novosErros.email = 'E-mail inválido';
-		if (!form.cpf.trim()) novosErros.cpf = 'CPF é obrigatório';
-		if (!form.cargo.trim()) novosErros.cargo = 'Cargo é obrigatório';
-		if (!form.departamentoId) novosErros.departamentoId = 'Departamento é obrigatório';
-		if (!form.dataAdmissao) novosErros.dataAdmissao = 'Data de admissão é obrigatória';
+		const novosErros: typeof erros = {};
+		if (!resultado.success) {
+			for (const issue of resultado.error.issues) {
+				const campo = issue.path[0] as keyof ColaboradorFormData;
+				if (campo && !novosErros[campo]) novosErros[campo] = issue.message;
+			}
+		}
+		// Preserva o erro vivo de telefone (apenas números), tratado no oninput.
 		if (erros.telefone) novosErros.telefone = erros.telefone;
 
 		erros = novosErros;
 		return Object.keys(novosErros).length === 0;
 	}
 
-	function handleSubmit() {
+	async function handleSubmit() {
+		erroServidor = null;
 		if (!validar()) return;
-		onSalvar({ ...form });
+
+		salvando = true;
+		try {
+			await onSalvar({ ...form });
+		} catch (e) {
+			const err = e as { details?: { error?: string; field?: keyof ColaboradorFormData } };
+			const msg = err.details?.error ?? 'Erro ao salvar colaborador.';
+			if (err.details?.field) {
+				erros = { ...erros, [err.details.field]: msg };
+				// Campo de jornada fica na aba "jornada"; leva o usuário até ele.
+				if (err.details.field === 'jornadaId') aba = 'jornada';
+			} else {
+				erroServidor = msg;
+			}
+		} finally {
+			salvando = false;
+		}
 	}
 
 	function handleBackdropClick(e: MouseEvent) {
@@ -196,6 +223,10 @@
 					Jornada
 				</button>
 			</div>
+
+			{#if erroServidor}
+				<div class="banner-erro" role="alert">{erroServidor}</div>
+			{/if}
 
 			<div class="modal-body">
 				{#if aba === 'dados'}
@@ -386,9 +417,15 @@
 				{#if colaborador && onExcluir}
 					<button type="button" class="btn btn--perigo" onclick={onExcluir}>Excluir</button>
 				{/if}
-				<button type="button" class="btn btn--secundario" onclick={onFechar}>Cancelar</button>
-				<button type="submit" class="btn btn--primario">
-					{colaborador ? 'Salvar alterações' : 'Criar colaborador'}
+				<button type="button" class="btn btn--secundario" onclick={onFechar} disabled={salvando}
+					>Cancelar</button
+				>
+				<button type="submit" class="btn btn--primario" disabled={salvando}>
+					{#if salvando}
+						Salvando…
+					{:else}
+						{colaborador ? 'Salvar alterações' : 'Criar colaborador'}
+					{/if}
 				</button>
 			</footer>
 		</form>
@@ -469,6 +506,16 @@
 	.modal-tab--ativa {
 		color: var(--color-primary, #3b82f6);
 		border-bottom-color: var(--color-primary, #3b82f6);
+	}
+
+	.banner-erro {
+		margin: 0.75rem 1.5rem 0;
+		padding: 0.625rem 0.875rem;
+		border-radius: 0.5rem;
+		background: var(--color-danger-bg, #fef2f2);
+		border: 1px solid var(--color-danger, #ef4444);
+		color: var(--color-danger, #b91c1c);
+		font-size: 0.8125rem;
 	}
 
 	.modal-body {
@@ -592,6 +639,11 @@
 
 	.btn--secundario:hover {
 		opacity: 0.8;
+	}
+
+	.btn:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
 	@media (max-width: 480px) {

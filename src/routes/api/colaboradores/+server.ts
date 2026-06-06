@@ -1,7 +1,8 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/server/db';
-import { toColaboradorDTO } from '@/lib/server/colaborador';
+import { toColaboradorDTO, emailEmUso, cpfEmUso, mapPrismaError } from '@/lib/server/colaborador';
+import { colaboradorCreateSchema } from '@/lib/schemas/colaborador.schema';
 import { requireAdmin, jsonError, jsonOk } from '../_lib/auth-helpers';
 
 const SENHA_PADRAO = 'Senha123';
@@ -31,65 +32,57 @@ export const POST: RequestHandler = async ({ request }) => {
 		return response as Response;
 	}
 
-	let body: Partial<{
-		nome: string;
-		email: string;
-		cpf: string;
-		cargo: string;
-		departamentoId: string;
-		dataAdmissao: string;
-		status: string;
-		telefone: string;
-		jornadaId: string;
-	}>;
-
+	let body: unknown;
 	try {
 		body = await request.json();
 	} catch {
 		return jsonError('Corpo da requisição inválido', 400);
 	}
 
-	if (!body.nome || !body.email || !body.cpf) {
-		return jsonError('nome, email e cpf são obrigatórios', 400);
+	const parsed = colaboradorCreateSchema.safeParse(body);
+	if (!parsed.success) {
+		const issue = parsed.error.issues[0];
+		return jsonError(issue.message, 400, String(issue.path[0] ?? ''));
 	}
-
-	if (!body.departamentoId) {
-		return jsonError('departamentoId é obrigatório', 400);
-	}
+	const data = parsed.data;
 
 	const departamento = await prisma.departamento.findUnique({
-		where: { id: body.departamentoId }
+		where: { id: data.departamentoId }
 	});
 	if (!departamento || departamento.empresaId !== admin.empresaId) {
-		return jsonError('Departamento inválido', 400);
+		return jsonError('Departamento inválido', 400, 'departamentoId');
 	}
 
-	const orEmailCpf = { OR: [{ email: body.email }, { cpf: body.cpf }] };
-	// E-mail/CPF devem ser únicos entre colaboradores E administradores.
-	const [existingColaborador, existingAdmin] = await Promise.all([
-		prisma.colaborador.findFirst({ where: orEmailCpf }),
-		prisma.usuario.findFirst({ where: orEmailCpf })
-	]);
-	if (existingColaborador || existingAdmin) {
-		return jsonError('E-mail ou CPF já cadastrado', 409);
+	if (data.jornadaId) {
+		const jornada = await prisma.jornada.findUnique({ where: { id: data.jornadaId } });
+		if (!jornada || jornada.empresaId !== admin.empresaId) {
+			return jsonError('Jornada inválida', 400, 'jornadaId');
+		}
 	}
 
-	const user = await prisma.colaborador.create({
-		data: {
-			empresaId: admin.empresaId,
-			name: body.nome,
-			email: body.email,
-			cpf: body.cpf,
-			password: await bcrypt.hash(SENHA_PADRAO, 10),
-			cargo: body.cargo ?? null,
-			departamentoId: body.departamentoId,
-			telefone: body.telefone ?? null,
-			dataAdmissao: body.dataAdmissao ? new Date(body.dataAdmissao) : null,
-			status: body.status ?? 'ativo',
-			jornadaId: body.jornadaId ?? null
-		},
-		include: { departamento: true }
-	});
+	if (await emailEmUso(data.email)) return jsonError('E-mail já cadastrado', 409, 'email');
+	if (await cpfEmUso(data.cpf)) return jsonError('CPF já cadastrado', 409, 'cpf');
 
-	return jsonOk(toColaboradorDTO(user), 201);
+	try {
+		const user = await prisma.colaborador.create({
+			data: {
+				empresaId: admin.empresaId,
+				name: data.nome,
+				email: data.email,
+				cpf: data.cpf,
+				password: await bcrypt.hash(SENHA_PADRAO, 10),
+				cargo: data.cargo,
+				departamentoId: data.departamentoId,
+				telefone: data.telefone || null,
+				dataAdmissao: new Date(data.dataAdmissao),
+				status: data.status,
+				jornadaId: data.jornadaId
+			},
+			include: { departamento: true }
+		});
+
+		return jsonOk(toColaboradorDTO(user), 201);
+	} catch (e) {
+		return mapPrismaError(e);
+	}
 };

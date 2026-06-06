@@ -20,11 +20,11 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	const isEmail = identifier.includes('@');
-	const normalizedCpf = identifier.replace(/\D/g, '');
 
+	// CPF é armazenado canonizado (só dígitos) e e-mail em minúsculas.
 	const where = isEmail
-		? { email: identifier }
-		: { OR: [{ cpf: identifier }, { cpf: formatCpf(normalizedCpf) }] };
+		? { email: identifier.trim().toLowerCase() }
+		: { cpf: identifier.replace(/\D/g, '') };
 
 	// Busca em ambas as tabelas: admin (Usuario) tem precedência sobre Colaborador.
 	const admin = await prisma.usuario.findFirst({ where });
@@ -41,8 +41,3 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	return jsonOk({ token, user: payload });
 };
-
-function formatCpf(digits: string): string {
-	if (digits.length !== 11) return digits;
-	return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-}

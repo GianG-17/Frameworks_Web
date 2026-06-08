@@ -237,7 +237,9 @@
 			role="dialog"
 			aria-modal="true"
 			aria-label="Visualização de anexo"
+			tabindex="-1"
 			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
 		>
 			<button type="button" class="preview-close" onclick={fecharPreview}>Fechar</button>
 			<img src={previewUrl} alt="Anexo da justificativa" />
@@ -312,8 +314,7 @@
 	}
 
 	input,
-	textarea,
-	select {
+	textarea {
 		display: block;
 		width: 100%;
 		margin-top: 0.5rem;
@@ -326,8 +327,7 @@
 	}
 
 	input:focus,
-	textarea:focus,
-	select:focus {
+	textarea:focus {
 		outline: none;
 		border-color: #3b82f6;
 		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);

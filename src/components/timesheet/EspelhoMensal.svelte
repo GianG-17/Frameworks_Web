@@ -376,10 +376,6 @@
 		text-decoration: line-through;
 		cursor: not-allowed;
 	}
-	.batida .ico {
-		font-size: 0.7rem;
-	}
-
 	.vazia {
 		width: 100%;
 		padding: 0.375rem 0.5rem;
@@ -407,9 +403,6 @@
 		padding: 0.125rem 0.5rem;
 		border-radius: 0.25rem;
 		border: 1px solid transparent;
-	}
-	.leg--vazia {
-		color: #94a3b8;
 	}
 	.leg--ok {
 		background: #ecfdf5;

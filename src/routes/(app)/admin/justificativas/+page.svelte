@@ -20,7 +20,7 @@
 	let loading = $state(false);
 	let previewUrl = $state<string | null>(null);
 	let formularioAberto = $state(false);
-	let fileInput: HTMLInputElement | undefined;
+	let fileInput = $state<HTMLInputElement | undefined>(undefined);
 	let form = $state({
 		colaboradorId: '',
 		data: '',

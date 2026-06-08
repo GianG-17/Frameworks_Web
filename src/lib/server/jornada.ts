@@ -3,7 +3,7 @@
  * @description Tipos e cálculos de Jornada. Campo `dias` é jsonb no Postgres.
  */
 
-import type { Jornada as JornadaDB } from '@prisma/client';
+import type { Jornada as JornadaDB } from '@/lib/server/prisma-client/client';
 
 export interface DiaSemanaDTO {
 	ativo: boolean;

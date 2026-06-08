@@ -65,51 +65,53 @@
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="modal-backdrop" onclick={handleBackdrop}>
-		<form class="modal" role="dialog" aria-modal="true" onsubmit={handleSubmit}>
-			<header class="modal-header">
-				<h2>Anular Marcação</h2>
-				<button type="button" class="btn-fechar" onclick={onFechar} aria-label="Fechar">✕</button>
-			</header>
+		<div class="modal" role="dialog" aria-modal="true" aria-labelledby="anular-titulo">
+			<form onsubmit={handleSubmit}>
+				<header class="modal-header">
+					<h2 id="anular-titulo">Anular Marcação</h2>
+					<button type="button" class="btn-fechar" onclick={onFechar} aria-label="Fechar">✕</button>
+				</header>
 
-			<div class="modal-body">
-				<dl class="info">
-					<div>
-						<dt>Tipo</dt>
-						<dd>{tipoLabel[registro.type] ?? registro.type}</dd>
-					</div>
-					<div>
-						<dt>Data/hora</dt>
-						<dd>{formatHora(registro.timestamp)}</dd>
-					</div>
-					<div>
-						<dt>Origem</dt>
-						<dd>{registro.method === 'manual' ? 'Manual' : 'QR Code'}</dd>
-					</div>
-				</dl>
+				<div class="modal-body">
+					<dl class="info">
+						<div>
+							<dt>Tipo</dt>
+							<dd>{tipoLabel[registro.type] ?? registro.type}</dd>
+						</div>
+						<div>
+							<dt>Data/hora</dt>
+							<dd>{formatHora(registro.timestamp)}</dd>
+						</div>
+						<div>
+							<dt>Origem</dt>
+							<dd>{registro.method === 'manual' ? 'Manual' : 'QR Code'}</dd>
+						</div>
+					</dl>
 
-				<div class="campo">
-					<label for="motivo">Motivo*</label>
-					<textarea
-						id="motivo"
-						bind:value={motivo}
-						rows="3"
-						placeholder="Ex.: Marcação duplicada — colaborador clicou duas vezes."
-						required
-					></textarea>
+					<div class="campo">
+						<label for="motivo">Motivo*</label>
+						<textarea
+							id="motivo"
+							bind:value={motivo}
+							rows="3"
+							placeholder="Ex.: Marcação duplicada — colaborador clicou duas vezes."
+							required
+						></textarea>
+					</div>
+
+					{#if erro}<div class="erro" role="alert">{erro}</div>{/if}
 				</div>
 
-				{#if erro}<div class="erro" role="alert">{erro}</div>{/if}
-			</div>
-
-			<footer class="modal-footer">
-				<button type="button" class="btn btn--secundario" onclick={onFechar} disabled={salvando}>
-					Cancelar
-				</button>
-				<button type="submit" class="btn btn--perigo" disabled={salvando}>
-					{salvando ? 'Anulando...' : 'Confirmar'}
-				</button>
-			</footer>
-		</form>
+				<footer class="modal-footer">
+					<button type="button" class="btn btn--secundario" onclick={onFechar} disabled={salvando}>
+						Cancelar
+					</button>
+					<button type="submit" class="btn btn--perigo" disabled={salvando}>
+						{salvando ? 'Anulando...' : 'Confirmar'}
+					</button>
+				</footer>
+			</form>
+		</div>
 	</div>
 {/if}
 
@@ -156,16 +158,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
-	}
-	.aviso {
-		font-size: 0.825rem;
-		color: #475569;
-		background: #fef2f2;
-		border-left: 3px solid #ef4444;
-		padding: 0.625rem 0.75rem;
-		border-radius: 0.375rem;
-		margin: 0;
-		line-height: 1.4;
 	}
 	.info {
 		display: flex;

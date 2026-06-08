@@ -1,9 +1,12 @@
-import { PrismaClient } from '@prisma/client';
+import 'dotenv/config';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '../src/lib/server/prisma-client/client';
 import bcrypt from 'bcryptjs';
 import { generateSecret } from 'otplib';
 import process from 'process';
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 // ── Jornadas ─────────────────────────────────────────────────────────────────
 const jornadaComercial = {

@@ -3,8 +3,8 @@
  * @description Mapeamento Colaborador (Prisma) → ColaboradorDTO usado pelo frontend.
  */
 
-import { Prisma } from '@prisma/client';
-import type { Colaborador, Departamento } from '@prisma/client';
+import { Prisma } from '@/lib/server/prisma-client/client';
+import type { Colaborador, Departamento } from '@/lib/server/prisma-client/client';
 import { prisma } from '@/lib/server/db';
 import { formatCpfInput } from '@/utils/validators';
 import { jsonError } from '@/routes/api/_lib/auth-helpers';

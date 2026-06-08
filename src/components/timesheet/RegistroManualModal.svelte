@@ -80,57 +80,59 @@
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="modal-backdrop" onclick={handleBackdrop}>
-		<form class="modal" role="dialog" aria-modal="true" onsubmit={handleSubmit}>
-			<header class="modal-header">
-				<h2>Registrar batida manual</h2>
-				<button type="button" class="btn-fechar" onclick={onFechar} aria-label="Fechar">✕</button>
-			</header>
+		<div class="modal" role="dialog" aria-modal="true" aria-labelledby="registro-manual-titulo">
+			<form onsubmit={handleSubmit}>
+				<header class="modal-header">
+					<h2 id="registro-manual-titulo">Registrar batida manual</h2>
+					<button type="button" class="btn-fechar" onclick={onFechar} aria-label="Fechar">✕</button>
+				</header>
 
-			<div class="modal-body">
-				<p class="aviso">
-					<strong>Atenção:</strong> esta operação cria um novo registro de ponto em nome de
-					<strong>{colaboradorNome}</strong>. Conforme a Portaria 671/2021, batidas não podem ser
-					editadas — apenas adicionadas ou anuladas. O motivo ficará registrado no histórico.
-				</p>
+				<div class="modal-body">
+					<p class="aviso">
+						<strong>Atenção:</strong> esta operação cria um novo registro de ponto em nome de
+						<strong>{colaboradorNome}</strong>. Conforme a Portaria 671/2021, batidas não podem ser
+						editadas — apenas adicionadas ou anuladas. O motivo ficará registrado no histórico.
+					</p>
 
-				<div class="campo">
-					<label for="tipo">Tipo de batida</label>
-					<select id="tipo" bind:value={tipo}>
-						<option value="entrada">Entrada</option>
-						<option value="saida_almoco">Saída para almoço</option>
-						<option value="retorno_almoco">Retorno do almoço</option>
-						<option value="saida">Saída</option>
-					</select>
+					<div class="campo">
+						<label for="tipo">Tipo de batida</label>
+						<select id="tipo" bind:value={tipo}>
+							<option value="entrada">Entrada</option>
+							<option value="saida_almoco">Saída para almoço</option>
+							<option value="retorno_almoco">Retorno do almoço</option>
+							<option value="saida">Saída</option>
+						</select>
+					</div>
+
+					<div class="campo">
+						<label for="dataHora">Data e hora</label>
+						<input id="dataHora" type="datetime-local" bind:value={dataHora} required />
+					</div>
+
+					<div class="campo">
+						<label for="motivo">Motivo *</label>
+						<textarea
+							id="motivo"
+							bind:value={motivo}
+							rows="3"
+							placeholder="Ex.: Colaborador esqueceu de bater na entrada — confirmado pelo gestor."
+							required
+						></textarea>
+					</div>
+
+					{#if erro}<div class="erro" role="alert">{erro}</div>{/if}
 				</div>
 
-				<div class="campo">
-					<label for="dataHora">Data e hora</label>
-					<input id="dataHora" type="datetime-local" bind:value={dataHora} required />
-				</div>
-
-				<div class="campo">
-					<label for="motivo">Motivo *</label>
-					<textarea
-						id="motivo"
-						bind:value={motivo}
-						rows="3"
-						placeholder="Ex.: Colaborador esqueceu de bater na entrada — confirmado pelo gestor."
-						required
-					></textarea>
-				</div>
-
-				{#if erro}<div class="erro" role="alert">{erro}</div>{/if}
-			</div>
-
-			<footer class="modal-footer">
-				<button type="button" class="btn btn--secundario" onclick={onFechar} disabled={salvando}>
-					Cancelar
-				</button>
-				<button type="submit" class="btn btn--primario" disabled={salvando}>
-					{salvando ? 'Salvando...' : 'Registrar batida'}
-				</button>
-			</footer>
-		</form>
+				<footer class="modal-footer">
+					<button type="button" class="btn btn--secundario" onclick={onFechar} disabled={salvando}>
+						Cancelar
+					</button>
+					<button type="submit" class="btn btn--primario" disabled={salvando}>
+						{salvando ? 'Salvando...' : 'Registrar batida'}
+					</button>
+				</footer>
+			</form>
+		</div>
 	</div>
 {/if}
 

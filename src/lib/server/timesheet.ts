@@ -9,7 +9,7 @@
  *    para que o front exiba a marcação visual e o AFD futuro liste tudo.
  */
 
-import type { Registro, RegistroAnulacao } from '@prisma/client';
+import type { Registro, RegistroAnulacao } from '@/lib/server/prisma-client/client';
 
 export interface AnulacaoDTO {
 	motivo: string;

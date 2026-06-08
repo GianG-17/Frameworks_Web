@@ -3,7 +3,7 @@
  * @description Mapeamento Departamento (Prisma) → DTO usado pelo frontend.
  */
 
-import type { Departamento as DepartamentoDB } from '@prisma/client';
+import type { Departamento as DepartamentoDB } from '@/lib/server/prisma-client/client';
 
 export interface DepartamentoDTO {
 	id: string;

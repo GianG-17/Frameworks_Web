@@ -1,5 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@/lib/server/prisma-client/client';
 import { prisma } from '@/lib/server/db';
 import { toDepartamentoDTO } from '@/lib/server/departamento';
 import { requireAdmin, requireUser, jsonError, jsonOk } from '../_lib/auth-helpers';

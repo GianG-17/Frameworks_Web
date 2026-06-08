@@ -106,19 +106,6 @@
 	.row label {
 		flex: 1;
 	}
-	.btn {
-		margin-top: 0.5rem;
-		padding: 0.625rem 1.25rem;
-		background: var(--color-primary);
-		color: #fff;
-		border: none;
-		border-radius: var(--radius-sm);
-		font-weight: 500;
-		cursor: pointer;
-	}
-	.btn:disabled {
-		opacity: 0.6;
-	}
 	.error {
 		background: var(--color-danger-bg);
 		color: var(--color-danger);

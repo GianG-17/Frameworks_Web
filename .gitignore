@@ -44,6 +44,9 @@ prisma/dev.db-journal
 prisma/*.db
 prisma/*.db-journal
 
+# ─── Prisma (cliente gerado) ───────────────────
+src/lib/server/prisma-client/
+
 # ─── Misc ──────────────────────────────────────
 *.tsbuildinfo
 .vercel/

@@ -17,14 +17,6 @@ type JornadaDias = Record<DiaKey, DiaJornada>;
 
 const TOLERANCIA_ATRASO_MIN = 10;
 
-function parseDias(raw: string): JornadaDias | null {
-	try {
-		return JSON.parse(raw) as JornadaDias;
-	} catch {
-		return null;
-	}
-}
-
 function diaKeyFromDate(date: Date): DiaKey {
 	return DIAS_KEYS[date.getUTCDay()];
 }
@@ -144,7 +136,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	const entradasHoje = colaboradores
 		.filter((c) => c.status === 'ativo')
 		.map((c) => {
-			const dias = c.jornada ? parseDias(c.jornada.dias) : null;
+			const dias = (c.jornada?.dias ?? null) as JornadaDias | null;
 			const cfg = dias ? dias[dowKey] : null;
 
 			if (!c.jornada || !dias) {

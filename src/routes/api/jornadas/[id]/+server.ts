@@ -27,7 +27,7 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 		where: { id: params.id },
 		data: {
 			nome: body.nome ?? undefined,
-			dias: body.dias ? JSON.stringify(body.dias) : undefined
+			dias: body.dias ? (body.dias as object) : undefined
 		}
 	});
 

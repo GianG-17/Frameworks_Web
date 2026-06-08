@@ -1,6 +1,6 @@
 /**
  * @module lib/server/jornada
- * @description Serialização de Jornada (dias armazenados como JSON string no SQLite).
+ * @description Tipos e cálculos de Jornada. Campo `dias` é jsonb no Postgres.
  */
 
 import type { Jornada as JornadaDB } from '@prisma/client';
@@ -32,7 +32,7 @@ export function toJornadaDTO(j: JornadaDB): JornadaDTO {
 	return {
 		id: j.id,
 		nome: j.nome,
-		dias: JSON.parse(j.dias) as Record<DiaSemanaKey, DiaSemanaDTO>
+		dias: j.dias as unknown as Record<DiaSemanaKey, DiaSemanaDTO>
 	};
 }
 

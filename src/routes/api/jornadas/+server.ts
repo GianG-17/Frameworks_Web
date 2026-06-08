@@ -41,7 +41,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		data: {
 			empresaId: admin.empresaId,
 			nome: body.nome,
-			dias: JSON.stringify(body.dias)
+			dias: body.dias as object
 		}
 	});
 

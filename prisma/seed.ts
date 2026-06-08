@@ -339,13 +339,13 @@ async function main() {
 	}
 
 	const comercial = await prisma.jornada.create({
-		data: { empresaId: empresa.id, nome: 'Comercial 8h', dias: JSON.stringify(jornadaComercial) }
+		data: { empresaId: empresa.id, nome: 'Comercial 8h', dias: jornadaComercial }
 	});
 	const meioPeriodo = await prisma.jornada.create({
 		data: {
 			empresaId: empresa.id,
 			nome: 'Meio Período Manhã',
-			dias: JSON.stringify(jornadaMeioPeriodo)
+			dias: jornadaMeioPeriodo
 		}
 	});
 

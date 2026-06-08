@@ -23,8 +23,6 @@ export interface RegistroDTO {
 	type: string;
 	timestamp: string;
 	method: string;
-	latitude: number | null;
-	longitude: number | null;
 	createdBy: string | null;
 	createdReason: string | null;
 	anulacao: AnulacaoDTO | null;
@@ -48,8 +46,6 @@ export function toRegistroDTO(p: RegistroComAnulacao): RegistroDTO {
 		type: p.type,
 		timestamp: p.timestamp.toISOString(),
 		method: p.method,
-		latitude: p.latitude,
-		longitude: p.longitude,
 		createdBy: p.createdBy ?? null,
 		createdReason: p.createdReason ?? null,
 		anulacao: p.anulacao

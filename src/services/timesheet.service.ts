@@ -18,8 +18,6 @@ export interface RegistroRecord {
 	colaboradorId: string;
 	type: RegistroType;
 	timestamp: string;
-	latitude?: number | null;
-	longitude?: number | null;
 	method: 'manual';
 	createdBy: string | null;
 	createdReason: string | null;

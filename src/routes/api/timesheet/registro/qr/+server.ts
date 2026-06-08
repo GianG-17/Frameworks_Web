@@ -18,8 +18,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		empresaId?: string;
 		token?: string;
 		type?: string;
-		latitude?: number;
-		longitude?: number;
 	};
 	try {
 		body = await request.json();
@@ -49,9 +47,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			colaboradorId: user.id,
 			empresaId: empresa.id,
 			type: body.type,
-			method: 'qrcode',
-			latitude: body.latitude ?? null,
-			longitude: body.longitude ?? null
+			method: 'qrcode'
 		}
 	});
 

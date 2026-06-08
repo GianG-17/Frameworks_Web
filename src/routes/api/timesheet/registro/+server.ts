@@ -14,7 +14,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		return response as Response;
 	}
 
-	let body: { type?: string; method?: string; latitude?: number; longitude?: number };
+	let body: { type?: string; method?: string };
 	try {
 		body = await request.json();
 	} catch {
@@ -33,9 +33,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			colaboradorId: user.id,
 			empresaId: user.empresaId,
 			type: body.type,
-			method: body.method,
-			latitude: body.latitude ?? null,
-			longitude: body.longitude ?? null
+			method: body.method
 		}
 	});
 

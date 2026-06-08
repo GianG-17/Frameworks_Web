@@ -116,8 +116,6 @@ model Registro {
   type          String      // "entrada" | "saida_almoco" | "retorno_almoco" | "saida"
   timestamp     DateTime    @default(now())
   method        String      // "qrcode" | "manual"
-  latitude      Float?
-  longitude     Float?
   // Auditoria — Portaria 671/2021: registros são imutáveis.
   // createdBy preenchido apenas quando admin cria batida em nome de um colaborador (Usuario.id).
   createdBy     String?

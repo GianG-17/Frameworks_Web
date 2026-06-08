@@ -50,7 +50,9 @@ async function handleResponse<TResponse>(response: Response): Promise<TResponse>
 		if (response.status === 401) {
 			localStorage.removeItem('auth_token');
 			document.cookie = 'auth_token=; Max-Age=0; path=/; SameSite=Lax';
-			window.location.href = '/auth/login';
+			if (!window.location.pathname.startsWith('/auth/')) {
+				window.location.href = '/auth/login';
+			}
 		}
 
 		const error: ApiError = {

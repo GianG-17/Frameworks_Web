@@ -26,7 +26,6 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://ponto:ponto@postgres:5432/ponto_digital?schema=public
-      DATABASE_URL_UNPOOLED: postgresql://ponto:ponto@postgres:5432/ponto_digital?schema=public
       NODE_ENV: production
       PORT: '3050'
       ORIGIN: http://localhost:3050

@@ -220,6 +220,8 @@ interface ColaboradorSeed {
 	jornada: 'comercial' | 'meioPeriodo';
 	rngSeed: number;
 	comportamento: DayBehavior;
+	/** ID da digital no leitor biométrico (pré-cadastrado para demonstração) */
+	biometriaId?: number;
 	/** Período de férias dentro de Jan/2026 (opcional) */
 	feriasJaneiro?: { inicio: string; fim: string };
 	/** Faltas justificadas (datas dentro de Jan/2026) */
@@ -238,7 +240,8 @@ const colaboradoresSeed: ColaboradorSeed[] = [
 		status: 'ativo',
 		jornada: 'comercial',
 		rngSeed: 101,
-		comportamento: { faltaProb: 0.0, atrasoGraveProb: 0.05, esqueceBatidaProb: 0.04 }
+		comportamento: { faltaProb: 0.0, atrasoGraveProb: 0.05, esqueceBatidaProb: 0.04 },
+		biometriaId: 42
 	},
 	{
 		name: 'Ana Pereira',
@@ -321,6 +324,7 @@ async function main() {
 	await prisma.usuario.deleteMany();
 	await prisma.jornada.deleteMany();
 	await prisma.departamento.deleteMany();
+	await prisma.dispositivo.deleteMany();
 	await prisma.empresa.deleteMany();
 
 	const empresa = await prisma.empresa.create({
@@ -330,6 +334,17 @@ async function main() {
 			horaAbertura: '08:00',
 			horaFechamento: '18:00',
 			qrSecret: generateSecret()
+		}
+	});
+
+	// Dispositivo de ponto biométrico (ESP32/Wokwi). O token vai no firmware (DEVICE_TOKEN).
+	const DEVICE_TOKEN = 'wokwi-demo-token-001';
+	await prisma.dispositivo.create({
+		data: {
+			empresaId: empresa.id,
+			deviceId: 'relogio-loja-01',
+			token: DEVICE_TOKEN,
+			nome: 'Relógio de ponto - Loja 01'
 		}
 	});
 
@@ -384,7 +399,8 @@ async function main() {
 				telefone: c.telefone,
 				dataAdmissao: new Date(c.dataAdmissao),
 				status: c.status,
-				jornadaId: jornada.id
+				jornadaId: jornada.id,
+				biometriaId: c.biometriaId
 			}
 		});
 
@@ -457,6 +473,10 @@ async function main() {
 		`✓ Seed concluído: 1 empresa, 2 jornadas, 1 admin, ${colaboradoresSeed.length} colaboradores, ${totalRegistros} pontos em Jan/2026.`
 	);
 	console.log(`  Senha padrão para todos: Senha123`);
+	console.log(
+		`  Dispositivo biométrico: deviceId="relogio-loja-01" | DEVICE_TOKEN="${DEVICE_TOKEN}"`
+	);
+	console.log(`  Carlos Souza já vem com biometriaId=42 (use o leitor mock p/ marcar ponto).`);
 }
 
 main()

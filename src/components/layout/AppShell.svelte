@@ -24,6 +24,7 @@
 
 	const NAV_COLAB: NavItem[] = [
 		{ href: resolve('/colaborador/registro', {}), label: 'Registrar Ponto', icon: 'clock' },
+		{ href: resolve('/colaborador/biometria', {}), label: 'Biometria', icon: 'fingerprint' },
 		{ href: resolve('/colaborador/historico', {}), label: 'Histórico', icon: 'history' },
 		{ href: resolve('/colaborador/justificativas', {}), label: 'Justificativas', icon: 'approval' }
 	];

@@ -13,8 +13,13 @@ import type { Handle } from '@sveltejs/kit';
 import { redirect, json } from '@sveltejs/kit';
 import { decodeToken } from '@/lib/server/token';
 
-// Rotas de API públicas (não exigem token)
+// Rotas de API públicas (não exigem token de usuário)
 const PUBLIC_API_PATHS = ['/api/auth/login', '/api/auth/qrcode'];
+
+// Rotas chamadas pelo dispositivo de ponto biométrico: autenticam pelo token do
+// próprio dispositivo (header Authorization), não pelo cookie de sessão.
+// Match exato para não liberar /api/biometria/cadastro/iniciar (esse exige login).
+const DEVICE_API_PATHS = ['/api/biometria/marcacao', '/api/biometria/cadastro'];
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const token = event.cookies.get('auth_token');
@@ -36,6 +41,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// Rotas de API públicas (login, qrcode)
 	if (PUBLIC_API_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
+		return resolve(event);
+	}
+
+	// Rotas do dispositivo biométrico (auth pelo token do dispositivo, não cookie)
+	if (DEVICE_API_PATHS.includes(pathname)) {
 		return resolve(event);
 	}
 

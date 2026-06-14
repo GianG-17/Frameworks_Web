@@ -29,6 +29,7 @@ model Empresa {
   registros      Registro[]
   ferias         Ferias[]
   justificativas Justificativa[]
+  dispositivos   Dispositivo[]
 
   @@map("empresas")
 }
@@ -66,12 +67,16 @@ model Colaborador {
   status         String?       // "ativo" | "inativo" | "ferias" | "afastado"
   jornadaId      String?
   jornada        Jornada?      @relation(fields: [jornadaId], references: [id], onDelete: SetNull)
+  // Biometria: biometriaId é o ID da digital no leitor (null = sem biometria cadastrada).
+  // O cadastro é feito pelo dispositivo informando o CPF do colaborador.
+  biometriaId    Int?
   registros      Registro[]
   ferias         Ferias[]
   justificativas Justificativa[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
+  @@unique([empresaId, biometriaId])
   @@index([empresaId])
   @@map("colaboradores")
 }
@@ -114,7 +119,9 @@ model Registro {
   empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   type          String      // "entrada" | "saida_almoco" | "retorno_almoco" | "saida"
   timestamp     DateTime    @default(now())
-  method        String      // "qrcode" | "manual"
+  method        String      // "qrcode" | "manual" | "biometria"
+  // Dispositivo de origem da batida biométrica (Dispositivo.deviceId), p/ auditoria.
+  deviceId      String?
   // Auditoria — Portaria 671/2021: registros são imutáveis.
   // createdBy preenchido apenas quando admin cria batida em nome de um colaborador (Usuario.id).
   createdBy     String?
@@ -139,6 +146,22 @@ model RegistroAnulacao {
 
   @@index([empresaId])
   @@map("registro_anulacoes")
+}
+
+// Dispositivo de ponto biométrico (ESP32) — aparelho compartilhado de parede.
+// Autentica-se via token próprio (Bearer), que resolve a empresa. Não é um colaborador.
+model Dispositivo {
+  id        String   @id @default(cuid())
+  deviceId  String   @unique // identificador físico, ex.: "relogio-loja-01"
+  token     String   @unique // DEVICE_TOKEN (string opaca enviada no header Authorization)
+  nome      String?
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([empresaId])
+  @@map("dispositivos")
 }
 
 model Ferias {

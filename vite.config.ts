@@ -8,5 +8,8 @@ export default defineConfig({
 		alias: {
 			'@': path.resolve('./src')
 		}
+	},
+	server: {
+		allowedHosts: ['finch-uniformed-thespian.ngrok-free.dev']
 	}
 });

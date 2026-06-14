@@ -62,6 +62,21 @@ export function dateKey(date: Date): string {
 	return date.toISOString().split('T')[0];
 }
 
+/** Ordem fixa das batidas em um dia. */
+export const REGISTRO_SEQUENCE = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'] as const;
+
+/**
+ * Determina o próximo tipo de batida esperado a partir dos registros (válidos) do dia.
+ * Ignora batidas anuladas. Retorna `null` quando os 4 tipos já foram registrados.
+ * Usado pela marcação biométrica, em que o dispositivo não envia o tipo.
+ */
+export function proximoTipo(
+	registros: RegistroComAnulacao[]
+): (typeof REGISTRO_SEQUENCE)[number] | null {
+	const registrados = new Set(registros.filter((p) => !p.anulacao).map((p) => p.type));
+	return REGISTRO_SEQUENCE.find((type) => !registrados.has(type)) ?? null;
+}
+
 /**
  * Agrupa pontos por data e calcula totalHours / overtime / deficit por dia.
  * Regra: totalHours = (saida_almoco - entrada) + (saida - retorno_almoco) em horas decimais.

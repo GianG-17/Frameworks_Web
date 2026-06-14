@@ -6,6 +6,7 @@
  * Prisma 7 exige um driver adapter explícito (sem engine binário).
  */
 
+import 'dotenv/config'; // garante DATABASE_URL do .env em dev (em prod o host injeta a env var)
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from './prisma-client/client';
 

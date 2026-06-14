@@ -4,15 +4,15 @@ services:
     container_name: ponto_digital_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ponto
-      POSTGRES_PASSWORD: ponto
-      POSTGRES_DB: ponto_digital
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ponto -d ponto_digital']
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -25,12 +25,14 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://ponto:ponto@postgres:5432/ponto_digital?schema=public
       NODE_ENV: production
-      PORT: '3050'
-      ORIGIN: http://localhost:3050
+      # Dentro da rede do Compose o host do banco é o serviço "postgres" (não localhost).
+      # Montado a partir das credenciais, para o .env poder usar localhost no dev da máquina.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      PORT: ${PORT}
+      ORIGIN: ${ORIGIN}
     ports:
-      - '3050:3050'
+      - "${PORT}:${PORT}"
 
 volumes:
   postgres_data:

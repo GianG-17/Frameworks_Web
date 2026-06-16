@@ -7,8 +7,10 @@ services:
       POSTGRES_USER: ponto
       POSTGRES_PASSWORD: ponto
       POSTGRES_DB: ponto_digital
-    ports:
-      - '5432:5432'
+    # Sem publicar porta no host: o app acessa via rede interna (postgres:5432).
+    # Para acessar de fora (ex.: Prisma Studio), descomente com uma porta livre:
+    # ports:
+    #   - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,6 +23,7 @@ services:
     build: .
     container_name: ponto_digital_app
     restart: unless-stopped
+    init: true
     depends_on:
       postgres:
         condition: service_healthy
@@ -28,7 +31,11 @@ services:
       DATABASE_URL: postgresql://ponto:ponto@postgres:5432/ponto_digital?schema=public
       NODE_ENV: production
       PORT: '3050'
-      ORIGIN: http://localhost:3050
+      # Em produção, aponte para o domínio público (ex.: https://seu-dominio.com),
+      # senão POST/cookies quebram pela proteção CSRF do adapter-node.
+      ORIGIN: ${ORIGIN:-http://localhost:3050}
+      # Segredo de assinatura dos tokens JWT. Defina um valor forte em produção.
+      JWT_SECRET: ${JWT_SECRET:-dev-insecure-secret-trocar-em-producao}
     ports:
       - '3050:3050'
 

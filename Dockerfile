@@ -28,8 +28,8 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/prisma.config.ts ./prisma.config.ts
-COPY docker-entrypoint.sh ./docker-entrypoint.sh
-RUN chmod +x docker-entrypoint.sh && chown -R node:node /app
+RUN chown -R node:node /app
 USER node
 EXPOSE 3050
-CMD ["./docker-entrypoint.sh"]
+# Aplica migrations (runtime, precisa de banco vivo) e inicia o servidor.
+CMD ["npm", "run", "start:prod"]

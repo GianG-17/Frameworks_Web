@@ -1,8 +1,16 @@
 /**
  * @module lib/server/token
  * @description Codifica/decodifica tokens de autenticação.
- * Formato atual: Base64(JSON do usuário). Simples para dev; trocar por JWT/sessão opaca em produção.
+ * Formato: JWT assinado (HS256) com expiração. O segredo vem de `JWT_SECRET`.
  */
+
+import jwt from 'jsonwebtoken';
+
+// Segredo de assinatura. Em produção, defina `JWT_SECRET` no ambiente — o fallback
+// abaixo serve apenas para desenvolvimento local e NÃO deve ser usado em produção.
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-insecure-secret-trocar-em-producao';
+// Validade do token. Cobre uma jornada de trabalho com folga.
+const JWT_EXPIRES_IN = '12h';
 
 export interface TokenPayload {
 	id: string;
@@ -35,14 +43,23 @@ export function toPayload(user: Autenticavel, role: 'admin' | 'colaborador'): To
 }
 
 export function encodeToken(payload: TokenPayload): string {
-	return Buffer.from(JSON.stringify(payload), 'utf-8').toString('base64');
+	return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
 export function decodeToken(token: string): TokenPayload | null {
 	try {
-		const json = Buffer.from(token, 'base64').toString('utf-8');
-		return JSON.parse(json) as TokenPayload;
+		const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload & jwt.JwtPayload;
+		// Descarta os claims do JWT (iat/exp) e devolve só o payload da aplicação.
+		return {
+			id: decoded.id,
+			name: decoded.name,
+			email: decoded.email,
+			cpf: decoded.cpf,
+			role: decoded.role,
+			empresaId: decoded.empresaId
+		};
 	} catch {
+		// Assinatura inválida, token expirado ou malformado.
 		return null;
 	}
 }

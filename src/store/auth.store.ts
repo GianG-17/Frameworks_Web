@@ -34,18 +34,40 @@ export function clearUser() {
 }
 
 /**
+ * Decodifica o payload de um JWT (`header.payload.assinatura`) sem verificar a
+ * assinatura — a verificação real acontece no servidor (`token.ts`). Aqui só
+ * lemos os claims para reidratar o store no client.
+ */
+function decodeJwtPayload(token: string): (User & { exp?: number }) | null {
+	const part = token.split('.')[1];
+	if (!part) return null;
+	// base64url → base64 + padding, pois atob não entende base64url.
+	const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
+	const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+	return JSON.parse(atob(padded));
+}
+
+/**
  * Reidrata o store a partir do token salvo em localStorage.
  * Chamada no boot do client para sobreviver a full reloads (HMR/refresh).
- * Em caso de token inválido, limpa cookie + storage.
+ * Em caso de token inválido ou expirado, limpa cookie + storage.
  */
 export function hydrateFromStorage(): void {
 	if (typeof window === 'undefined') return;
 	const token = localStorage.getItem('auth_token');
 	if (!token) return;
 	try {
-		const parsed = JSON.parse(atob(token)) as User;
-		if (parsed && (parsed.role === 'admin' || parsed.role === 'colaborador')) {
-			user.set(parsed);
+		const parsed = decodeJwtPayload(token);
+		const expirado = parsed?.exp != null && parsed.exp * 1000 <= Date.now();
+		if (parsed && !expirado && (parsed.role === 'admin' || parsed.role === 'colaborador')) {
+			user.set({
+				id: parsed.id,
+				name: parsed.name,
+				email: parsed.email,
+				cpf: parsed.cpf,
+				role: parsed.role,
+				empresaId: parsed.empresaId
+			});
 			return;
 		}
 		throw new Error('payload inválido');

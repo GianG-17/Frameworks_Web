@@ -15,6 +15,8 @@ export interface AnulacaoDTO {
 	motivo: string;
 	anuladoPor: string;
 	anuladoEm: string;
+	/** Batida corrigida que substituiu esta (ajuste). Nulo em anulação avulsa. */
+	registroSubstitutoId: string | null;
 }
 
 export interface RegistroDTO {
@@ -52,7 +54,8 @@ export function toRegistroDTO(p: RegistroComAnulacao): RegistroDTO {
 			? {
 					motivo: p.anulacao.motivo,
 					anuladoPor: p.anulacao.anuladoPor,
-					anuladoEm: p.anulacao.anuladoEm.toISOString()
+					anuladoEm: p.anulacao.anuladoEm.toISOString(),
+					registroSubstitutoId: p.anulacao.registroSubstitutoId ?? null
 				}
 			: null
 	};

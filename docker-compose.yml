@@ -9,8 +9,8 @@ services:
       POSTGRES_DB: ponto_digital
     # Sem publicar porta no host: o app acessa via rede interna (postgres:5432).
     # Para acessar de fora (ex.: Prisma Studio), descomente com uma porta livre:
-    # ports:
-    #   - '5433:5432'
+    ports:
+      - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

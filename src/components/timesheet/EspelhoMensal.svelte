@@ -3,15 +3,16 @@
   @description Grid mensal de batidas para um colaborador.
 
   Cada linha = um dia do mês. Colunas = Entrada / Saída Almoço / Retorno / Saída / Total.
-  Click em célula vazia → abre modal para registrar batida manual.
-  Click em batida existente → abre modal para anular (Portaria 671: não há edição).
+  Por padrão é somente leitura (espelho). Com `editavel`, vira ferramenta de ajuste:
+  click em célula vazia → registrar batida manual; click em batida → ajustar/anular
+  (Portaria 671: a original nunca é editada — ajustar cria a corrigida vinculada).
 -->
 <script lang="ts">
 	import { relatorioService, type EspelhoRelatorio } from '@/services/relatorio.service';
 	import { registroAdminService } from '@/services/registro-admin.service';
 	import type { RegistroRecord, RegistroType, DailySummary } from '@/services/timesheet.service';
 	import RegistroManualModal from './RegistroManualModal.svelte';
-	import RegistroAnularModal from './RegistroAnularModal.svelte';
+	import RegistroAjusteModal from './RegistroAjusteModal.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 
 	interface Props {
@@ -19,9 +20,11 @@
 		colaboradorNome: string;
 		/** Mês no formato YYYY-MM */
 		mes: string;
+		/** Habilita edição (ajuste/manual). Padrão: somente leitura. */
+		editavel?: boolean;
 	}
 
-	let { colaboradorId, colaboradorNome, mes }: Props = $props();
+	let { colaboradorId, colaboradorNome, mes, editavel = false }: Props = $props();
 
 	const TIPOS_ORDEM: RegistroType[] = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'];
 	const TIPO_LABEL: Record<RegistroType, string> = {
@@ -37,7 +40,7 @@
 	let erro = $state('');
 
 	let modalManualAberto = $state(false);
-	let modalAnularAberto = $state(false);
+	let modalAjusteAberto = $state(false);
 	let dataInicialModal = $state('');
 	let tipoInicialModal = $state<RegistroType>('entrada');
 	let registroSelecionado = $state<RegistroRecord | null>(null);
@@ -133,10 +136,10 @@
 		modalManualAberto = true;
 	}
 
-	function abrirModalAnular(registro: RegistroRecord) {
-		if (registro.anulacao) return; // já anulada
+	function abrirModalAjuste(registro: RegistroRecord) {
+		if (!editavel || registro.anulacao) return; // leitura ou já anulada
 		registroSelecionado = registro;
-		modalAnularAberto = true;
+		modalAjusteAberto = true;
 	}
 
 	async function confirmarManual(dados: { type: RegistroType; timestamp: string; reason: string }) {
@@ -145,10 +148,18 @@
 		await carregar();
 	}
 
+	async function confirmarAjuste(dados: { type: RegistroType; timestamp: string; reason: string }) {
+		if (!registroSelecionado) return;
+		await registroAdminService.ajustar(registroSelecionado.id, dados);
+		modalAjusteAberto = false;
+		registroSelecionado = null;
+		await carregar();
+	}
+
 	async function confirmarAnular(motivo: string) {
 		if (!registroSelecionado) return;
 		await registroAdminService.anular(registroSelecionado.id, motivo);
-		modalAnularAberto = false;
+		modalAjusteAberto = false;
 		registroSelecionado = null;
 		await carregar();
 	}
@@ -190,29 +201,45 @@
 						{#each TIPOS_ORDEM as tipo (tipo)}
 							{@const registro = batidaDoDia(dia.summary, tipo)}
 							{#if registro}
+								{@const titulo = registro.anulacao
+									? `Anulada: ${registro.anulacao.motivo}`
+									: (registro.createdReason ?? (editavel ? 'Clique para ajustar' : 'Ponto válido'))}
 								<td class="cel">
-									<button
-										type="button"
-										class="batida"
-										class:batida--manual={registro.method === 'manual'}
-										class:batida--anulada={!!registro.anulacao}
-										title={registro.anulacao
-											? `Anulada: ${registro.anulacao.motivo}`
-											: (registro.createdReason ?? 'Clique para anular')}
-										onclick={() => abrirModalAnular(registro)}
-										disabled={!!registro.anulacao}
-									>
-										{formatHora(registro.timestamp)}
-									</button>
+									{#if editavel}
+										<button
+											type="button"
+											class="batida"
+											class:batida--manual={registro.method === 'manual'}
+											class:batida--anulada={!!registro.anulacao}
+											title={titulo}
+											onclick={() => abrirModalAjuste(registro)}
+											disabled={!!registro.anulacao}
+										>
+											{formatHora(registro.timestamp)}
+										</button>
+									{:else}
+										<span
+											class="batida batida--leitura"
+											class:batida--manual={registro.method === 'manual'}
+											class:batida--anulada={!!registro.anulacao}
+											title={titulo}
+										>
+											{formatHora(registro.timestamp)}
+										</span>
+									{/if}
 								</td>
 							{:else}
 								<td class="cel">
-									<button
-										type="button"
-										class="vazia"
-										title="Adicionar batida manual"
-										onclick={() => abrirModalManual(dia.date, tipo)}>+</button
-									>
+									{#if editavel}
+										<button
+											type="button"
+											class="vazia"
+											title="Adicionar batida manual"
+											onclick={() => abrirModalManual(dia.date, tipo)}>+</button
+										>
+									{:else}
+										<span class="sem-batida">—</span>
+									{/if}
 								</td>
 							{/if}
 						{/each}
@@ -224,24 +251,27 @@
 	</div>
 {/if}
 
-<RegistroManualModal
-	aberto={modalManualAberto}
-	{colaboradorNome}
-	dataInicial={dataInicialModal}
-	tipoInicial={tipoInicialModal}
-	onFechar={() => (modalManualAberto = false)}
-	onConfirmar={confirmarManual}
-/>
+{#if editavel}
+	<RegistroManualModal
+		aberto={modalManualAberto}
+		{colaboradorNome}
+		dataInicial={dataInicialModal}
+		tipoInicial={tipoInicialModal}
+		onFechar={() => (modalManualAberto = false)}
+		onConfirmar={confirmarManual}
+	/>
 
-<RegistroAnularModal
-	aberto={modalAnularAberto}
-	registro={registroSelecionado}
-	onFechar={() => {
-		modalAnularAberto = false;
-		registroSelecionado = null;
-	}}
-	onConfirmar={confirmarAnular}
-/>
+	<RegistroAjusteModal
+		aberto={modalAjusteAberto}
+		registro={registroSelecionado}
+		onFechar={() => {
+			modalAjusteAberto = false;
+			registroSelecionado = null;
+		}}
+		onAjustar={confirmarAjuste}
+		onAnular={confirmarAnular}
+	/>
+{/if}
 
 <style>
 	.status,
@@ -360,6 +390,15 @@
 	}
 	.batida:hover:not(:disabled) {
 		background: #d1fae5;
+	}
+	.batida--leitura {
+		cursor: default;
+	}
+	.sem-batida {
+		display: block;
+		text-align: center;
+		color: #cbd5e1;
+		font-size: 0.875rem;
 	}
 	.batida--manual {
 		background: #fef3c7;

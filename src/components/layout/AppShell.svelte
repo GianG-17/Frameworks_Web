@@ -36,7 +36,8 @@
 		{ href: resolve('/admin/jornadas', {}), label: 'Jornadas', icon: 'clock' },
 		{ href: resolve('/admin/justificativas', {}), label: 'Justificativas', icon: 'approval' },
 		{ href: resolve('/admin/ferias', {}), label: 'Férias', icon: 'vacations' },
-		{ href: resolve('/admin/relatorios', {}), label: 'Relatórios', icon: 'report' }
+		{ href: resolve('/admin/relatorios', {}), label: 'Relatórios', icon: 'report' },
+		{ href: resolve('/admin/ajustes', {}), label: 'Ajustes', icon: 'check-circle' }
 	];
 
 	const navItems = $derived($isAdmin ? NAV_ADMIN : NAV_COLAB);

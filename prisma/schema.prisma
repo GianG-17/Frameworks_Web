@@ -119,7 +119,9 @@ model Registro {
   // createdBy preenchido apenas quando admin cria batida em nome de um colaborador (Usuario.id).
   createdBy     String?
   createdReason String?
-  anulacao      RegistroAnulacao?
+  anulacao      RegistroAnulacao? @relation("registroAnulado")
+  // Anulação que esta batida corrige (preenchido quando a batida nasceu de um ajuste).
+  substituiAnulacao RegistroAnulacao? @relation("registroSubstituto")
 
   @@index([colaboradorId, timestamp])
   @@index([empresaId, timestamp])
@@ -128,10 +130,14 @@ model Registro {
 
 // Anulação de registro — complementa um Registro invalidando-o sem apagá-lo.
 // Cálculo do espelho ignora registros com anulacao; AFD legal exporta ambos.
+// Ajuste = anulação com `registroSubstitutoId` apontando para a batida corrigida.
+// Anulação avulsa (ex.: clique duplicado) tem `registroSubstitutoId` nulo.
 model RegistroAnulacao {
   id         String   @id @default(cuid())
   registroId String   @unique
-  registro   Registro @relation(fields: [registroId], references: [id], onDelete: Cascade)
+  registro   Registro @relation("registroAnulado", fields: [registroId], references: [id], onDelete: Cascade)
+  registroSubstitutoId String?   @unique
+  registroSubstituto   Registro? @relation("registroSubstituto", fields: [registroSubstitutoId], references: [id], onDelete: SetNull)
   empresaId  String
   motivo     String
   anuladoPor String   // Usuario.id do admin

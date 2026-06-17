@@ -11,6 +11,8 @@ export interface RegistroAnulacao {
 	motivo: string;
 	anuladoPor: string;
 	anuladoEm: string;
+	/** Batida corrigida que substituiu esta (ajuste). Nulo em anulação avulsa. */
+	registroSubstitutoId: string | null;
 }
 
 export interface RegistroRecord {

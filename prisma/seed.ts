@@ -310,12 +310,118 @@ const colaboradoresSeed: ColaboradorSeed[] = [
 	}
 ];
 
+// ── Ajustes/lançamentos de exemplo (admin) ───────────────────────────────────
+// Demonstra a comparação do espelho: marcações do colaborador (createdBy null,
+// imutáveis) × estado com ajustes do admin. Cada ajuste anula a batida original
+// e cria a corrigida vinculada (registroSubstitutoId); lançamentos manuais
+// preenchem batidas que faltaram. Determinístico (usa os primeiros dias que se
+// qualificam), então sobrevive a cada `db:seed`.
+const TODOS_TIPOS: RegistroType[] = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'];
+const HORARIO_PADRAO: Record<RegistroType, string> = {
+	entrada: '08:00',
+	saida_almoco: '12:00',
+	retorno_almoco: '13:00',
+	saida: '17:00'
+};
+
+async function seedAjustesDemo(empresaId: string, adminId: string, colaboradorId: string) {
+	const registros = await prisma.registro.findMany({
+		where: { colaboradorId, createdBy: null },
+		orderBy: { timestamp: 'asc' }
+	});
+
+	const porDia = new Map<string, typeof registros>();
+	for (const r of registros) {
+		const dia = r.timestamp.toISOString().slice(0, 10);
+		const lista = porDia.get(dia) ?? [];
+		lista.push(r);
+		porDia.set(dia, lista);
+	}
+
+	let manuais = 0;
+	let ajustes = 0;
+
+	// 1) Lançamentos manuais: até 2 dias com alguma batida faltando.
+	for (const [dia, regs] of porDia) {
+		if (manuais >= 2) break;
+		const tipos = new Set(regs.map((r) => r.type));
+		if (tipos.size === 0 || tipos.size === 4) continue;
+		const faltando = TODOS_TIPOS.find((t) => !tipos.has(t));
+		if (!faltando) continue;
+		await prisma.registro.create({
+			data: {
+				colaboradorId,
+				empresaId,
+				type: faltando,
+				timestamp: buildTimestamp(dia, HORARIO_PADRAO[faltando], 0),
+				method: 'manual',
+				createdBy: adminId,
+				createdReason: 'Colaborador esqueceu de bater — confirmado pelo gestor.'
+			}
+		});
+		manuais++;
+	}
+
+	// 2) Ajustes: até 3 dias completos, corrige um horário (anula + substitui).
+	const correcoes: { tipo: RegistroType; horario: string; motivo: string }[] = [
+		{
+			tipo: 'entrada',
+			horario: '07:30',
+			motivo: 'Início antecipado autorizado — relógio não registrou.'
+		},
+		{
+			tipo: 'saida',
+			horario: '18:00',
+			motivo: 'Hora extra autorizada não marcada pelo colaborador.'
+		},
+		{
+			tipo: 'retorno_almoco',
+			horario: '13:00',
+			motivo: 'Catraca com horário adiantado no retorno do almoço.'
+		}
+	];
+	let ci = 0;
+	for (const [dia, regs] of porDia) {
+		if (ci >= correcoes.length) break;
+		if (new Set(regs.map((r) => r.type)).size !== 4) continue;
+		const corr = correcoes[ci];
+		const original = regs.find((r) => r.type === corr.tipo)!;
+		await prisma.$transaction(async (tx) => {
+			const novo = await tx.registro.create({
+				data: {
+					colaboradorId,
+					empresaId,
+					type: corr.tipo,
+					timestamp: buildTimestamp(dia, corr.horario, 0),
+					method: 'manual',
+					createdBy: adminId,
+					createdReason: corr.motivo
+				}
+			});
+			await tx.registroAnulacao.create({
+				data: {
+					registroId: original.id,
+					registroSubstitutoId: novo.id,
+					empresaId,
+					motivo: corr.motivo,
+					anuladoPor: adminId
+				}
+			});
+		});
+		ajustes++;
+		ci++;
+	}
+
+	return { ajustes, manuais };
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
 	const senhaHash = await bcrypt.hash('Senha123', 10);
 
 	await prisma.justificativa.deleteMany();
 	await prisma.ferias.deleteMany();
+	await prisma.registroAnulacao.deleteMany();
 	await prisma.registro.deleteMany();
 	await prisma.colaborador.deleteMany();
 	await prisma.usuario.deleteMany();
@@ -352,7 +458,7 @@ async function main() {
 		}
 	});
 
-	await prisma.usuario.create({
+	const admin = await prisma.usuario.create({
 		data: {
 			empresaId: empresa.id,
 			name: 'Admin',
@@ -453,8 +559,17 @@ async function main() {
 		}
 	}
 
+	// Ajustes/lançamentos de exemplo no Carlos, para demonstrar a comparação no espelho.
+	const carlos = await prisma.colaborador.findFirst({ where: { email: 'carlos@teste.com' } });
+	const demo = carlos
+		? await seedAjustesDemo(empresa.id, admin.id, carlos.id)
+		: { ajustes: 0, manuais: 0 };
+
 	console.log(
 		`✓ Seed concluído: 1 empresa, 2 jornadas, 1 admin, ${colaboradoresSeed.length} colaboradores, ${totalRegistros} pontos em Jan/2026.`
+	);
+	console.log(
+		`  Exemplos de ajuste no Carlos: ${demo.ajustes} ajuste(s) + ${demo.manuais} lançamento(s) manual(is).`
 	);
 	console.log(`  Senha padrão para todos: Senha123`);
 }

@@ -172,7 +172,7 @@
 						<div class="entrada__meta">
 							<div class="entrada__nome">{e.nome}</div>
 							<div class="entrada__sub">
-								Previsto {e.jornadaEntrada}}
+								Previsto {e.jornadaEntrada}
 							</div>
 						</div>
 						<div class="entrada__right">

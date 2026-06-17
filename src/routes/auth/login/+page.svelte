@@ -3,6 +3,7 @@
   @description Página de login — admin por email, colaborador por CPF.
 -->
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Button from '@/components/ui/Button.svelte';
@@ -13,6 +14,10 @@
 
 	type LoginTab = 'admin' | 'colaborador';
 
+	// Persiste a aba escolhida na sessão para sobreviver a um eventual reload da página
+	// (ex.: 401 ao errar a senha), mantendo o usuário na mesma aba que estava.
+	const TAB_STORAGE_KEY = 'login_active_tab';
+
 	let activeTab = $state<LoginTab>('colaborador');
 	let identifier = $state('');
 	let password = $state('');
@@ -20,8 +25,16 @@
 	let errorMsg = $state('');
 	let cpfError = $state('');
 
+	onMount(() => {
+		const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
+		if (saved === 'admin' || saved === 'colaborador') {
+			activeTab = saved;
+		}
+	});
+
 	function handleTabChange(tab: LoginTab): void {
 		activeTab = tab;
+		sessionStorage.setItem(TAB_STORAGE_KEY, tab);
 		identifier = '';
 		password = '';
 		errorMsg = '';

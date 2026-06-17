@@ -252,7 +252,7 @@
 												<button
 													type="button"
 													class="vazia"
-													title="Adicionar batida manual"
+													title="Adicionar registro manual"
 													onclick={() => abrirModalManual(dia.date, tipo)}>+</button
 												>
 											{:else}

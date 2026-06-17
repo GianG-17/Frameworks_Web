@@ -57,7 +57,7 @@
 			return;
 		}
 		if (ts.getTime() > Date.now()) {
-			erro = 'Não é possível registrar batida no futuro.';
+			erro = 'Não é possível registrar ponto em data futura.';
 			return;
 		}
 
@@ -65,7 +65,7 @@
 		try {
 			await onConfirmar({ type: tipo, timestamp: ts.toISOString(), reason: motivo.trim() });
 		} catch {
-			erro = 'Falha ao registrar batida. Tente novamente.';
+			erro = 'Falha ao registrar marcação. Tente novamente.';
 		} finally {
 			salvando = false;
 		}
@@ -83,19 +83,13 @@
 		<div class="modal" role="dialog" aria-modal="true" aria-labelledby="registro-manual-titulo">
 			<form onsubmit={handleSubmit}>
 				<header class="modal-header">
-					<h2 id="registro-manual-titulo">Registrar batida manual</h2>
+					<h2 id="registro-manual-titulo">Registrar ponto manual</h2>
 					<button type="button" class="btn-fechar" onclick={onFechar} aria-label="Fechar">✕</button>
 				</header>
 
 				<div class="modal-body">
-					<p class="aviso">
-						<strong>Atenção:</strong> esta operação cria um novo registro de ponto em nome de
-						<strong>{colaboradorNome}</strong>. Conforme a Portaria 671/2021, batidas não podem ser
-						editadas — apenas adicionadas ou anuladas. O motivo ficará registrado no histórico.
-					</p>
-
 					<div class="campo">
-						<label for="tipo">Tipo de batida</label>
+						<label for="tipo">Tipo de registro</label>
 						<select id="tipo" bind:value={tipo}>
 							<option value="entrada">Entrada</option>
 							<option value="saida_almoco">Saída para almoço</option>
@@ -115,7 +109,7 @@
 							id="motivo"
 							bind:value={motivo}
 							rows="3"
-							placeholder="Ex.: Colaborador esqueceu de bater na entrada — confirmado pelo gestor."
+							placeholder="Ex.: Colaborador esqueceu de marcar ponto na entrada — confirmado pelo gestor."
 							required
 						></textarea>
 					</div>
@@ -128,7 +122,7 @@
 						Cancelar
 					</button>
 					<button type="submit" class="btn btn--primario" disabled={salvando}>
-						{salvando ? 'Salvando...' : 'Registrar batida'}
+						{salvando ? 'Salvando...' : 'Registrar ponto'}
 					</button>
 				</footer>
 			</form>

@@ -41,12 +41,6 @@
 		<h1>Ajuste de marcações</h1>
 	</header>
 
-	<p class="muted">
-		Corrija batidas erradas ou cadastre marcações que faltaram. A batida original nunca é apagada —
-		o ajuste a mantém anulada e cria a corrigida, vinculadas (Portaria 671/2021). Para apenas
-		consultar, use o <strong>Espelho individual</strong> em Relatórios.
-	</p>
-
 	{#if errorMsg}<div class="error">{errorMsg}</div>{/if}
 
 	<Card>

@@ -66,7 +66,7 @@
 			return null;
 		}
 		if (ts.getTime() > Date.now()) {
-			erro = 'Não é possível registrar batida no futuro.';
+			erro = 'Não é possível registrar ponto em data futura.';
 			return null;
 		}
 		return { ts, motivoLimpo };
@@ -97,7 +97,7 @@
 		try {
 			await onAnular(motivoLimpo);
 		} catch {
-			erro = 'Falha ao anular batida. Tente novamente.';
+			erro = 'Falha ao anular marcação. Tente novamente.';
 		} finally {
 			salvando = false;
 		}
@@ -134,14 +134,8 @@
 						</div>
 					</dl>
 
-					<p class="aviso">
-						O ajuste mantém a batida original (anulada) e cria a corrigida, vinculadas — nada é
-						apagado. Use <strong>Anular sem substituir</strong> apenas para remover uma marcação indevida
-						(ex.: clique duplicado).
-					</p>
-
 					<div class="campo">
-						<label for="tipo">Tipo de batida</label>
+						<label for="tipo">Tipo de registro</label>
 						<select id="tipo" bind:value={tipo}>
 							<option value="entrada">Entrada</option>
 							<option value="saida_almoco">Saída para almoço</option>

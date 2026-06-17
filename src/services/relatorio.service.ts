@@ -6,12 +6,24 @@
 import { get } from './api';
 import type { DailySummary } from './timesheet.service';
 
+/** Totais de horas de uma jornada (efetiva ou original). */
+export interface EspelhoTotais {
+	horas: number;
+	extras: number;
+	deficit: number;
+}
+
+/** Dia do espelho: estado efetivo (com ajustes) + totais da jornada original (só marcações do colaborador). */
+export type EspelhoDia = DailySummary & {
+	original: { totalHours: number; overtime: number; deficit: number };
+};
+
 export interface EspelhoRelatorio {
 	colaborador: { id: string; nome: string };
 	inicio: string;
 	fim: string;
-	dias: DailySummary[];
-	totais: { horas: number; extras: number; deficit: number };
+	dias: EspelhoDia[];
+	totais: EspelhoTotais & { original: EspelhoTotais };
 }
 
 export interface ConsolidadoLinha {

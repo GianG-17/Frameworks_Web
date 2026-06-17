@@ -47,10 +47,30 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	]);
 
 	const datasAbonadas = new Set(justificativas.map((j) => dateKey(j.data)));
-	const dias = buildDailySummaries(registros, datasAbonadas);
-	const totalHoras = dias.reduce((acc, d) => acc + d.totalHours, 0);
-	const totalExtras = dias.reduce((acc, d) => acc + d.overtime, 0);
-	const totalDeficit = dias.reduce((acc, d) => acc + d.deficit, 0);
+
+	// Estado efetivo (com ajustes do admin) e estado original (só marcações do
+	// colaborador, createdBy == null) — ambos a partir dos mesmos registros.
+	const diasEfetivos = buildDailySummaries(registros, datasAbonadas);
+	const diasOriginais = buildDailySummaries(registros, datasAbonadas, (p) => p.createdBy == null);
+	const origPorData = new Map(diasOriginais.map((d) => [d.date, d]));
+
+	const dias = diasEfetivos.map((d) => {
+		const o = origPorData.get(d.date);
+		return {
+			...d,
+			original: {
+				totalHours: o?.totalHours ?? 0,
+				overtime: o?.overtime ?? 0,
+				deficit: o?.deficit ?? 0
+			}
+		};
+	});
+
+	const somar = (lista: { totalHours: number; overtime: number; deficit: number }[]) => ({
+		horas: Number(lista.reduce((acc, d) => acc + d.totalHours, 0).toFixed(2)),
+		extras: Number(lista.reduce((acc, d) => acc + d.overtime, 0).toFixed(2)),
+		deficit: Number(lista.reduce((acc, d) => acc + d.deficit, 0).toFixed(2))
+	});
 
 	return jsonOk({
 		colaborador: { id: colaborador.id, nome: colaborador.name },
@@ -58,9 +78,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		fim,
 		dias,
 		totais: {
-			horas: Number(totalHoras.toFixed(2)),
-			extras: Number(totalExtras.toFixed(2)),
-			deficit: Number(totalDeficit.toFixed(2))
+			...somar(diasEfetivos),
+			original: somar(diasOriginais)
 		}
 	});
 };

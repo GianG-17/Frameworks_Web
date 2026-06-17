@@ -72,9 +72,16 @@ export function dateKey(date: Date): string {
  * Se faltar qualquer um dos 4 tipos válidos, totalHours = 0. Jornada base: 8h/dia.
  * Dias com justificativa aprovada (abonado) têm deficit zerado.
  */
+/** Predicado que define quais registros contam para o cálculo de horas. */
+export type RegistroValido = (p: RegistroComAnulacao) => boolean;
+
+/** Padrão: ignora batidas anuladas (estado efetivo). */
+const NAO_ANULADA: RegistroValido = (p) => !p.anulacao;
+
 export function buildDailySummaries(
 	registros: RegistroComAnulacao[],
-	datasAbonadas: Set<string> = new Set()
+	datasAbonadas: Set<string> = new Set(),
+	isValida: RegistroValido = NAO_ANULADA
 ): DailySummaryDTO[] {
 	const byDay = new Map<string, RegistroComAnulacao[]>();
 
@@ -88,7 +95,7 @@ export function buildDailySummaries(
 	const summaries: DailySummaryDTO[] = [];
 	for (const [date, dayRegistros] of byDay.entries()) {
 		dayRegistros.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-		summaries.push(buildSummary(date, dayRegistros, datasAbonadas.has(date)));
+		summaries.push(buildSummary(date, dayRegistros, datasAbonadas.has(date), isValida));
 	}
 
 	summaries.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
@@ -98,9 +105,10 @@ export function buildDailySummaries(
 export function buildSummary(
 	date: string,
 	registros: RegistroComAnulacao[],
-	abonado = false
+	abonado = false,
+	isValida: RegistroValido = NAO_ANULADA
 ): DailySummaryDTO {
-	const validas = registros.filter((p) => !p.anulacao);
+	const validas = registros.filter(isValida);
 	const byType = new Map(validas.map((p) => [p.type, p]));
 	const entrada = byType.get('entrada');
 	const saidaAlmoco = byType.get('saida_almoco');

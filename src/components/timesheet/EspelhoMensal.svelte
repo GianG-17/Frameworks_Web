@@ -8,9 +8,13 @@
   (Portaria 671: a original nunca é editada — ajustar cria a corrigida vinculada).
 -->
 <script lang="ts">
-	import { relatorioService, type EspelhoRelatorio } from '@/services/relatorio.service';
+	import {
+		relatorioService,
+		type EspelhoRelatorio,
+		type EspelhoDia
+	} from '@/services/relatorio.service';
 	import { registroAdminService } from '@/services/registro-admin.service';
-	import type { RegistroRecord, RegistroType, DailySummary } from '@/services/timesheet.service';
+	import type { RegistroRecord, RegistroType } from '@/services/timesheet.service';
 	import RegistroManualModal from './RegistroManualModal.svelte';
 	import RegistroAjusteModal from './RegistroAjusteModal.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
@@ -50,7 +54,7 @@
 		if (!mes) return [];
 		const [ano, mm] = mes.split('-').map(Number);
 		const totalDias = new Date(ano, mm, 0).getDate();
-		const mapa = new SvelteMap<string, DailySummary>();
+		const mapa = new SvelteMap<string, EspelhoDia>();
 		if (espelho) {
 			for (const d of espelho.dias) mapa.set(d.date, d);
 		}
@@ -58,7 +62,7 @@
 			date: string;
 			diaSemana: number;
 			diaNum: number;
-			summary: DailySummary | null;
+			summary: EspelhoDia | null;
 			isFimSemana: boolean;
 		}> = [];
 		for (let d = 1; d <= totalDias; d++) {
@@ -98,13 +102,23 @@
 		if (colaboradorId && mes) carregar();
 	});
 
-	function batidaDoDia(summary: DailySummary | null, tipo: RegistroType): RegistroRecord | null {
+	/** Estado efetivo (com ajustes do admin): primeira não-anulada do tipo; se todas anuladas, a última anulada. */
+	function batidaDoDia(summary: EspelhoDia | null, tipo: RegistroType): RegistroRecord | null {
 		if (!summary) return null;
-		// Pega a primeira não-anulada do tipo; se todas anuladas, pega a última anulada (pra exibir).
 		const validas = summary.registros.filter((p) => p.type === tipo && !p.anulacao);
 		if (validas.length > 0) return validas[0];
 		const anuladas = summary.registros.filter((p) => p.type === tipo && p.anulacao);
 		return anuladas[anuladas.length - 1] ?? null;
+	}
+
+	/** Marcação original do colaborador (createdBy == null), mesmo que depois ajustada/anulada. */
+	function batidaOriginalDoDia(
+		summary: EspelhoDia | null,
+		tipo: RegistroType
+	): RegistroRecord | null {
+		if (!summary) return null;
+		const marcadas = summary.registros.filter((p) => p.type === tipo && p.createdBy == null);
+		return marcadas[0] ?? null;
 	}
 
 	function formatHora(iso: string): string {
@@ -170,85 +184,118 @@
 {:else if erro}
 	<div class="erro">{erro}</div>
 {:else if espelho}
-	<div class="totais">
-		<span><strong>{espelho.totais.horas}h</strong> trabalhadas</span>
-		<span class="extra"><strong>{espelho.totais.extras}h</strong> extras</span>
-		<span class="deficit"><strong>{espelho.totais.deficit}h</strong> déficit</span>
-	</div>
+	{#snippet tabela(
+		titulo: string,
+		picker: (s: EspelhoDia | null, tipo: RegistroType) => RegistroRecord | null,
+		totalDoDia: (s: EspelhoDia | null) => number,
+		totais: { horas: number; extras: number; deficit: number },
+		interativo: boolean
+	)}
+		<div class="tabela">
+			<h3 class="tabela-titulo">{titulo}</h3>
+			<div class="totais">
+				<span><strong>{totais.horas}h</strong> trabalhadas</span>
+				<span class="extra"><strong>{totais.extras}h</strong> extras</span>
+				<span class="deficit"><strong>{totais.deficit}h</strong> déficit</span>
+			</div>
+
+			<div class="grid-wrap">
+				<table class="grid">
+					<thead>
+						<tr>
+							<th class="col-data">Data</th>
+							{#each TIPOS_ORDEM as t (t)}<th class="col-batida">{TIPO_LABEL[t]}</th>{/each}
+							<th class="col-total">Total</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each dias as dia (dia.date)}
+							<tr class:fim-semana={dia.isFimSemana}>
+								<td class="dia">
+									<span class="dia-num">{formatDataCurta(dia.date)}</span>
+									<span class="dia-sem">{DIA_SEMANA[dia.diaSemana]}</span>
+								</td>
+								{#each TIPOS_ORDEM as tipo (tipo)}
+									{@const registro = picker(dia.summary, tipo)}
+									{#if registro}
+										{@const titulo = registro.anulacao
+											? `Ajustada/anulada: ${registro.anulacao.motivo}`
+											: (registro.createdReason ??
+												(interativo ? 'Clique para ajustar' : 'Ponto válido'))}
+										<td class="cel">
+											{#if interativo}
+												<button
+													type="button"
+													class="batida"
+													class:batida--manual={!!registro.createdBy}
+													class:batida--anulada={!!registro.anulacao}
+													title={titulo}
+													onclick={() => abrirModalAjuste(registro)}
+													disabled={!!registro.anulacao}
+												>
+													{formatHora(registro.timestamp)}
+												</button>
+											{:else}
+												<span
+													class="batida batida--leitura"
+													class:batida--manual={!!registro.createdBy}
+													class:batida--anulada={!!registro.anulacao}
+													title={titulo}
+												>
+													{formatHora(registro.timestamp)}
+												</span>
+											{/if}
+										</td>
+									{:else}
+										<td class="cel">
+											{#if interativo}
+												<button
+													type="button"
+													class="vazia"
+													title="Adicionar batida manual"
+													onclick={() => abrirModalManual(dia.date, tipo)}>+</button
+												>
+											{:else}
+												<span class="sem-batida">—</span>
+											{/if}
+										</td>
+									{/if}
+								{/each}
+								<td class="total">{formatTotalHoras(totalDoDia(dia.summary))}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	{/snippet}
 
 	<div class="legenda">
-		<span class="leg leg--ok">Ponto válido</span>
-		<span class="leg leg--manual">Ponto manual</span>
-		<span class="leg leg--anulada">Ponto anulado</span>
+		<span class="leg leg--ok">Marcação do colaborador</span>
+		<span class="leg leg--manual">Lançamento / ajuste do admin</span>
+		<span class="leg leg--anulada">Marcação ajustada (substituída)</span>
 	</div>
 
-	<div class="grid-wrap">
-		<table class="grid">
-			<thead>
-				<tr>
-					<th class="col-data">Data</th>
-					{#each TIPOS_ORDEM as t (t)}<th class="col-batida">{TIPO_LABEL[t]}</th>{/each}
-					<th class="col-total">Total</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each dias as dia (dia.date)}
-					<tr class:fim-semana={dia.isFimSemana}>
-						<td class="dia">
-							<span class="dia-num">{formatDataCurta(dia.date)}</span>
-							<span class="dia-sem">{DIA_SEMANA[dia.diaSemana]}</span>
-						</td>
-						{#each TIPOS_ORDEM as tipo (tipo)}
-							{@const registro = batidaDoDia(dia.summary, tipo)}
-							{#if registro}
-								{@const titulo = registro.anulacao
-									? `Anulada: ${registro.anulacao.motivo}`
-									: (registro.createdReason ?? (editavel ? 'Clique para ajustar' : 'Ponto válido'))}
-								<td class="cel">
-									{#if editavel}
-										<button
-											type="button"
-											class="batida"
-											class:batida--manual={registro.method === 'manual'}
-											class:batida--anulada={!!registro.anulacao}
-											title={titulo}
-											onclick={() => abrirModalAjuste(registro)}
-											disabled={!!registro.anulacao}
-										>
-											{formatHora(registro.timestamp)}
-										</button>
-									{:else}
-										<span
-											class="batida batida--leitura"
-											class:batida--manual={registro.method === 'manual'}
-											class:batida--anulada={!!registro.anulacao}
-											title={titulo}
-										>
-											{formatHora(registro.timestamp)}
-										</span>
-									{/if}
-								</td>
-							{:else}
-								<td class="cel">
-									{#if editavel}
-										<button
-											type="button"
-											class="vazia"
-											title="Adicionar batida manual"
-											onclick={() => abrirModalManual(dia.date, tipo)}>+</button
-										>
-									{:else}
-										<span class="sem-batida">—</span>
-									{/if}
-								</td>
-							{/if}
-						{/each}
-						<td class="total">{formatTotalHoras(dia.summary?.totalHours ?? 0)}</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
+	{#if editavel}
+		{@render tabela('Marcações', batidaDoDia, (s) => s?.totalHours ?? 0, espelho.totais, true)}
+	{:else}
+		<div class="comparacao">
+			{@render tabela(
+				'Marcações do colaborador',
+				batidaOriginalDoDia,
+				(s) => s?.original.totalHours ?? 0,
+				espelho.totais.original,
+				false
+			)}
+			{@render tabela(
+				'Com ajustes do administrador',
+				batidaDoDia,
+				(s) => s?.totalHours ?? 0,
+				espelho.totais,
+				false
+			)}
+		</div>
+	{/if}
 {/if}
 
 {#if editavel}
@@ -288,9 +335,31 @@
 		color: #64748b;
 	}
 
+	.comparacao {
+		display: flex;
+		gap: 1.5rem;
+		align-items: flex-start;
+	}
+	.tabela {
+		flex: 1 1 0;
+		min-width: 0;
+	}
+	.tabela-titulo {
+		margin: 0 0 0.5rem;
+		font-size: 0.95rem;
+		font-weight: 700;
+		color: #334155;
+	}
+	@media (max-width: 900px) {
+		.comparacao {
+			flex-direction: column;
+		}
+	}
+
 	.totais {
 		display: flex;
-		gap: 2rem;
+		flex-wrap: wrap;
+		gap: 0.75rem 1.5rem;
 		padding: 1rem;
 		background: #f8fafc;
 		border-radius: 0.5rem;

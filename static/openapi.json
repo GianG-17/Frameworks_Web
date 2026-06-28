@@ -3,7 +3,7 @@
 	"info": {
 		"title": "Ponto Digital API",
 		"version": "1.0.0",
-		"description": "API do sistema de ponto eletrônico. Implementada via SvelteKit `+server.ts` com persistência em SQLite via Prisma.\n\n**Credenciais de teste (seed):**\n- Admin: `admin@teste.com` / `Senha123`\n- Colaborador: `carlos@teste.com` / `Senha123`\n- Colaborador: `ana@teste.com` / `Senha123`"
+		"description": "API do sistema de ponto eletrônico. Implementada via SvelteKit `+server.ts` com persistência em PostgreSQL via Prisma. Autenticação por JWT (HS256, validade 12h) enviado no header `Authorization: Bearer <token>`.\n\nTodas as entidades são escopadas por empresa (multi-tenant): o admin só enxerga dados da própria empresa.\n\n**Credenciais de teste (seed):**\n- Admin: `admin@teste.com` / `Senha123`\n- Colaborador: `carlos@teste.com` / `Senha123`\n- Colaborador: `ana@teste.com` / `Senha123`"
 	},
 	"servers": [
 		{
@@ -11,24 +11,38 @@
 			"description": "SvelteKit local (npm run dev)"
 		}
 	],
+	"tags": [
+		{ "name": "Autenticação" },
+		{ "name": "Colaboradores" },
+		{ "name": "Departamentos" },
+		{ "name": "Jornadas" },
+		{ "name": "Empresas" },
+		{ "name": "Ponto" },
+		{ "name": "Ajustes (admin)" },
+		{ "name": "Relatórios" },
+		{ "name": "Férias" },
+		{ "name": "Justificativas" },
+		{ "name": "Administração" }
+	],
 	"components": {
 		"securitySchemes": {
 			"BearerAuth": {
 				"type": "http",
 				"scheme": "bearer",
-				"bearerFormat": "Base64(JSON)"
+				"bearerFormat": "JWT"
 			}
 		},
 		"schemas": {
 			"User": {
 				"type": "object",
-				"required": ["id", "name", "email", "cpf", "role"],
+				"required": ["id", "name", "email", "cpf", "role", "empresaId"],
 				"properties": {
-					"id": { "type": "string", "example": "usr_002" },
+					"id": { "type": "string", "example": "clx123" },
 					"name": { "type": "string", "example": "Carlos Souza" },
 					"email": { "type": "string", "format": "email", "example": "carlos@teste.com" },
-					"cpf": { "type": "string", "example": "111.444.777-35" },
-					"role": { "type": "string", "enum": ["admin", "colaborador"], "example": "colaborador" }
+					"cpf": { "type": "string", "example": "11144477735" },
+					"role": { "type": "string", "enum": ["admin", "colaborador"], "example": "colaborador" },
+					"empresaId": { "type": "string", "example": "clxEmpresa" }
 				}
 			},
 			"AuthResponse": {
@@ -37,8 +51,8 @@
 				"properties": {
 					"token": {
 						"type": "string",
-						"description": "Token de autenticação (Base64 do JSON do usuário)",
-						"example": "eyJ..."
+						"description": "JWT assinado (HS256), validade 12h",
+						"example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 					},
 					"user": { "$ref": "#/components/schemas/User" }
 				}
@@ -52,19 +66,37 @@
 						"description": "E-mail ou CPF do usuário",
 						"example": "carlos@teste.com"
 					},
-					"password": {
+					"password": { "type": "string", "format": "password", "example": "Senha123" }
+				}
+			},
+			"ErrorResponse": {
+				"type": "object",
+				"required": ["error"],
+				"properties": {
+					"error": { "type": "string", "example": "Não autorizado" },
+					"field": { "type": "string", "description": "Campo que causou o erro (opcional)" }
+				}
+			},
+			"Anulacao": {
+				"type": "object",
+				"required": ["motivo", "anuladoPor", "anuladoEm"],
+				"properties": {
+					"motivo": { "type": "string" },
+					"anuladoPor": { "type": "string", "description": "Usuario.id do admin" },
+					"anuladoEm": { "type": "string", "format": "date-time" },
+					"registroSubstitutoId": {
 						"type": "string",
-						"format": "password",
-						"example": "Senha123"
+						"nullable": true,
+						"description": "Batida corrigida que substituiu esta (ajuste). Nulo em anulação avulsa."
 					}
 				}
 			},
-			"PunchRecord": {
+			"Registro": {
 				"type": "object",
-				"required": ["id", "userId", "type", "timestamp", "method"],
+				"required": ["id", "colaboradorId", "type", "timestamp", "method"],
 				"properties": {
-					"id": { "type": "string", "example": "punch_1712620800000" },
-					"userId": { "type": "string", "example": "usr_002" },
+					"id": { "type": "string" },
+					"colaboradorId": { "type": "string" },
 					"type": {
 						"type": "string",
 						"enum": ["entrada", "saida_almoco", "retorno_almoco", "saida"],
@@ -73,56 +105,90 @@
 					"timestamp": {
 						"type": "string",
 						"format": "date-time",
-						"example": "2026-04-08T08:00:00.000Z"
+						"example": "2026-01-08T08:00:00.000Z"
 					},
-					"latitude": { "type": "number", "nullable": true, "example": null },
-					"longitude": { "type": "number", "nullable": true, "example": null },
-					"method": {
+					"method": { "type": "string", "enum": ["manual"], "example": "manual" },
+					"createdBy": {
 						"type": "string",
-						"enum": ["manual"],
-						"example": "manual"
+						"nullable": true,
+						"description": "Usuario.id do admin (preenchido quando a batida foi criada/ajustada por um admin)"
+					},
+					"createdReason": { "type": "string", "nullable": true },
+					"anulacao": {
+						"nullable": true,
+						"allOf": [{ "$ref": "#/components/schemas/Anulacao" }]
 					}
 				}
 			},
 			"DailySummary": {
 				"type": "object",
-				"required": ["date", "punches", "totalHours", "overtime", "deficit"],
+				"required": ["date", "registros", "totalHours", "overtime", "deficit", "abonado"],
 				"properties": {
-					"date": { "type": "string", "format": "date", "example": "2026-04-08" },
-					"punches": {
-						"type": "array",
-						"items": { "$ref": "#/components/schemas/PunchRecord" }
-					},
+					"date": { "type": "string", "format": "date", "example": "2026-01-08" },
+					"registros": { "type": "array", "items": { "$ref": "#/components/schemas/Registro" } },
 					"totalHours": {
 						"type": "number",
 						"description": "Horas trabalhadas (decimal)",
 						"example": 8.5
 					},
 					"overtime": { "type": "number", "description": "Horas extras (decimal)", "example": 0.5 },
-					"deficit": { "type": "number", "description": "Horas faltantes (decimal)", "example": 0 }
+					"deficit": { "type": "number", "description": "Horas faltantes (decimal)", "example": 0 },
+					"abonado": {
+						"type": "boolean",
+						"description": "Dia com justificativa aprovada (deficit zerado)"
+					}
 				}
 			},
-			"PunchRequest": {
+			"RegistroInput": {
 				"type": "object",
-				"required": ["type", "method"],
+				"required": ["type"],
 				"properties": {
 					"type": {
 						"type": "string",
 						"enum": ["entrada", "saida_almoco", "retorno_almoco", "saida"],
 						"example": "entrada"
-					},
-					"method": {
-						"type": "string",
-						"enum": ["manual"],
-						"example": "manual"
 					}
 				}
 			},
-			"ErrorResponse": {
+			"RegistroManualInput": {
 				"type": "object",
-				"required": ["error"],
+				"required": ["colaboradorId", "type", "timestamp", "reason"],
 				"properties": {
-					"error": { "type": "string", "example": "Não autorizado" }
+					"colaboradorId": { "type": "string" },
+					"type": {
+						"type": "string",
+						"enum": ["entrada", "saida_almoco", "retorno_almoco", "saida"]
+					},
+					"timestamp": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Não pode ser no futuro"
+					},
+					"reason": { "type": "string", "description": "Motivo (mínimo 5 caracteres)" }
+				}
+			},
+			"RegistroAjusteInput": {
+				"type": "object",
+				"required": ["timestamp", "reason"],
+				"properties": {
+					"type": {
+						"type": "string",
+						"enum": ["entrada", "saida_almoco", "retorno_almoco", "saida"],
+						"description": "Opcional — mantém o tipo original se omitido"
+					},
+					"timestamp": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Não pode ser no futuro"
+					},
+					"reason": { "type": "string", "description": "Motivo (mínimo 5 caracteres)" }
+				}
+			},
+			"RegistroAnularInput": {
+				"type": "object",
+				"required": ["motivo"],
+				"properties": {
+					"motivo": { "type": "string", "description": "Motivo (mínimo 5 caracteres)" }
 				}
 			},
 			"Colaborador": {
@@ -132,9 +198,17 @@
 					"id": { "type": "string" },
 					"nome": { "type": "string" },
 					"email": { "type": "string", "format": "email" },
-					"cpf": { "type": "string" },
+					"cpf": { "type": "string", "example": "111.444.777-35" },
 					"cargo": { "type": "string" },
-					"departamento": { "type": "string" },
+					"departamentoId": { "type": "string", "nullable": true },
+					"departamento": {
+						"type": "object",
+						"nullable": true,
+						"properties": {
+							"id": { "type": "string" },
+							"nome": { "type": "string" }
+						}
+					},
 					"dataAdmissao": { "type": "string", "format": "date" },
 					"status": { "type": "string", "enum": ["ativo", "inativo", "ferias", "afastado"] },
 					"telefone": { "type": "string" },
@@ -149,7 +223,7 @@
 					"email": { "type": "string", "format": "email" },
 					"cpf": { "type": "string" },
 					"cargo": { "type": "string" },
-					"departamento": { "type": "string" },
+					"departamentoId": { "type": "string" },
 					"dataAdmissao": { "type": "string", "format": "date" },
 					"status": { "type": "string", "enum": ["ativo", "inativo", "ferias", "afastado"] },
 					"telefone": { "type": "string" },
@@ -167,23 +241,44 @@
 					"saida": { "type": "string", "example": "17:00" }
 				}
 			},
+			"DiasSemana": {
+				"type": "object",
+				"properties": {
+					"segunda": { "$ref": "#/components/schemas/DiaSemana" },
+					"terca": { "$ref": "#/components/schemas/DiaSemana" },
+					"quarta": { "$ref": "#/components/schemas/DiaSemana" },
+					"quinta": { "$ref": "#/components/schemas/DiaSemana" },
+					"sexta": { "$ref": "#/components/schemas/DiaSemana" },
+					"sabado": { "$ref": "#/components/schemas/DiaSemana" },
+					"domingo": { "$ref": "#/components/schemas/DiaSemana" }
+				}
+			},
+			"JornadaVersao": {
+				"type": "object",
+				"required": ["vigenciaInicio", "dias"],
+				"properties": {
+					"vigenciaInicio": {
+						"type": "string",
+						"format": "date",
+						"description": "Data (YYYY-MM-DD) a partir da qual esta versão vale"
+					},
+					"dias": { "$ref": "#/components/schemas/DiasSemana" }
+				}
+			},
 			"Jornada": {
 				"type": "object",
-				"required": ["id", "nome", "dias"],
+				"required": ["id", "nome", "dias", "versoes"],
 				"properties": {
 					"id": { "type": "string" },
 					"nome": { "type": "string", "example": "Comercial 8h" },
 					"dias": {
-						"type": "object",
-						"properties": {
-							"segunda": { "$ref": "#/components/schemas/DiaSemana" },
-							"terca": { "$ref": "#/components/schemas/DiaSemana" },
-							"quarta": { "$ref": "#/components/schemas/DiaSemana" },
-							"quinta": { "$ref": "#/components/schemas/DiaSemana" },
-							"sexta": { "$ref": "#/components/schemas/DiaSemana" },
-							"sabado": { "$ref": "#/components/schemas/DiaSemana" },
-							"domingo": { "$ref": "#/components/schemas/DiaSemana" }
-						}
+						"description": "Horário vigente hoje",
+						"allOf": [{ "$ref": "#/components/schemas/DiasSemana" }]
+					},
+					"versoes": {
+						"type": "array",
+						"description": "Histórico de versões, em ordem crescente de vigência",
+						"items": { "$ref": "#/components/schemas/JornadaVersao" }
 					}
 				}
 			},
@@ -192,20 +287,236 @@
 				"required": ["nome", "dias"],
 				"properties": {
 					"nome": { "type": "string" },
-					"dias": { "type": "object" }
+					"dias": { "$ref": "#/components/schemas/DiasSemana" }
+				}
+			},
+			"Departamento": {
+				"type": "object",
+				"required": ["id", "nome"],
+				"properties": {
+					"id": { "type": "string" },
+					"nome": { "type": "string" }
+				}
+			},
+			"DepartamentoInput": {
+				"type": "object",
+				"required": ["nome"],
+				"properties": { "nome": { "type": "string" } }
+			},
+			"DepartamentoJornadaInput": {
+				"type": "object",
+				"required": ["jornadaId"],
+				"properties": {
+					"jornadaId": {
+						"type": "string",
+						"nullable": true,
+						"description": "Jornada a aplicar a todos os colaboradores do departamento (null para desvincular)"
+					}
+				}
+			},
+			"Empresa": {
+				"type": "object",
+				"required": ["id", "nome", "horaAbertura", "horaFechamento"],
+				"properties": {
+					"id": { "type": "string" },
+					"nome": { "type": "string" },
+					"cnpj": { "type": "string", "nullable": true },
+					"horaAbertura": { "type": "string", "example": "08:00" },
+					"horaFechamento": { "type": "string", "example": "18:00" },
+					"createdAt": { "type": "string", "format": "date-time" },
+					"updatedAt": { "type": "string", "format": "date-time" }
+				}
+			},
+			"EmpresaInput": {
+				"type": "object",
+				"required": ["nome", "horaAbertura", "horaFechamento"],
+				"properties": {
+					"nome": { "type": "string" },
+					"cnpj": { "type": "string" },
+					"horaAbertura": { "type": "string", "example": "08:00" },
+					"horaFechamento": { "type": "string", "example": "18:00" }
+				}
+			},
+			"Ferias": {
+				"type": "object",
+				"required": ["id", "colaboradorId", "dataInicio", "dataFim"],
+				"properties": {
+					"id": { "type": "string" },
+					"colaboradorId": { "type": "string" },
+					"colaboradorNome": { "type": "string" },
+					"dataInicio": { "type": "string", "format": "date-time" },
+					"dataFim": { "type": "string", "format": "date-time" },
+					"observacao": { "type": "string", "nullable": true }
+				}
+			},
+			"FeriasInput": {
+				"type": "object",
+				"required": ["colaboradorId", "dataInicio", "dataFim"],
+				"properties": {
+					"colaboradorId": { "type": "string" },
+					"dataInicio": { "type": "string", "format": "date" },
+					"dataFim": { "type": "string", "format": "date" },
+					"observacao": { "type": "string" }
+				}
+			},
+			"Justificativa": {
+				"type": "object",
+				"required": ["id", "colaboradorId", "data", "motivo", "status"],
+				"properties": {
+					"id": { "type": "string" },
+					"colaboradorId": { "type": "string" },
+					"colaboradorNome": { "type": "string" },
+					"data": { "type": "string", "format": "date-time" },
+					"motivo": { "type": "string" },
+					"anexoUrl": { "type": "string", "nullable": true },
+					"status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+					"approvedBy": { "type": "string", "nullable": true },
+					"approvedAt": { "type": "string", "format": "date-time", "nullable": true }
+				}
+			},
+			"JustificativaAdminInput": {
+				"type": "object",
+				"required": ["colaboradorId", "data", "motivo"],
+				"properties": {
+					"colaboradorId": { "type": "string" },
+					"data": { "type": "string", "format": "date" },
+					"motivo": { "type": "string" },
+					"anexoUrl": { "type": "string" }
+				}
+			},
+			"JustificativaMeInput": {
+				"type": "object",
+				"required": ["data", "motivo"],
+				"properties": {
+					"data": { "type": "string", "format": "date" },
+					"motivo": { "type": "string" },
+					"anexoUrl": { "type": "string" }
+				}
+			},
+			"EspelhoDia": {
+				"allOf": [
+					{ "$ref": "#/components/schemas/DailySummary" },
+					{
+						"type": "object",
+						"properties": {
+							"original": {
+								"type": "object",
+								"description": "Totais considerando só as marcações do colaborador (sem ajustes do admin)",
+								"properties": {
+									"totalHours": { "type": "number" },
+									"overtime": { "type": "number" },
+									"deficit": { "type": "number" }
+								}
+							}
+						}
+					}
+				]
+			},
+			"EspelhoTotais": {
+				"type": "object",
+				"properties": {
+					"horas": { "type": "number" },
+					"extras": { "type": "number" },
+					"deficit": { "type": "number" }
+				}
+			},
+			"EspelhoRelatorio": {
+				"type": "object",
+				"properties": {
+					"colaborador": {
+						"type": "object",
+						"properties": { "id": { "type": "string" }, "nome": { "type": "string" } }
+					},
+					"inicio": { "type": "string", "format": "date" },
+					"fim": { "type": "string", "format": "date" },
+					"dias": { "type": "array", "items": { "$ref": "#/components/schemas/EspelhoDia" } },
+					"totais": {
+						"allOf": [
+							{ "$ref": "#/components/schemas/EspelhoTotais" },
+							{
+								"type": "object",
+								"properties": { "original": { "$ref": "#/components/schemas/EspelhoTotais" } }
+							}
+						]
+					}
+				}
+			},
+			"ConsolidadoLinha": {
+				"type": "object",
+				"properties": {
+					"colaboradorId": { "type": "string" },
+					"colaboradorNome": { "type": "string" },
+					"diasTrabalhados": { "type": "integer" },
+					"horas": { "type": "number" },
+					"horasEsperadas": { "type": "number" },
+					"extras": { "type": "number" },
+					"deficit": { "type": "number" },
+					"periodosFerias": { "type": "integer" },
+					"faltasJustificadas": { "type": "integer" }
+				}
+			},
+			"ConsolidadoRelatorio": {
+				"type": "object",
+				"properties": {
+					"mes": { "type": "string", "example": "2026-01" },
+					"linhas": {
+						"type": "array",
+						"items": { "$ref": "#/components/schemas/ConsolidadoLinha" }
+					}
+				}
+			},
+			"EntradaHoje": {
+				"type": "object",
+				"properties": {
+					"colaboradorId": { "type": "string" },
+					"nome": { "type": "string" },
+					"jornadaEntrada": { "type": "string", "nullable": true, "example": "08:00" },
+					"batidaEntrada": { "type": "string", "format": "date-time", "nullable": true },
+					"atrasoMin": { "type": "integer" },
+					"status": {
+						"type": "string",
+						"enum": ["pontual", "atrasado", "falta", "pendente", "folga", "sem_jornada"]
+					}
 				}
 			},
 			"DashboardMetrics": {
 				"type": "object",
-				"required": ["colaboradoresAtivos", "pontosHoje", "totalColaboradores", "horasExtrasMes"],
 				"properties": {
+					"referenciaData": { "type": "string", "format": "date" },
 					"colaboradoresAtivos": { "type": "integer", "example": 2 },
+					"totalColaboradores": { "type": "integer", "example": 6 },
+					"totalColaboradoresRegistrados": { "type": "integer" },
 					"pontosHoje": { "type": "integer", "example": 8 },
-					"totalColaboradores": { "type": "integer", "example": 3 },
-					"horasExtrasMes": {
-						"type": "number",
-						"description": "Horas extras acumuladas no mês corrente (decimal)",
-						"example": 4.5
+					"atrasosHoje": { "type": "integer" },
+					"faltasHoje": { "type": "integer" },
+					"justificativasMes": { "type": "integer" },
+					"feriasAtivasNoMes": { "type": "integer" },
+					"horasExtrasMes": { "type": "number", "example": 4.5 },
+					"horasDeficitMes": { "type": "number", "example": 1.2 },
+					"horasExtrasPorDia": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"date": { "type": "string", "format": "date" },
+								"horas": { "type": "number" }
+							}
+						}
+					},
+					"topExtras": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"colaboradorId": { "type": "string" },
+								"nome": { "type": "string" },
+								"horas": { "type": "number" }
+							}
+						}
+					},
+					"entradasHoje": {
+						"type": "array",
+						"items": { "$ref": "#/components/schemas/EntradaHoje" }
 					}
 				}
 			}
@@ -220,18 +531,14 @@
 				"requestBody": {
 					"required": true,
 					"content": {
-						"application/json": {
-							"schema": { "$ref": "#/components/schemas/LoginCredentials" }
-						}
+						"application/json": { "schema": { "$ref": "#/components/schemas/LoginCredentials" } }
 					}
 				},
 				"responses": {
 					"200": {
 						"description": "Login realizado com sucesso",
 						"content": {
-							"application/json": {
-								"schema": { "$ref": "#/components/schemas/AuthResponse" }
-							}
+							"application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } }
 						}
 					},
 					"400": {
@@ -256,13 +563,7 @@
 				"summary": "Encerrar sessão do usuário",
 				"security": [{ "BearerAuth": [] }],
 				"responses": {
-					"204": { "description": "Sessão encerrada com sucesso" },
-					"401": {
-						"description": "Não autenticado",
-						"content": {
-							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
-						}
-					}
+					"204": { "description": "Sessão encerrada com sucesso" }
 				}
 			}
 		},
@@ -276,9 +577,7 @@
 					"200": {
 						"description": "Dados do usuário",
 						"content": {
-							"application/json": {
-								"schema": { "$ref": "#/components/schemas/User" }
-							}
+							"application/json": { "schema": { "$ref": "#/components/schemas/User" } }
 						}
 					},
 					"401": {
@@ -294,7 +593,7 @@
 			"get": {
 				"operationId": "listColaboradores",
 				"tags": ["Colaboradores"],
-				"summary": "Listar colaboradores",
+				"summary": "Listar colaboradores da empresa",
 				"security": [{ "BearerAuth": [] }],
 				"responses": {
 					"200": {
@@ -308,8 +607,8 @@
 							}
 						}
 					},
-					"403": {
-						"description": "Acesso restrito a administradores",
+					"401": {
+						"description": "Não autenticado",
 						"content": {
 							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
 						}
@@ -324,9 +623,7 @@
 				"requestBody": {
 					"required": true,
 					"content": {
-						"application/json": {
-							"schema": { "$ref": "#/components/schemas/ColaboradorInput" }
-						}
+						"application/json": { "schema": { "$ref": "#/components/schemas/ColaboradorInput" } }
 					}
 				},
 				"responses": {
@@ -334,6 +631,12 @@
 						"description": "Colaborador criado",
 						"content": {
 							"application/json": { "schema": { "$ref": "#/components/schemas/Colaborador" } }
+						}
+					},
+					"400": {
+						"description": "Dados inválidos",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
 						}
 					},
 					"409": {
@@ -411,11 +714,142 @@
 				}
 			}
 		},
+		"/departamentos": {
+			"get": {
+				"operationId": "listDepartamentos",
+				"tags": ["Departamentos"],
+				"summary": "Listar departamentos da empresa",
+				"security": [{ "BearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "Lista de departamentos",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": { "$ref": "#/components/schemas/Departamento" }
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"operationId": "createDepartamento",
+				"tags": ["Departamentos"],
+				"summary": "Criar departamento",
+				"security": [{ "BearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": { "schema": { "$ref": "#/components/schemas/DepartamentoInput" } }
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Departamento criado",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Departamento" } }
+						}
+					},
+					"409": {
+						"description": "Já existe um departamento com esse nome",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/departamentos/{id}": {
+			"parameters": [
+				{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+			],
+			"put": {
+				"operationId": "updateDepartamento",
+				"tags": ["Departamentos"],
+				"summary": "Atualizar departamento",
+				"security": [{ "BearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": { "schema": { "$ref": "#/components/schemas/DepartamentoInput" } }
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Departamento atualizado",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Departamento" } }
+						}
+					},
+					"404": {
+						"description": "Não encontrado",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "deleteDepartamento",
+				"tags": ["Departamentos"],
+				"summary": "Remover departamento",
+				"security": [{ "BearerAuth": [] }],
+				"responses": {
+					"204": { "description": "Removido" },
+					"404": {
+						"description": "Não encontrado",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/departamentos/{id}/jornada": {
+			"parameters": [
+				{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+			],
+			"patch": {
+				"operationId": "setDepartamentoJornada",
+				"tags": ["Departamentos"],
+				"summary": "Aplicar (ou desvincular) uma jornada a todos os colaboradores do departamento",
+				"security": [{ "BearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": { "$ref": "#/components/schemas/DepartamentoJornadaInput" }
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Colaboradores atualizados",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": { "atualizados": { "type": "integer" } }
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Departamento ou jornada não encontrada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
 		"/jornadas": {
 			"get": {
 				"operationId": "listJornadas",
 				"tags": ["Jornadas"],
-				"summary": "Listar jornadas",
+				"summary": "Listar jornadas (com histórico de versões)",
 				"security": [{ "BearerAuth": [] }],
 				"responses": {
 					"200": {
@@ -431,7 +865,7 @@
 			"post": {
 				"operationId": "createJornada",
 				"tags": ["Jornadas"],
-				"summary": "Criar jornada",
+				"summary": "Criar jornada (cria a 1ª versão vigente hoje)",
 				"security": [{ "BearerAuth": [] }],
 				"requestBody": {
 					"required": true,
@@ -457,6 +891,7 @@
 				"operationId": "updateJornada",
 				"tags": ["Jornadas"],
 				"summary": "Atualizar jornada",
+				"description": "Alterar o horário cria uma versão vigente a partir do dia seguinte (preservando o histórico). Versões já vigentes são imutáveis; a exceção é uma jornada recém-criada e ainda sem batidas. Editar apenas o nome não cria versão.",
 				"security": [{ "BearerAuth": [] }],
 				"requestBody": {
 					"required": true,
@@ -495,29 +930,43 @@
 				}
 			}
 		},
-		"/admin/dashboard": {
+		"/empresas": {
 			"get": {
-				"operationId": "getAdminDashboard",
-				"tags": ["Administração"],
-				"summary": "Métricas agregadas do painel do administrador",
+				"operationId": "listEmpresas",
+				"tags": ["Empresas"],
+				"summary": "Retornar a empresa do admin autenticado",
 				"security": [{ "BearerAuth": [] }],
 				"responses": {
 					"200": {
-						"description": "Métricas do dashboard",
+						"description": "Empresa(s) visíveis ao admin",
 						"content": {
 							"application/json": {
-								"schema": { "$ref": "#/components/schemas/DashboardMetrics" }
+								"schema": { "type": "array", "items": { "$ref": "#/components/schemas/Empresa" } }
 							}
 						}
-					},
-					"401": {
-						"description": "Não autenticado",
+					}
+				}
+			},
+			"post": {
+				"operationId": "createEmpresa",
+				"tags": ["Empresas"],
+				"summary": "Criar empresa",
+				"security": [{ "BearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": { "schema": { "$ref": "#/components/schemas/EmpresaInput" } }
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Empresa criada",
 						"content": {
-							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+							"application/json": { "schema": { "$ref": "#/components/schemas/Empresa" } }
 						}
 					},
-					"403": {
-						"description": "Acesso restrito a administradores",
+					"400": {
+						"description": "Dados inválidos",
 						"content": {
 							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
 						}
@@ -525,27 +974,74 @@
 				}
 			}
 		},
-		"/timesheet/punch": {
-			"post": {
-				"operationId": "registerPunch",
-				"tags": ["Ponto"],
-				"summary": "Registrar batida de ponto",
+		"/empresas/{id}": {
+			"parameters": [
+				{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+			],
+			"get": {
+				"operationId": "getEmpresa",
+				"tags": ["Empresas"],
+				"summary": "Buscar empresa por id",
+				"security": [{ "BearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "Empresa encontrada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Empresa" } }
+						}
+					},
+					"404": {
+						"description": "Não encontrada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			},
+			"put": {
+				"operationId": "updateEmpresa",
+				"tags": ["Empresas"],
+				"summary": "Atualizar empresa",
 				"security": [{ "BearerAuth": [] }],
 				"requestBody": {
 					"required": true,
 					"content": {
-						"application/json": {
-							"schema": { "$ref": "#/components/schemas/PunchRequest" }
+						"application/json": { "schema": { "$ref": "#/components/schemas/EmpresaInput" } }
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Empresa atualizada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Empresa" } }
 						}
+					},
+					"404": {
+						"description": "Não encontrada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/timesheet/registro": {
+			"post": {
+				"operationId": "registrarPonto",
+				"tags": ["Ponto"],
+				"summary": "Colaborador registra a própria batida de ponto",
+				"security": [{ "BearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": { "schema": { "$ref": "#/components/schemas/RegistroInput" } }
 					}
 				},
 				"responses": {
 					"201": {
-						"description": "Batida registrada com sucesso",
+						"description": "Batida registrada (method = manual, timestamp do servidor)",
 						"content": {
-							"application/json": {
-								"schema": { "$ref": "#/components/schemas/PunchRecord" }
-							}
+							"application/json": { "schema": { "$ref": "#/components/schemas/Registro" } }
 						}
 					},
 					"400": {
@@ -567,15 +1063,13 @@
 			"get": {
 				"operationId": "getTodaySummary",
 				"tags": ["Ponto"],
-				"summary": "Resumo de ponto do dia atual",
+				"summary": "Resumo de ponto do colaborador no dia atual",
 				"security": [{ "BearerAuth": [] }],
 				"responses": {
 					"200": {
-						"description": "Resumo diário com todas as batidas do dia",
+						"description": "Resumo diário com as batidas do dia",
 						"content": {
-							"application/json": {
-								"schema": { "$ref": "#/components/schemas/DailySummary" }
-							}
+							"application/json": { "schema": { "$ref": "#/components/schemas/DailySummary" } }
 						}
 					},
 					"401": {
@@ -591,7 +1085,7 @@
 			"get": {
 				"operationId": "getPunchHistory",
 				"tags": ["Ponto"],
-				"summary": "Histórico de ponto por período",
+				"summary": "Histórico de ponto do colaborador por período",
 				"security": [{ "BearerAuth": [] }],
 				"parameters": [
 					{
@@ -599,14 +1093,14 @@
 						"in": "query",
 						"required": true,
 						"schema": { "type": "string", "format": "date" },
-						"example": "2026-04-01"
+						"example": "2026-01-01"
 					},
 					{
 						"name": "endDate",
 						"in": "query",
 						"required": true,
 						"schema": { "type": "string", "format": "date" },
-						"example": "2026-04-08"
+						"example": "2026-01-31"
 					}
 				],
 				"responses": {
@@ -626,9 +1120,508 @@
 						"content": {
 							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
 						}
+					}
+				}
+			}
+		},
+		"/timesheet/registro/manual": {
+			"post": {
+				"operationId": "criarBatidaManual",
+				"tags": ["Ajustes (admin)"],
+				"summary": "Admin cria batida retroativa para um colaborador",
+				"description": "Conformidade Portaria 671/2021: cria uma batida nova e imutável (createdBy/createdReason); não altera batidas existentes.",
+				"security": [{ "BearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": { "schema": { "$ref": "#/components/schemas/RegistroManualInput" } }
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Batida criada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Registro" } }
+						}
+					},
+					"400": {
+						"description": "Dados inválidos (tipo, timestamp futuro ou motivo curto)",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					},
+					"403": {
+						"description": "Acesso restrito a administradores",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					},
+					"404": {
+						"description": "Colaborador não encontrado",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/timesheet/registro/{id}/ajustar": {
+			"parameters": [
+				{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+			],
+			"post": {
+				"operationId": "ajustarBatida",
+				"tags": ["Ajustes (admin)"],
+				"summary": "Admin corrige uma batida existente",
+				"description": "A original NÃO é alterada: cria a batida corrigida e um RegistroAnulacao apontando para ela (trilha antes → depois).",
+				"security": [{ "BearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": { "schema": { "$ref": "#/components/schemas/RegistroAjusteInput" } }
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Batida corrigida criada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Registro" } }
+						}
+					},
+					"400": {
+						"description": "Dados inválidos",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					},
+					"404": {
+						"description": "Batida não encontrada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					},
+					"409": {
+						"description": "Batida já anulada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/timesheet/registro/{id}/anular": {
+			"parameters": [
+				{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+			],
+			"post": {
+				"operationId": "anularBatida",
+				"tags": ["Ajustes (admin)"],
+				"summary": "Admin anula uma batida (sem apagá-la)",
+				"description": "Cria um RegistroAnulacao que invalida a batida no cálculo do espelho, mantendo ambos visíveis para o AFD legal.",
+				"security": [{ "BearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": { "schema": { "$ref": "#/components/schemas/RegistroAnularInput" } }
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Anulação registrada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Registro" } }
+						}
+					},
+					"400": {
+						"description": "Motivo ausente ou curto",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					},
+					"404": {
+						"description": "Batida não encontrada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					},
+					"409": {
+						"description": "Batida já anulada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/relatorios/espelho": {
+			"get": {
+				"operationId": "getEspelho",
+				"tags": ["Relatórios"],
+				"summary": "Espelho de ponto individual por período",
+				"security": [{ "BearerAuth": [] }],
+				"parameters": [
+					{
+						"name": "colaboradorId",
+						"in": "query",
+						"required": true,
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "inicio",
+						"in": "query",
+						"required": true,
+						"schema": { "type": "string", "format": "date" }
+					},
+					{
+						"name": "fim",
+						"in": "query",
+						"required": true,
+						"schema": { "type": "string", "format": "date" }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Espelho do colaborador",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/EspelhoRelatorio" } }
+						}
+					},
+					"400": {
+						"description": "Parâmetros ausentes ou inválidos",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					},
+					"404": {
+						"description": "Colaborador não encontrado",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/relatorios/consolidado": {
+			"get": {
+				"operationId": "getConsolidado",
+				"tags": ["Relatórios"],
+				"summary": "Relatório consolidado mensal de todos os colaboradores",
+				"security": [{ "BearerAuth": [] }],
+				"parameters": [
+					{
+						"name": "mes",
+						"in": "query",
+						"required": true,
+						"schema": { "type": "string", "pattern": "^\\d{4}-\\d{2}$" },
+						"example": "2026-01"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Consolidado mensal",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/ConsolidadoRelatorio" }
+							}
+						}
+					},
+					"400": {
+						"description": "Parâmetro mes ausente ou inválido",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/ferias": {
+			"get": {
+				"operationId": "listFerias",
+				"tags": ["Férias"],
+				"summary": "Listar períodos de férias da empresa",
+				"security": [{ "BearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "Lista de férias",
+						"content": {
+							"application/json": {
+								"schema": { "type": "array", "items": { "$ref": "#/components/schemas/Ferias" } }
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"operationId": "createFerias",
+				"tags": ["Férias"],
+				"summary": "Registrar período de férias",
+				"security": [{ "BearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": { "schema": { "$ref": "#/components/schemas/FeriasInput" } }
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Férias criadas",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Ferias" } }
+						}
+					},
+					"400": {
+						"description": "Dados inválidos",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					},
+					"404": {
+						"description": "Colaborador não encontrado",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/ferias/{id}": {
+			"parameters": [
+				{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+			],
+			"delete": {
+				"operationId": "deleteFerias",
+				"tags": ["Férias"],
+				"summary": "Remover período de férias",
+				"security": [{ "BearerAuth": [] }],
+				"responses": {
+					"204": { "description": "Removido" },
+					"404": {
+						"description": "Não encontrado",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/justificativas": {
+			"get": {
+				"operationId": "listJustificativas",
+				"tags": ["Justificativas"],
+				"summary": "Listar justificativas da empresa (admin)",
+				"security": [{ "BearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "Lista de justificativas",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": { "$ref": "#/components/schemas/Justificativa" }
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"operationId": "createJustificativaAdmin",
+				"tags": ["Justificativas"],
+				"summary": "Admin cria justificativa já aprovada (abono)",
+				"security": [{ "BearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": { "$ref": "#/components/schemas/JustificativaAdminInput" }
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Justificativa criada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Justificativa" } }
+						}
+					},
+					"404": {
+						"description": "Colaborador não encontrado",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/justificativas/{id}": {
+			"parameters": [
+				{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+			],
+			"delete": {
+				"operationId": "deleteJustificativa",
+				"tags": ["Justificativas"],
+				"summary": "Remover justificativa (admin)",
+				"security": [{ "BearerAuth": [] }],
+				"responses": {
+					"204": { "description": "Removida" },
+					"404": {
+						"description": "Não encontrada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/justificativas/{id}/approve": {
+			"parameters": [
+				{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+			],
+			"post": {
+				"operationId": "approveJustificativa",
+				"tags": ["Justificativas"],
+				"summary": "Aprovar justificativa (admin)",
+				"security": [{ "BearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "Justificativa aprovada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Justificativa" } }
+						}
+					},
+					"404": {
+						"description": "Não encontrada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/justificativas/{id}/reject": {
+			"parameters": [
+				{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+			],
+			"post": {
+				"operationId": "rejectJustificativa",
+				"tags": ["Justificativas"],
+				"summary": "Rejeitar justificativa (admin)",
+				"security": [{ "BearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "Justificativa rejeitada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Justificativa" } }
+						}
+					},
+					"404": {
+						"description": "Não encontrada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/justificativas/me": {
+			"get": {
+				"operationId": "listMinhasJustificativas",
+				"tags": ["Justificativas"],
+				"summary": "Listar as justificativas do colaborador autenticado",
+				"security": [{ "BearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "Lista de justificativas do colaborador",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": { "$ref": "#/components/schemas/Justificativa" }
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"operationId": "createMinhaJustificativa",
+				"tags": ["Justificativas"],
+				"summary": "Colaborador envia justificativa (status pending)",
+				"security": [{ "BearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": { "$ref": "#/components/schemas/JustificativaMeInput" }
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Justificativa enviada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Justificativa" } }
+						}
+					},
+					"400": {
+						"description": "Dados inválidos",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/justificativas/me/{id}": {
+			"parameters": [
+				{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+			],
+			"delete": {
+				"operationId": "deleteMinhaJustificativa",
+				"tags": ["Justificativas"],
+				"summary": "Colaborador remove a própria justificativa (se pendente)",
+				"security": [{ "BearerAuth": [] }],
+				"responses": {
+					"204": { "description": "Removida" },
+					"404": {
+						"description": "Não encontrada",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					}
+				}
+			}
+		},
+		"/admin/dashboard": {
+			"get": {
+				"operationId": "getAdminDashboard",
+				"tags": ["Administração"],
+				"summary": "Métricas agregadas do painel do administrador",
+				"security": [{ "BearerAuth": [] }],
+				"parameters": [
+					{
+						"name": "data",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "string", "format": "date" },
+						"description": "Data de referência (padrão: hoje)"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Métricas do dashboard",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/DashboardMetrics" } }
+						}
 					},
 					"401": {
 						"description": "Não autenticado",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+						}
+					},
+					"403": {
+						"description": "Acesso restrito a administradores",
 						"content": {
 							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
 						}

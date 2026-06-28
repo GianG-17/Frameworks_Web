@@ -4,17 +4,17 @@ services:
     container_name: ponto_digital_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ponto
-      POSTGRES_PASSWORD: ponto
-      POSTGRES_DB: ponto_digital
-    # Sem publicar porta no host: o app acessa via rede interna (postgres:5432).
-    # Para acessar de fora (ex.: Prisma Studio), descomente com uma porta livre:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # Publica a porta no host (container usa 5432 internamente) para acesso
+    # externo, ex.: Prisma Studio / npm run dev rodando fora do container.
     ports:
-      - '5433:5432'
+      - '${POSTGRES_PORT:-5433}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ponto -d ponto_digital']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -28,16 +28,17 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://ponto:ponto@postgres:5432/ponto_digital?schema=public
+      # Montada a partir das credenciais do Postgres; usa o host interno da rede.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       NODE_ENV: production
-      PORT: '3050'
-      # Em produção, aponte para o domínio público (ex.: https://seu-dominio.com),
-      # senão POST/cookies quebram pela proteção CSRF do adapter-node.
+      PORT: ${PORT:-3050}
+      # Domínio público em produção (ex.: https://seu-dominio.com). Opcional aqui:
+      # o app usa fetch JSON, que não dispara o CSRF do adapter-node.
       ORIGIN: ${ORIGIN:-http://localhost:3050}
       # Segredo de assinatura dos tokens JWT. Defina um valor forte em produção.
-      JWT_SECRET: ${JWT_SECRET:-dev-insecure-secret-trocar-em-producao}
+      JWT_SECRET: ${JWT_SECRET:-segredo}
     ports:
-      - '3050:3050'
+      - '${PORT:-3050}:${PORT:-3050}'
 
 volumes:
   postgres_data:

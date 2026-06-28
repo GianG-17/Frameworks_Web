@@ -2,7 +2,6 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/lib/server/prisma-client/client';
 import bcrypt from 'bcryptjs';
-import { generateSecret } from 'otplib';
 import process from 'process';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
@@ -145,7 +144,7 @@ type RegistroType = 'entrada' | 'saida_almoco' | 'retorno_almoco' | 'saida';
 interface RegistroSpec {
 	type: RegistroType;
 	timestamp: Date;
-	method: 'qrcode' | 'manual';
+	method: 'manual';
 }
 
 interface DayBehavior {
@@ -194,7 +193,7 @@ function gerarPontosDoDia(
 		return {
 			type: p.type,
 			timestamp: buildTimestamp(dateISO, p.horario, offset),
-			method: chance(rng, 0.7) ? 'qrcode' : 'manual'
+			method: 'manual'
 		};
 	});
 
@@ -435,8 +434,7 @@ async function main() {
 			nome: 'Empresa Demo',
 			cnpj: '00.000.000/0001-00',
 			horaAbertura: '08:00',
-			horaFechamento: '18:00',
-			qrSecret: generateSecret()
+			horaFechamento: '18:00'
 		}
 	});
 
@@ -542,7 +540,7 @@ async function main() {
 			empresaId: string;
 			type: RegistroType;
 			timestamp: Date;
-			method: 'qrcode' | 'manual';
+			method: 'manual';
 		}[] = [];
 
 		for (const { iso, dow } of iterDates(2026, 1)) {

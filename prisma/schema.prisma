@@ -1,7 +1,3 @@
-// Schema Prisma — Ponto Digital
-// Banco: PostgreSQL (dev local via docker-compose; produção via Postgres gerenciado)
-// Docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client"
   output   = "../src/lib/server/prisma-client"
@@ -18,7 +14,6 @@ model Empresa {
   cnpj           String?  @unique
   horaAbertura   String   // "08:00"
   horaFechamento String   // "18:00"
-  qrSecret       String   // segredo TOTP base32
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -49,7 +44,7 @@ model Usuario {
   @@map("usuarios")
 }
 
-// Colaborador — registra ponto via QR Code ou login manual.
+// Colaborador — registra ponto via login manual.
 model Colaborador {
   id             String        @id @default(cuid())
   empresaId      String
@@ -132,7 +127,7 @@ model Registro {
   empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   type          String      // "entrada" | "saida_almoco" | "retorno_almoco" | "saida"
   timestamp     DateTime    @default(now())
-  method        String      // "qrcode" | "manual"
+  method        String      // "manual"
   // Auditoria — Portaria 671/2021: registros são imutáveis.
   // createdBy preenchido apenas quando admin cria batida em nome de um colaborador (Usuario.id).
   createdBy     String?

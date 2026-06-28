@@ -4,7 +4,7 @@ Guia para o Claude Code (claude.ai/code) trabalhar neste repositório.
 
 ## Visão Geral
 
-**Ponto Digital** — sistema de gestão de ponto eletrônico em SvelteKit + Svelte 5 + TypeScript. Dois papéis: `admin` (gerencia colaboradores, jornadas e dashboard) e `colaborador` (registra ponto via QR Code ou login manual).
+**Ponto Digital** — sistema de gestão de ponto eletrônico em SvelteKit + Svelte 5 + TypeScript. Dois papéis: `admin` (gerencia colaboradores, jornadas e dashboard) e `colaborador` (registra ponto via login manual).
 
 ## Comandos
 
@@ -27,11 +27,11 @@ Híbrida Camada + Feature:
 
 - **`src/services/`** — camada HTTP. Todas as chamadas passam pelo `api.ts` (fetch centralizado com injeção de token e redirect em 401). Serviços de domínio (`auth.service.ts`, `timesheet.service.ts`) usam esse client.
 - **`src/store/`** — estado global via stores do Svelte. `auth.store.ts` mantém o usuário e os derived `isAuthenticated`/`isAdmin`.
-- **`src/hooks/`** — composables com efeitos colaterais (ex.: `useQrScanner.ts`).
+- **`src/hooks/`** — composables com efeitos colaterais (padrão `useCamelCase.ts`).
 - **`src/utils/`** — funções puras, sem imports de framework. Formatadores e validadores.
 - **`src/components/`** — Svelte components por domínio (`ui/`, `auth/`, `dashboard/`, `timesheet/`, `layout/`, `colaboradores/`).
 - **`src/routes/`** — roteador filesystem do SvelteKit. `auth/` é público; `(app)/` é o group autenticado. Admin em `(app)/admin/`, colaborador em `(app)/colaborador/`.
-- **`src/lib/server/`** — código exclusivo de servidor (Prisma, TOTP, token, helpers).
+- **`src/lib/server/`** — código exclusivo de servidor (Prisma, token, helpers).
 
 ### Aliases
 
@@ -54,13 +54,6 @@ Híbrida Camada + Feature:
 - **Persistência client**: gravado em `localStorage` (para `api.ts`) e `document.cookie` (para `hooks.server.ts`).
 - **Servidor**: `hooks.server.ts` lê o cookie, decodifica via `token.ts` e popula `event.locals.user` (com `empresaId`). Helpers em `src/routes/api/_lib/auth-helpers.ts`.
 - **Proteção de rotas**: sem token → `/auth/login`; colaborador em `/admin/*` → `/colaborador/registro`. Raiz `/` redireciona por papel em `+page.server.ts`.
-
-## QR Code (TOTP)
-
-- Cada empresa tem um `qrSecret` base32 no DB.
-- `src/lib/server/totp.ts` (`otplib`) gera tokens de 6 dígitos, passo 30s, janela ±1.
-- Admin vê o QR rotativo em `/admin/empresa` (polling 30s).
-- Colaborador registra ponto via `POST /api/timesheet/registro/qr` com `{ empresaId, token, type }`.
 
 ## Setup em nova máquina
 

@@ -59,22 +59,6 @@
 					}
 				}
 			},
-			"QrCodePayload": {
-				"type": "object",
-				"required": ["code", "timestamp"],
-				"properties": {
-					"code": {
-						"type": "string",
-						"description": "Código QR escaneado",
-						"example": "ponto-qr-2026-04-08"
-					},
-					"timestamp": {
-						"type": "integer",
-						"description": "Timestamp Unix em milissegundos do momento do scan",
-						"example": 1712620800000
-					}
-				}
-			},
 			"PunchRecord": {
 				"type": "object",
 				"required": ["id", "userId", "type", "timestamp", "method"],
@@ -95,7 +79,7 @@
 					"longitude": { "type": "number", "nullable": true, "example": null },
 					"method": {
 						"type": "string",
-						"enum": ["qrcode", "manual"],
+						"enum": ["manual"],
 						"example": "manual"
 					}
 				}
@@ -129,7 +113,7 @@
 					},
 					"method": {
 						"type": "string",
-						"enum": ["qrcode", "manual"],
+						"enum": ["manual"],
 						"example": "manual"
 					}
 				}
@@ -258,37 +242,6 @@
 					},
 					"401": {
 						"description": "Credenciais inválidas",
-						"content": {
-							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
-						}
-					}
-				}
-			}
-		},
-		"/auth/qrcode": {
-			"post": {
-				"operationId": "loginByQrCode",
-				"tags": ["Autenticação"],
-				"summary": "Autenticar via QR Code",
-				"requestBody": {
-					"required": true,
-					"content": {
-						"application/json": {
-							"schema": { "$ref": "#/components/schemas/QrCodePayload" }
-						}
-					}
-				},
-				"responses": {
-					"200": {
-						"description": "Login via QR Code realizado com sucesso",
-						"content": {
-							"application/json": {
-								"schema": { "$ref": "#/components/schemas/AuthResponse" }
-							}
-						}
-					},
-					"400": {
-						"description": "Payload inválido",
 						"content": {
 							"application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
 						}

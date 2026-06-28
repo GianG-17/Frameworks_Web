@@ -130,7 +130,7 @@
 						</div>
 						<div>
 							<dt>Origem</dt>
-							<dd>{registro.method === 'manual' ? 'Manual' : 'QR Code'}</dd>
+							<dd>Manual</dd>
 						</div>
 					</dl>
 

@@ -1,6 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { prisma } from '@/lib/server/db';
-import { generateSecret } from '@/lib/server/totp';
 import { requireAdmin, jsonError, jsonOk } from '../_lib/auth-helpers';
 
 export const GET: RequestHandler = async ({ request }) => {
@@ -49,8 +48,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			nome: body.nome,
 			cnpj: body.cnpj ?? null,
 			horaAbertura: body.horaAbertura,
-			horaFechamento: body.horaFechamento,
-			qrSecret: generateSecret()
+			horaFechamento: body.horaFechamento
 		}
 	});
 

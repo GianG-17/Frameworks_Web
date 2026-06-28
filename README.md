@@ -1,6 +1,6 @@
 # Ponto Digital
 
-Sistema de gestão de ponto eletrônico com suporte a leitura de QR Code e registro manual.
+Sistema de gestão de ponto eletrônico com registro manual.
 
 ---
 

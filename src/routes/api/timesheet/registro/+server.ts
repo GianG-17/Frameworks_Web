@@ -4,7 +4,6 @@ import { toRegistroDTO } from '@/lib/server/timesheet';
 import { requireUser, jsonError, jsonOk } from '../../_lib/auth-helpers';
 
 const VALID_TYPES = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'];
-const VALID_METHODS = ['qrcode', 'manual'];
 
 export const POST: RequestHandler = async ({ request }) => {
 	let user;
@@ -14,7 +13,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		return response as Response;
 	}
 
-	let body: { type?: string; method?: string };
+	let body: { type?: string };
 	try {
 		body = await request.json();
 	} catch {
@@ -24,16 +23,13 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (!body.type || !VALID_TYPES.includes(body.type)) {
 		return jsonError(`type deve ser um de: ${VALID_TYPES.join(', ')}`, 400);
 	}
-	if (!body.method || !VALID_METHODS.includes(body.method)) {
-		return jsonError(`method deve ser um de: ${VALID_METHODS.join(', ')}`, 400);
-	}
 
 	const registro = await prisma.registro.create({
 		data: {
 			colaboradorId: user.id,
 			empresaId: user.empresaId,
 			type: body.type,
-			method: body.method
+			method: 'manual'
 		}
 	});
 

@@ -1,6 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { prisma } from '@/lib/server/db';
 import { buildDailySummaries, dateKey } from '@/lib/server/timesheet';
+import { versaoVigenteEm } from '@/lib/server/jornada';
 import { requireAdmin, jsonOk } from '../../_lib/auth-helpers';
 
 const DIAS_KEYS = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'] as const;
@@ -112,7 +113,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			id: true,
 			name: true,
 			status: true,
-			jornada: { select: { dias: true } }
+			jornada: { select: { versoes: { select: { vigenciaInicio: true, dias: true } } } }
 		}
 	});
 
@@ -136,7 +137,9 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	const entradasHoje = colaboradores
 		.filter((c) => c.status === 'ativo')
 		.map((c) => {
-			const dias = (c.jornada?.dias ?? null) as JornadaDias | null;
+			const dias = (
+				c.jornada ? versaoVigenteEm(c.jornada.versoes, refDate) : null
+			) as JornadaDias | null;
 			const cfg = dias ? dias[dowKey] : null;
 
 			if (!c.jornada || !dias) {

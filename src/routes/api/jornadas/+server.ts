@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { prisma } from '@/lib/server/db';
-import { toJornadaDTO } from '@/lib/server/jornada';
+import { toJornadaDTO, dataHojeUTC } from '@/lib/server/jornada';
 import { requireAdmin, requireUser, jsonError, jsonOk } from '../_lib/auth-helpers';
 
 export const GET: RequestHandler = async ({ request }) => {
@@ -13,7 +13,8 @@ export const GET: RequestHandler = async ({ request }) => {
 
 	const jornadas = await prisma.jornada.findMany({
 		where: { empresaId: user.empresaId },
-		orderBy: { nome: 'asc' }
+		orderBy: { nome: 'asc' },
+		include: { versoes: { orderBy: { vigenciaInicio: 'asc' } } }
 	});
 	return jsonOk(jornadas.map(toJornadaDTO));
 };
@@ -41,8 +42,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		data: {
 			empresaId: admin.empresaId,
 			nome: body.nome,
-			dias: body.dias as object
-		}
+			versoes: { create: { dias: body.dias as object, vigenciaInicio: dataHojeUTC() } }
+		},
+		include: { versoes: { orderBy: { vigenciaInicio: 'asc' } } }
 	});
 
 	return jsonOk(toJornadaDTO(jornada), 201);

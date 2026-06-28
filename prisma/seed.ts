@@ -425,6 +425,7 @@ async function main() {
 	await prisma.registro.deleteMany();
 	await prisma.colaborador.deleteMany();
 	await prisma.usuario.deleteMany();
+	await prisma.jornadaVersao.deleteMany();
 	await prisma.jornada.deleteMany();
 	await prisma.departamento.deleteMany();
 	await prisma.empresa.deleteMany();
@@ -447,14 +448,20 @@ async function main() {
 		departamentosMap.set(nome, d.id);
 	}
 
+	// Vigência da 1ª versão bem no passado, cobrindo todos os registros semeados.
+	const vigenciaInicial = new Date('2020-01-01T00:00:00.000Z');
 	const comercial = await prisma.jornada.create({
-		data: { empresaId: empresa.id, nome: 'Comercial 8h', dias: jornadaComercial }
+		data: {
+			empresaId: empresa.id,
+			nome: 'Comercial 8h',
+			versoes: { create: { dias: jornadaComercial, vigenciaInicio: vigenciaInicial } }
+		}
 	});
 	const meioPeriodo = await prisma.jornada.create({
 		data: {
 			empresaId: empresa.id,
 			nome: 'Meio Período Manhã',
-			dias: jornadaMeioPeriodo
+			versoes: { create: { dias: jornadaMeioPeriodo, vigenciaInicio: vigenciaInicial } }
 		}
 	});
 

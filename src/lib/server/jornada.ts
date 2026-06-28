@@ -1,9 +1,15 @@
 /**
  * @module lib/server/jornada
- * @description Tipos e cálculos de Jornada. Campo `dias` é jsonb no Postgres.
+ * @description Tipos e cálculos de Jornada. O horário é versionado por vigência:
+ * cada `JornadaVersao` vale a partir de `vigenciaInicio`. Cálculos dependentes de
+ * data resolvem a versão vigente naquele dia, preservando o histórico quando o
+ * horário muda. Campo `dias` é jsonb no Postgres.
  */
 
-import type { Jornada as JornadaDB } from '@/lib/server/prisma-client/client';
+import type {
+	Jornada as JornadaDB,
+	JornadaVersao as JornadaVersaoDB
+} from '@/lib/server/prisma-client/client';
 
 export interface DiaSemanaDTO {
 	ativo: boolean;
@@ -22,17 +28,103 @@ export type DiaSemanaKey =
 	| 'sabado'
 	| 'domingo';
 
+export type DiasSemana = Record<DiaSemanaKey, DiaSemanaDTO>;
+
+export interface JornadaVersaoDTO {
+	/** Data (YYYY-MM-DD) a partir da qual esta versão vale. */
+	vigenciaInicio: string;
+	dias: DiasSemana;
+}
+
 export interface JornadaDTO {
 	id: string;
 	nome: string;
-	dias: Record<DiaSemanaKey, DiaSemanaDTO>;
+	/** Versão vigente hoje (compat com a UI atual). */
+	dias: DiasSemana;
+	/** Histórico de versões, em ordem crescente de vigência. */
+	versoes: JornadaVersaoDTO[];
 }
 
-export function toJornadaDTO(j: JornadaDB): JornadaDTO {
+/** Linha de versão necessária para os cálculos (vigência + dias). */
+export interface VersaoVigencia {
+	vigenciaInicio: Date;
+	dias: unknown;
+}
+
+const DIAS_VAZIOS: DiasSemana = {
+	segunda: diaVazio(),
+	terca: diaVazio(),
+	quarta: diaVazio(),
+	quinta: diaVazio(),
+	sexta: diaVazio(),
+	sabado: diaVazio(),
+	domingo: diaVazio()
+};
+
+function diaVazio(): DiaSemanaDTO {
+	return { ativo: false, entrada: '', saida_almoco: '', retorno_almoco: '', saida: '' };
+}
+
+// ── Helpers de data (fuso de Brasília, UTC-3) ────────────────────────────────
+const BRT_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/** Data de hoje (calendário BRT) à meia-noite UTC — compatível com `@db.Date`. */
+export function dataHojeUTC(): Date {
+	const brt = new Date(Date.now() - BRT_OFFSET_MS);
+	return new Date(Date.UTC(brt.getUTCFullYear(), brt.getUTCMonth(), brt.getUTCDate()));
+}
+
+/** Data de amanhã (calendário BRT) à meia-noite UTC. */
+export function dataAmanhaUTC(): Date {
+	const h = dataHojeUTC();
+	return new Date(Date.UTC(h.getUTCFullYear(), h.getUTCMonth(), h.getUTCDate() + 1));
+}
+
+function toDateString(d: Date): string {
+	return d.toISOString().split('T')[0];
+}
+
+/**
+ * Resolve o horário (dias) vigente em `data`: a versão de maior `vigenciaInicio`
+ * que seja <= data. Se nenhuma (data anterior à 1ª versão), usa a versão mais
+ * antiga — assim nenhum dia fica sem horário. Retorna null se não houver versões.
+ */
+export function versaoVigenteEm(versoes: VersaoVigencia[], data: Date): DiasSemana | null {
+	if (versoes.length === 0) return null;
+
+	let escolhida: VersaoVigencia | null = null;
+	let maisAntiga: VersaoVigencia | null = null;
+	for (const v of versoes) {
+		if (!maisAntiga || v.vigenciaInicio.getTime() < maisAntiga.vigenciaInicio.getTime()) {
+			maisAntiga = v;
+		}
+		if (v.vigenciaInicio.getTime() <= data.getTime()) {
+			if (!escolhida || v.vigenciaInicio.getTime() > escolhida.vigenciaInicio.getTime()) {
+				escolhida = v;
+			}
+		}
+	}
+
+	const fonte = escolhida ?? maisAntiga;
+	return fonte ? (fonte.dias as DiasSemana) : null;
+}
+
+export function toJornadaDTO(
+	j: Pick<JornadaDB, 'id' | 'nome'> & {
+		versoes: Pick<JornadaVersaoDB, 'vigenciaInicio' | 'dias'>[];
+	}
+): JornadaDTO {
+	const versoes = [...j.versoes].sort(
+		(a, b) => a.vigenciaInicio.getTime() - b.vigenciaInicio.getTime()
+	);
 	return {
 		id: j.id,
 		nome: j.nome,
-		dias: j.dias as unknown as Record<DiaSemanaKey, DiaSemanaDTO>
+		dias: versaoVigenteEm(versoes, dataHojeUTC()) ?? DIAS_VAZIOS,
+		versoes: versoes.map((v) => ({
+			vigenciaInicio: toDateString(v.vigenciaInicio),
+			dias: v.dias as unknown as DiasSemana
+		}))
 	};
 }
 
@@ -57,17 +149,22 @@ function horasDoDia(d: DiaSemanaDTO): number {
 	return Math.max(0, (manha + tarde) / 60);
 }
 
-/** Horas previstas no mês para uma jornada (decimal). `mesNum` é 1-12. */
+/**
+ * Horas previstas no mês (decimal), resolvendo a versão vigente em cada dia —
+ * assim editar o horário não altera meses passados. `mesNum` é 1-12.
+ */
 export function calcularHorasEsperadasMes(
-	jornada: JornadaDTO,
+	versoes: VersaoVigencia[],
 	ano: number,
 	mesNum: number
 ): number {
-	const ultimoDia = new Date(ano, mesNum, 0).getDate();
+	const ultimoDia = new Date(Date.UTC(ano, mesNum, 0)).getUTCDate();
 	let total = 0;
 	for (let d = 1; d <= ultimoDia; d++) {
-		const dow = new Date(ano, mesNum - 1, d).getDay();
-		const dia = jornada.dias[DIAS_KEY[dow]];
+		const data = new Date(Date.UTC(ano, mesNum - 1, d));
+		const dias = versaoVigenteEm(versoes, data);
+		if (!dias) continue;
+		const dia = dias[DIAS_KEY[data.getUTCDay()]];
 		if (!dia?.ativo) continue;
 		total += horasDoDia(dia);
 	}

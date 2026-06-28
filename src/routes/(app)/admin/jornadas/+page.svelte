@@ -352,6 +352,13 @@
 					handleSave();
 				}}
 			>
+				{#if editingId}
+					<p class="vigencia-nota">
+						Alterações de horário passam a valer no dia seguinte. As datas anteriores mantêm o
+						horário antigo — o histórico é preservado.
+					</p>
+				{/if}
+
 				<!-- Nome -->
 				<div class="field" class:field--error={!!errors.nome}>
 					<label for="nome">Nome da Jornada</label>
@@ -737,6 +744,17 @@
 
 	.modal__footer-spacer {
 		flex: 1;
+	}
+
+	/* ── Nota de vigência ───────────────────────────────────── */
+	.vigencia-nota {
+		font-size: 0.8rem;
+		line-height: 1.4;
+		color: var(--color-text-muted);
+		background: var(--color-surface-muted);
+		border-left: 3px solid #2563eb;
+		border-radius: var(--radius-sm);
+		padding: 0.625rem 0.75rem;
 	}
 
 	/* ── Campos ─────────────────────────────────────────────── */

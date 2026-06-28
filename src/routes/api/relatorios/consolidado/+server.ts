@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { prisma } from '@/lib/server/db';
 import { buildDailySummaries, dateKey } from '@/lib/server/timesheet';
-import { calcularHorasEsperadasMes, toJornadaDTO } from '@/lib/server/jornada';
+import { calcularHorasEsperadasMes } from '@/lib/server/jornada';
 import { requireAdmin, jsonError, jsonOk } from '../../_lib/auth-helpers';
 
 export const GET: RequestHandler = async ({ request, url }) => {
@@ -24,7 +24,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	const colaboradores = await prisma.colaborador.findMany({
 		where: { empresaId: admin.empresaId },
 		orderBy: { name: 'asc' },
-		include: { jornada: true }
+		include: { jornada: { include: { versoes: true } } }
 	});
 
 	const registros = await prisma.registro.findMany({
@@ -64,7 +64,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		const ferias = feriasMes.filter((f) => f.colaboradorId === c.id).length;
 		const faltasJustificadas = justMes.filter((j) => j.colaboradorId === c.id).length;
 		const horasEsperadas = c.jornada
-			? calcularHorasEsperadasMes(toJornadaDTO(c.jornada), ano, mesNum)
+			? calcularHorasEsperadasMes(c.jornada.versoes, ano, mesNum)
 			: 0;
 
 		return {

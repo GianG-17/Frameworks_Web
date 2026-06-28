@@ -91,18 +91,36 @@ model Departamento {
 }
 
 model Jornada {
-  id            String        @id @default(cuid())
+  id            String          @id @default(cuid())
   empresaId     String
-  empresa       Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresa       Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome          String
-  // JSON com os 7 dias (segunda..domingo)
-  dias          Json
   colaboradores Colaborador[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  // Versões do horário ao longo do tempo (vigência). O cálculo de datas passadas
+  // resolve qual versão estava vigente no dia — alterar o horário não reescreve o histórico.
+  versoes       JornadaVersao[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   @@index([empresaId])
   @@map("jornadas")
+}
+
+// Versão de horário de uma Jornada, válida a partir de `vigenciaInicio`.
+// Versões já vigentes são imutáveis (histórico). Alteração de horário cria uma
+// versão vigente a partir do dia seguinte; ver PUT /api/jornadas/[id].
+model JornadaVersao {
+  id             String   @id @default(cuid())
+  jornadaId      String
+  jornada        Jornada  @relation(fields: [jornadaId], references: [id], onDelete: Cascade)
+  // JSON com os 7 dias (segunda..domingo)
+  dias           Json
+  vigenciaInicio DateTime @db.Date
+  createdAt      DateTime @default(now())
+
+  @@unique([jornadaId, vigenciaInicio])
+  @@index([jornadaId, vigenciaInicio])
+  @@map("jornada_versoes")
 }
 
 // Registro de ponto (batida) — imutável conforme Portaria 671/2021.

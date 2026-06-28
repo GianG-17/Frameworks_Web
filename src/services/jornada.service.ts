@@ -22,13 +22,22 @@ export interface DiaSemana {
 	saida: string;
 }
 
-export interface Jornada {
-	id: string;
-	nome: string;
+/** Versão de horário com data de vigência (YYYY-MM-DD). */
+export interface JornadaVersao {
+	vigenciaInicio: string;
 	dias: Record<DiaSemanaKey, DiaSemana>;
 }
 
-export type JornadaInput = Omit<Jornada, 'id'>;
+export interface Jornada {
+	id: string;
+	nome: string;
+	/** Horário vigente hoje. */
+	dias: Record<DiaSemanaKey, DiaSemana>;
+	/** Histórico de versões, em ordem crescente de vigência. */
+	versoes: JornadaVersao[];
+}
+
+export type JornadaInput = Omit<Jornada, 'id' | 'versoes'>;
 
 export const jornadaService = {
 	list: () => get<Jornada[]>('/jornadas'),

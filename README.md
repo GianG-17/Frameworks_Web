@@ -1,207 +1,116 @@
-# Ponto Digital
+# 🕒 Controle de Ponto - Gestão de Jornada Digital
+> Gestão inteligente, ágil e em conformidade legal da jornada de trabalho.
 
-Sistema de gestão de ponto eletrônico com registro manual.
+![Svelte](https://img.shields.io/badge/Svelte-FF3E00?style=for-the-badge&logo=svelte&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![Status](https://img.shields.io/badge/Status-Em_Desenvolvimento-success?style=for-the-badge)
 
----
-
-## Stack
-
-| Camada    | Tecnologia           |
-| --------- | -------------------- |
-| Framework | SvelteKit + Svelte 5 |
-| Linguagem | TypeScript           |
-| Build     | Vite                 |
-| Estilo    | Scoped CSS (Svelte)  |
-| Estado    | Svelte Stores        |
+Uma aplicação desenvolvida para permitir que empresas de qualquer porte registrem, acompanhem e analisem a frequência de seus colaboradores de forma digital. A plataforma elimina a dependência de relógios de ponto físicos (REP), planilhas manuais e processos sujeitos a erros.
 
 ---
 
-## Arquitetura
+## 👩‍💻 Equipe e Autores
 
-O projeto segue uma abordagem híbrida: as camadas técnicas (services, store, hooks, utils) ficam separadas por responsabilidade, enquanto os **componentes** e as **rotas** são agrupados por domínio/feature.
+Projeto desenvolvido para a disciplina de **Projeto de Desenvolvimento I** da **UniSenac - Campus Pelotas**.
 
-```
-src/
-├── hooks.server.ts   # Auth guard — intercepta toda requisição
-├── components/       # Componentes Svelte, organizados por domínio/feature
-├── routes/           # Páginas e layouts (filesystem router do SvelteKit)
-├── services/         # Chamadas HTTP e implementações mock
-├── store/            # Estado global reativo (Svelte Stores)
-├── hooks/            # Lógica reativa reutilizável (composables)
-├── utils/            # Funções puras utilitárias
-├── types/            # Interfaces TypeScript compartilhadas
-└── lib/              # Módulo $lib do SvelteKit
-```
+* **Angelo Fonseca** - Desenvolvedor [GitHub](https://github.com/angelofonseca)
+* **Gian Garima** - Desenvolvedor - [GitHub](https://github.com/GianG-17)
+
+**Orientação:** Prof. Bruna Ribeiro & Prof. Gladimir Catarino.
 
 ---
 
-## O que mora em cada pasta
-
-### `components/`
-
-Componentes Svelte (`.svelte`) organizados por domínio. Cada subpasta agrupa componentes de uma feature específica. Componentes genéricos e reutilizáveis ficam em `ui/`. Componentes de estrutura da página ficam em `layout/`.
-
-### `routes/`
-
-Rotas do filesystem router do SvelteKit. Cada pasta vira uma rota no app. O group `(app)` compartilha o layout autenticado sem afetar a URL. Arquivos `+page.svelte` são páginas; `+layout.svelte` são layouts; `+page.server.ts` são server load functions.
-
-### `services/`
-
-Camada de acesso a dados. Cada serviço encapsula chamadas HTTP para um domínio da API. Todos usam o cliente centralizado `api.ts`, que cuida de headers, token e tratamento de erros.
-
-### `store/`
-
-Estado global da aplicação usando Svelte Stores (`writable`, `derived`). Cada store gerencia um slice de estado do domínio. Importados diretamente nos componentes com `$store`.
-
-### `hooks/`
-
-Funções reativas reutilizáveis que encapsulam lógica com side-effects (câmera, geolocalização, timers). Retornam stores ou callbacks. Equivalente ao padrão "composable".
-
-### `utils/`
-
-Funções puras sem dependências de framework. Formatadores, validadores, parsers, constantes. Não devem importar stores ou componentes.
-
-### `lib/`
-
-Pasta especial do SvelteKit acessível via `$lib`. Funciona como ponto central de re-exports para simplificar imports internos.
+## 🔗 Links Principais
+* 💻 **GitHub:** *https://github.com/GianG-17/Frameworks_Web*
+* 🌐 **Deploy da Aplicação:** *https://frameworks-web-034l.onrender.com/auth/login*
+* 🗂️ **Trello:** *https://trello.com/b/aX6doi72/controle-de-ponto-pd1*
+* 📊 **Apresentação:** *https://canva.link/l2whdkiic5za996*
 
 ---
 
-## Roteamento no SvelteKit
+## 🎯 Contexto: Os Problemas que Resolvemos
 
-O SvelteKit usa **filesystem routing**: a estrutura de pastas dentro de `src/routes/` define as URLs da aplicação. Não há arquivo de rotas centralizado.
-
-### Arquivos especiais de rota
-
-| Arquivo           | Papel                                                            |
-| ----------------- | ---------------------------------------------------------------- |
-| `+page.svelte`    | Componente da página renderizado na URL correspondente           |
-| `+layout.svelte`  | Layout compartilhado por todas as rotas dentro da mesma pasta    |
-| `+page.server.ts` | Função `load` executada no servidor antes de renderizar a página |
-
-### Layout groups — `(app)/`
-
-A pasta `(app)/` é um **layout group**: agrupa rotas que compartilham o mesmo `+layout.svelte` (sidebar + AppShell) sem que o nome do grupo apareça na URL. Assim `/admin/dashboard` funciona normalmente, sem `/app/admin/dashboard`.
-
-### Guard de rotas — `hooks.server.ts`
-
-O arquivo `hooks.server.ts` intercepta **toda** requisição antes de chegar à rota. É aqui que a proteção acontece:
-
-```
-Requisição chega
-  │
-  ├─ pathname começa com /auth → deixa passar (rota pública)
-  │
-  ├─ sem cookie auth_token → redirect 303 /auth/login
-  │
-  ├─ token presente + role colaborador em /admin/* → redirect 303 /colaborador/registro
-  │
-  └─ token válido → popula event.locals.user → resolve(event)
-```
-
-O `event.locals.user` preenchido pelo hook fica disponível em qualquer `+page.server.ts` via `event.locals`, permitindo carregar dados personalizados por usuário no servidor.
+1. **Planilhas Manuais:** O controle manual é lento, suscetível a erros de digitação e dificulta auditorias. Digitalizamos e automatizamos para garantir integridade e rastreabilidade.
+2. **Falta de Visibilidade:** Gestores só descobrem atrasos e faltas dias depois. Nosso dashboard em tempo real permite ações imediatas baseadas em dados.
+3. **Risco de Não Conformidade Legal:** A legislação (CLT e Portaria 671/MTE) exige registros auditáveis. Registramos os dados com timestamp do servidor para garantir segurança jurídica.
+4. **Custo Elevado de Equipamentos:** Relógios eletrônicos (REP) possuem alto custo de aquisição e manutenção. Nossa solução funciona via web, eliminando a necessidade de hardware dedicado.
 
 ---
 
-## Componentização
+## 🧑‍🤝‍🧑 Público-Alvo e Personas
 
-- Utilização de Runas do Svelte 5
+Nossa solução atende desde **Micro e Pequenas Empresas** (que buscam sair do controle manual) até **Empresas Médias** (que desejam modernizar a gestão sem investir em hardwares caros).
 
-| Rune          | Função                                            |
-| ------------- | ------------------------------------------------- |
-| `$props()`    | Declara as propriedades recebidas pelo componente |
-| `$state()`    | Cria estado local reativo                         |
-| `$derived`    | Valor calculado que atualiza automaticamente      |
-| `$derived.by` | Versão com função para derivações complexas       |
+### 👨‍💼 Persona 1: José (Administrador)
+* **Perfil:** Empresário, 40 anos, gerencia uma empresa com 45 funcionários.
+* **Dor:** Perde horas semanais conferindo planilhas manualmente. Sofre com a falta de visibilidade sobre atrasos e horas extras, gerando erros na folha de pagamento e conflitos trabalhistas.
+* **Necessidade:** Uma ferramenta centralizada que automatize registros, gere relatórios para o RH e ofereça um dashboard com a situação diária em tempo real.
 
-- Utilziação de Barrel export
-
----
-
-## Funcionamento Interno
-
-### Como as camadas se comunicam
-
-```
-Componente Svelte
-  │  chama authService.login()
-  ▼
-Service (auth.service.ts)
-  │    valida os dados de login
-  │    retorna um token
-  │
-  ▼
-Componente salva o token
-  │
-  ▼
-Atualiza o estado global
-  │
-  ▼
-Verifica se é admin
-  │
-  ▼
-Exibe o menu
-```
-
-### Dados Mockados
-
-Por enquanto não há backend disponível, então os serviços estão exportando implementações mockadas.
-
-```
-VITE_USE_MOCK=true   → services exportam mock (dados e delays simulados)
-VITE_USE_MOCK=false  → services exportam implementação real (fetch à API)
-```
+### 👨‍💻 Persona 2: Gustavo (Colaborador)
+* **Perfil:** Auxiliar Administrativo, 20 anos. Familiarizado com tecnologia e smartphones.
+* **Dor:** Não sabe quantas horas trabalhou no mês ou como está seu banco de horas, dependendo sempre de solicitações demoradas ao RH.
+* **Necessidade:** Uma solução acessível pelo celular para registrar o ponto rapidamente e consultar seu próprio histórico com transparência.
 
 ---
 
-## Path Aliases
+## ✨ Funcionalidades e Fluxos
 
-| Alias  | Resolve para | Exemplo de uso                         |
-| ------ | ------------ | -------------------------------------- |
-| `@/`   | `./src/`     | `import { api } from '@/services/api'` |
-| `$lib` | `./src/lib/` | `import { formatDate } from '$lib'`    |
+* **Registro Manual:** Colaboradores registram o ponto via login e senha diretamente na plataforma.
+* **Gestão de Ausências:** Envio e aprovação de justificativas de falta, abonos e gerenciamento de férias.
+* **Análise em Tempo Real:** Dashboard para gestores com visão consolidada por equipe ou colaborador (presenças, atrasos, horas trabalhadas).
 
-Configurados em `svelte.config.js` e `vite.config.ts`.
-
----
-
-## Primeiros passos
-
-```bash
-# 1. Instalar dependências
-npm install
-
-# 2. Copiar variáveis de ambiente
-cp .env.example .env
-
-# 3. Rodar em modo mock (sem backend)
-VITE_USE_MOCK=true npm run dev
-
-# 4. Verificar tipos e lint
-npm run check
-npm run lint
-```
-
-### Credenciais de teste
-
-| Usuário            | Identificador    | Senha    | Papel       |
-| ------------------ | ---------------- | -------- | ----------- |
-| Admin              | admin@teste.com  | Senha123 | admin       |
-| Admin (CPF)        | 123.456.789-00   | Senha123 | admin       |
-| Carlos Souza       | carlos@teste.com | Senha123 | colaborador |
-| Carlos Souza (CPF) | 111.444.777-35   | Senha123 | colaborador |
-| Teste              | teste@teste.com  | Senha123 | colaborador |
+### 🔄 Fluxos Principais de Dados
+1. **Cadastro:** `Empresas` ➔ `Usuários` ➔ `Colaboradores` ➔ Vinculação à `Jornada de Trabalho`.
+2. **Registro de Ponto:** `Usuários` ➔ `Registros` (Entrada/Intervalo/Saída).
+3. **Consolidação:** O sistema processa os registros e calcula o resumo diário (horas, atrasos) para alimentar relatórios e dashboards.
 
 ---
 
-## Convenções
+## 🛠️ Requisitos do Sistema
 
-| Item          | Padrão                              |
-| ------------- | ----------------------------------- |
-| Componentes   | `PascalCase.svelte`                 |
-| Serviços      | `nome.service.ts`                   |
-| Stores        | `nome.store.ts`                     |
-| Hooks         | `useCamelCase.ts`                   |
-| Utils         | `camelCase.ts` ou `kebab-case.ts`   |
-| Rotas         | `kebab-case/` (padrão SvelteKit)    |
-| Variáveis CSS | `--color-primary`, `--color-danger` |
+### Requisitos Funcionais
+* Autenticação com perfis de Administrador e Colaborador.
+* Registro de entrada, intervalo e saída do expediente.
+* Visualização do histórico de batidas de ponto.
+* Painel do Administrador para gerenciar funcionários, departamentos e jornadas.
+* Módulo para gestão de férias e justificativas/abonos.
+* Extração de relatórios gerenciais consolidados.
+
+### Requisitos Não Funcionais
+* Alta Performance e Usabilidade.
+* Segurança: Armazenamento de senhas com hash **Bcrypt** e autenticação via **JWT Token** (com expiração).
+* Confiabilidade: Registro de ponto utilizando o *timestamp* do servidor.
+
+---
+
+## 💻 Tecnologias Utilizadas
+
+* **Framework Principal:** SvelteKit (Fullstack)
+* **Segurança:** JSON Web Tokens (JWT) e Bcrypt
+* **Documentação:** Swagger / OpenAPI
+
+---
+
+## 📊 Sistemas Similares (Benchmarking)
+
+* **Pontomais:** Referência em gestão na nuvem com foco na facilidade de uso para o colaborador.
+* **Tangerino:** Especialista em monitoramento de equipes externas e regimes de trabalho flexíveis.
+* **Ahgora:** Focado em infraestrutura robusta e integração IoT para grandes empresas.
+* **Nosso Diferencial:** O *Controle de Ponto* foca na ausência de fricção, trazendo uma interface limpa, fluxos rápidos e alto custo-benefício para pequenas e médias empresas que não precisam da complexidade (e do custo) dos sistemas enterprise.
+
+---
+
+## 💰 Monetização e Competitividade (SaaS)
+
+O projeto adota um modelo de precificação simplificado com custo fixo mensal, destacando-se por ser 80% mais barato em relação à concorrência do mercado em 2026.
+
+### 📊 Comparativo de Preços de Mercado (~45 colaboradores)
+
+| Plataforma | Modelo de Cobrança | Custo Mensal Estimado |
+| :--- | :--- | :--- |
+| **Pontomais** | Por colab. / faixa (R$ 8 a R$ 15/cadastro) | R$ 275 a R$ 675 |
+| **Tangerino / Sólides** | Por colab. + taxa (R$ 10 a R$ 25/cadastro) | R$ 450 a R$ 1.125|
+| **Tique Taque** | Por colaborador (R$ 10 a R$ 20/cadastro) | R$ 450 a R$ 900 |
+| **Controle Ponto** | **Custo fixo (Até 100 colaboradores)** | **R$ 99,90** |
+
+---

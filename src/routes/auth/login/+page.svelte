@@ -190,6 +190,8 @@
 		</div>
 
 		<Button type="submit" variant="primary" {loading}>Entrar</Button>
+
+		<a class="forgot-link" href={resolve('/auth/recuperar-senha', {})}>Esqueci minha senha</a>
 	</form>
 </div>
 
@@ -296,5 +298,17 @@
 		border-radius: var(--radius-sm);
 		text-align: center;
 		font-size: 0.875rem;
+	}
+
+	.forgot-link {
+		text-align: center;
+		font-size: 0.8125rem;
+		color: var(--color-primary);
+		text-decoration: none;
+		font-weight: 600;
+	}
+
+	.forgot-link:hover {
+		text-decoration: underline;
 	}
 </style>

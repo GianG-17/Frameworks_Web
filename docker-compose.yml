@@ -10,7 +10,7 @@ services:
     # Publica a porta no host (container usa 5432 internamente) para acesso
     # externo, ex.: Prisma Studio / npm run dev rodando fora do container.
     ports:
-      - '${POSTGRES_PORT:-5433}:5432'
+      - '${POSTGRES_PORT:-5433}:5433'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

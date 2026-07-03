@@ -12,8 +12,8 @@ export const GET: RequestHandler = async ({ request, params }) => {
 		return response as Response;
 	}
 
-	const user = await prisma.colaborador.findUnique({
-		where: { id: params.id },
+	const user = await prisma.colaborador.findFirst({
+		where: { id: params.id, deletedAt: null },
 		include: { departamento: true }
 	});
 	if (!user || user.empresaId !== admin.empresaId) {
@@ -45,7 +45,9 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 	}
 	const data = parsed.data;
 
-	const existing = await prisma.colaborador.findUnique({ where: { id: params.id } });
+	const existing = await prisma.colaborador.findFirst({
+		where: { id: params.id, deletedAt: null }
+	});
 	if (!existing || existing.empresaId !== admin.empresaId) {
 		return jsonError('Colaborador não encontrado', 404);
 	}
@@ -105,10 +107,14 @@ export const DELETE: RequestHandler = async ({ request, params }) => {
 	}
 
 	const existing = await prisma.colaborador.findUnique({ where: { id: params.id } });
-	if (!existing || existing.empresaId !== admin.empresaId) {
+	if (!existing || existing.empresaId !== admin.empresaId || existing.deletedAt) {
 		return jsonError('Colaborador não encontrado', 404);
 	}
 
-	await prisma.colaborador.delete({ where: { id: params.id } });
+	// Soft delete — Portaria 671/2021: preserva o histórico de ponto (Registro).
+	await prisma.colaborador.update({
+		where: { id: params.id },
+		data: { deletedAt: new Date(), status: 'inativo' }
+	});
 	return new Response(null, { status: 204 });
 };

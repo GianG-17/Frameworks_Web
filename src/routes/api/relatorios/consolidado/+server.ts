@@ -22,7 +22,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	const end = new Date(Date.UTC(ano, mesNum, 0, 23, 59, 59, 999));
 
 	const colaboradores = await prisma.colaborador.findMany({
-		where: { empresaId: admin.empresaId },
+		// MVP: consolidado do mês lista apenas colaboradores ativos.
+		where: { empresaId: admin.empresaId, deletedAt: null },
 		orderBy: { name: 'asc' },
 		include: { jornada: { include: { versoes: true } } }
 	});

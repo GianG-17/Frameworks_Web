@@ -41,7 +41,8 @@ export const PATCH: RequestHandler = async ({ request, params }) => {
 	const resultado = await prisma.colaborador.updateMany({
 		where: {
 			empresaId: admin.empresaId,
-			departamentoId: params.id
+			departamentoId: params.id,
+			deletedAt: null
 		},
 		data: { jornadaId: body.jornadaId }
 	});

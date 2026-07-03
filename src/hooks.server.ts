@@ -14,7 +14,11 @@ import { redirect, json } from '@sveltejs/kit';
 import { decodeToken } from '@/lib/server/token';
 
 // Rotas de API públicas (não exigem token)
-const PUBLIC_API_PATHS = ['/api/auth/login'];
+const PUBLIC_API_PATHS = [
+	'/api/auth/login',
+	'/api/auth/forgot-password',
+	'/api/auth/reset-password'
+];
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const token = event.cookies.get('auth_token');

@@ -15,7 +15,7 @@ export const GET: RequestHandler = async ({ request }) => {
 	const user =
 		role === 'admin'
 			? await prisma.usuario.findUnique({ where: { id: tokenUser.id } })
-			: await prisma.colaborador.findUnique({ where: { id: tokenUser.id } });
+			: await prisma.colaborador.findFirst({ where: { id: tokenUser.id, deletedAt: null } });
 	if (!user) return jsonError('Usuário não encontrado', 404);
 
 	return jsonOk(toPayload(user, role));

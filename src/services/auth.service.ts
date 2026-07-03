@@ -22,10 +22,22 @@ export interface AuthResponse {
 	};
 }
 
+export interface MessageResponse {
+	message: string;
+}
+
 export const authService = {
 	login: (credentials: LoginCredentials) => post<AuthResponse>('/auth/login', credentials),
 
 	logout: () => post<void>('/auth/logout', {}),
 
-	me: () => get<AuthResponse['user']>('/auth/me')
+	me: () => get<AuthResponse['user']>('/auth/me'),
+
+	/** Dispara o e-mail de recuperação. Resposta sempre genérica (anti-enumeração). */
+	forgotPassword: (identifier: string) =>
+		post<MessageResponse>('/auth/forgot-password', { identifier }),
+
+	/** Redefine a senha a partir do token recebido por e-mail. */
+	resetPassword: (token: string, password: string) =>
+		post<MessageResponse>('/auth/reset-password', { token, password })
 };

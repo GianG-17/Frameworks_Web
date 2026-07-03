@@ -10,7 +10,6 @@
 		type DashboardMetrics,
 		type EntradaStatus
 	} from '@/services/admin.service';
-	import { formatTime } from '@/utils/date';
 	import Badge from '@/components/ui/Badge.svelte';
 	import Card from '@/components/ui/Card.svelte';
 	import StatCard from '@/components/ui/StatCard.svelte';

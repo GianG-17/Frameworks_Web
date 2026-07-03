@@ -52,7 +52,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		return jsonError('colaboradorId, dataInicio e dataFim são obrigatórios', 400);
 	}
 
-	const colaborador = await prisma.colaborador.findUnique({ where: { id: body.colaboradorId } });
+	const colaborador = await prisma.colaborador.findFirst({
+		where: { id: body.colaboradorId, deletedAt: null }
+	});
 	if (!colaborador || colaborador.empresaId !== admin.empresaId) {
 		return jsonError('Colaborador não encontrado', 404);
 	}

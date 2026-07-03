@@ -47,8 +47,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
 	// ── KPIs simples ───────────────────────────────────────────────────────────
 	const [totalColaboradores, colaboradoresAtivos] = await Promise.all([
-		prisma.colaborador.count({ where: { empresaId } }),
-		prisma.colaborador.count({ where: { status: 'ativo', empresaId } })
+		prisma.colaborador.count({ where: { empresaId, deletedAt: null } }),
+		prisma.colaborador.count({ where: { status: 'ativo', empresaId, deletedAt: null } })
 	]);
 
 	const pontosHoje = await prisma.registro.count({
@@ -108,7 +108,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
 	// ── Top 5 horas extras no mês ──────────────────────────────────────────────
 	const colaboradores = await prisma.colaborador.findMany({
-		where: { empresaId },
+		where: { empresaId, deletedAt: null },
 		select: {
 			id: true,
 			name: true,

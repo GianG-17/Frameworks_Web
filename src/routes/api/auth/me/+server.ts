@@ -11,12 +11,13 @@ export const GET: RequestHandler = async ({ request }) => {
 		return response as Response;
 	}
 
-	const role = tokenUser.role === 'admin' ? 'admin' : 'colaborador';
-	const user =
-		role === 'admin'
-			? await prisma.usuario.findUnique({ where: { id: tokenUser.id } })
-			: await prisma.colaborador.findFirst({ where: { id: tokenUser.id, deletedAt: null } });
-	if (!user) return jsonError('Usuário não encontrado', 404);
+	const usuario = await prisma.usuario.findUnique({
+		where: { id: tokenUser.id },
+		include: { colaborador: { select: { id: true, deletedAt: true } } }
+	});
+	if (!usuario || usuario.colaborador?.deletedAt) {
+		return jsonError('Usuário não encontrado', 404);
+	}
 
-	return jsonOk(toPayload(user, role));
+	return jsonOk(toPayload(usuario, usuario.colaborador?.id ?? null));
 };

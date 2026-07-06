@@ -8,6 +8,8 @@
 
 	interface Props {
 		aberto: boolean;
+		/** Nome do colaborador para quem a batida será registrada (exibido no cabeçalho). */
+		colaboradorNome?: string;
 		/** Data inicial do datetime-local (YYYY-MM-DDTHH:mm) */
 		dataInicial: string;
 		tipoInicial: RegistroType;
@@ -19,7 +21,8 @@
 		}) => Promise<void>;
 	}
 
-	let { aberto, dataInicial, tipoInicial, onFechar, onConfirmar }: Props = $props();
+	let { aberto, colaboradorNome, dataInicial, tipoInicial, onFechar, onConfirmar }: Props =
+		$props();
 
 	let tipo = $state<RegistroType>('entrada');
 	let dataHora = $state('');
@@ -81,7 +84,9 @@
 		<div class="modal" role="dialog" aria-modal="true" aria-labelledby="registro-manual-titulo">
 			<form onsubmit={handleSubmit}>
 				<header class="modal-header">
-					<h2 id="registro-manual-titulo">Registrar ponto manual</h2>
+					<h2 id="registro-manual-titulo">
+						Registrar ponto manual{colaboradorNome ? ` — ${colaboradorNome}` : ''}
+					</h2>
 					<button type="button" class="btn-fechar" onclick={onFechar} aria-label="Fechar">✕</button>
 				</header>
 

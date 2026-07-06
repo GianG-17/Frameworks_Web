@@ -13,6 +13,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		return response as Response;
 	}
 
+	// Só quem tem vínculo de colaborador bate ponto (o token carrega o colaboradorId).
+	if (!user.colaboradorId) {
+		return jsonError('Usuário sem vínculo de colaborador não registra ponto', 403);
+	}
+
 	let body: { type?: string };
 	try {
 		body = await request.json();
@@ -26,10 +31,10 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const registro = await prisma.registro.create({
 		data: {
-			colaboradorId: user.id,
+			colaboradorId: user.colaboradorId,
 			empresaId: user.empresaId,
-			type: body.type,
-			method: 'manual'
+			tipo: body.type,
+			metodo: 'manual'
 		}
 	});
 

@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { prisma } from '@/lib/server/db';
-import { buildDailySummaries, dateKey } from '@/lib/server/timesheet';
+import { buildDailySummaries, ausenciaDateKeys } from '@/lib/server/timesheet';
 import { requireUser, jsonError, jsonOk } from '../../_lib/auth-helpers';
 
 export const GET: RequestHandler = async ({ request, url }) => {
@@ -25,17 +25,28 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		return jsonError('Datas inválidas', 400);
 	}
 
-	const [registros, justificativas] = await Promise.all([
+	if (!user.colaboradorId) {
+		// Usuário sem vínculo de colaborador (admin puro) não tem ponto.
+		return jsonOk([]);
+	}
+	const colaboradorId = user.colaboradorId;
+
+	const [registros, ausencias] = await Promise.all([
 		prisma.registro.findMany({
-			where: { colaboradorId: user.id, timestamp: { gte: start, lte: end } },
-			orderBy: { timestamp: 'asc' },
+			where: { colaboradorId, marcadoEm: { gte: start, lte: end } },
+			orderBy: { marcadoEm: 'asc' },
 			include: { anulacao: true }
 		}),
-		prisma.justificativa.findMany({
-			where: { colaboradorId: user.id, status: 'approved', data: { gte: start, lte: end } }
+		prisma.ausencia.findMany({
+			where: {
+				colaboradorId,
+				status: 'aprovada',
+				dataInicio: { lte: end },
+				dataFim: { gte: start }
+			}
 		})
 	]);
 
-	const datasAbonadas = new Set(justificativas.map((j) => dateKey(j.data)));
+	const datasAbonadas = ausenciaDateKeys(ausencias);
 	return jsonOk(buildDailySummaries(registros, datasAbonadas));
 };

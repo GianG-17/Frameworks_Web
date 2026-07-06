@@ -1,10 +1,13 @@
 /**
  * @module lib/server/colaborador
  * @description Mapeamento Colaborador (Prisma) → ColaboradorDTO usado pelo frontend.
+ *
+ * Colaborador é extensão 1:1 de Usuario (identidade). Nome/e-mail/CPF vivem em
+ * `usuario`; unicidade de e-mail/CPF é por empresa na tabela `usuarios`.
  */
 
 import { Prisma } from '@/lib/server/prisma-client/client';
-import type { Colaborador, Departamento } from '@/lib/server/prisma-client/client';
+import type { Colaborador, Departamento, Usuario } from '@/lib/server/prisma-client/client';
 import { prisma } from '@/lib/server/db';
 import { formatCpfInput } from '@/utils/validators';
 import { jsonError } from '@/routes/api/_lib/auth-helpers';
@@ -23,50 +26,58 @@ export interface ColaboradorDTO {
 	jornadaId?: string;
 }
 
-type ColaboradorComDepartamento = Colaborador & { departamento?: Departamento | null };
+type ColaboradorComRelacoes = Colaborador & {
+	usuario: Pick<Usuario, 'nome' | 'email' | 'cpf'>;
+	departamento?: Departamento | null;
+};
 
-export function toColaboradorDTO(user: ColaboradorComDepartamento): ColaboradorDTO {
+export function toColaboradorDTO(colaborador: ColaboradorComRelacoes): ColaboradorDTO {
 	return {
-		id: user.id,
-		nome: user.name,
-		email: user.email,
-		cpf: formatCpfInput(user.cpf), // armazenado só com dígitos; formatado para exibição
-		cargo: user.cargo ?? '',
-		departamentoId: user.departamentoId ?? null,
-		departamento: user.departamento
-			? { id: user.departamento.id, nome: user.departamento.nome }
+		id: colaborador.id,
+		nome: colaborador.usuario.nome,
+		email: colaborador.usuario.email,
+		// armazenado só com dígitos; formatado para exibição
+		cpf: formatCpfInput(colaborador.usuario.cpf),
+		cargo: colaborador.cargo ?? '',
+		departamentoId: colaborador.departamentoId ?? null,
+		departamento: colaborador.departamento
+			? { id: colaborador.departamento.id, nome: colaborador.departamento.nome }
 			: null,
-		dataAdmissao: user.dataAdmissao ? user.dataAdmissao.toISOString().split('T')[0] : '',
-		status: user.status ?? 'ativo',
-		telefone: user.telefone ?? undefined,
-		jornadaId: user.jornadaId ?? undefined
+		dataAdmissao: colaborador.dataAdmissao
+			? colaborador.dataAdmissao.toISOString().split('T')[0]
+			: '',
+		status: colaborador.status ?? 'ativo',
+		telefone: colaborador.telefone ?? undefined,
+		jornadaId: colaborador.jornadaId ?? undefined
 	};
 }
 
 /**
- * E-mail/CPF devem ser únicos entre colaboradores E administradores.
- * `exceptId` ignora o próprio colaborador (usado na edição).
+ * E-mail único entre as identidades (`usuarios`) da empresa.
+ * `exceptUsuarioId` ignora a própria identidade (usado na edição).
  */
-export async function emailEmUso(email: string, exceptId?: string): Promise<boolean> {
-	const [colaborador, admin] = await Promise.all([
-		prisma.colaborador.findFirst({
-			where: { email, ...(exceptId ? { NOT: { id: exceptId } } : {}) },
-			select: { id: true }
-		}),
-		prisma.usuario.findFirst({ where: { email }, select: { id: true } })
-	]);
-	return Boolean(colaborador || admin);
+export async function emailEmUso(
+	email: string,
+	empresaId: string,
+	exceptUsuarioId?: string
+): Promise<boolean> {
+	const usuario = await prisma.usuario.findFirst({
+		where: { empresaId, email, ...(exceptUsuarioId ? { NOT: { id: exceptUsuarioId } } : {}) },
+		select: { id: true }
+	});
+	return Boolean(usuario);
 }
 
-export async function cpfEmUso(cpf: string, exceptId?: string): Promise<boolean> {
-	const [colaborador, admin] = await Promise.all([
-		prisma.colaborador.findFirst({
-			where: { cpf, ...(exceptId ? { NOT: { id: exceptId } } : {}) },
-			select: { id: true }
-		}),
-		prisma.usuario.findFirst({ where: { cpf }, select: { id: true } })
-	]);
-	return Boolean(colaborador || admin);
+export async function cpfEmUso(
+	cpf: string,
+	empresaId: string,
+	exceptUsuarioId?: string
+): Promise<boolean> {
+	const usuario = await prisma.usuario.findFirst({
+		where: { empresaId, cpf, ...(exceptUsuarioId ? { NOT: { id: exceptUsuarioId } } : {}) },
+		select: { id: true }
+	});
+	return Boolean(usuario);
 }
 
 /**

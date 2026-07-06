@@ -102,15 +102,37 @@ Nossa solução atende desde **Micro e Pequenas Empresas** (que buscam sair do c
 
 ## 💰 Monetização e Competitividade (SaaS)
 
-O projeto adota um modelo de precificação simplificado com custo fixo mensal, destacando-se por ser 80% mais barato em relação à concorrência do mercado em 2026.
+O projeto adota um modelo de precificação simplificado com custo fixo mensal, destacando-se por ser **80% mais barato** em relação à concorrência do mercado em 2026.
 
 ### 📊 Comparativo de Preços de Mercado (~45 colaboradores)
 
-| Plataforma | Modelo de Cobrança | Custo Mensal Estimado |
-| :--- | :--- | :--- |
-| **Pontomais** | Por colab. / faixa (R$ 8 a R$ 15/cadastro) | R$ 275 a R$ 675 |
-| **Tangerino / Sólides** | Por colab. + taxa (R$ 10 a R$ 25/cadastro) | R$ 450 a R$ 1.125|
-| **Tique Taque** | Por colaborador (R$ 10 a R$ 20/cadastro) | R$ 450 a R$ 900 |
-| **Controle Ponto** | **Custo fixo (Até 100 colaboradores)** | **R$ 99,90** |
+| Plataforma | Modelo de Cobrança | Preço | Custo ~45 colab. |
+| :--- | :--- | :--- | :--- |
+| **TiqueTaque** | Por faixa | R$ 57,40–282,40/mês | ~R$ 282/mês |
+| **Pontomais** | Por faixa (R$ 8–15/colab.) | R$ 8–15/colaborador | R$ 275/mês |
+| **Genyo** | Por faixa / colaborador | R$ 4,69–6,90/colab. | ~R$ 289/mês |
+| **Controle Ponto** | **Custo fixo (até 50 colab.)** | **R$ 49,90/mês** | **R$ 49,90/mês** |
+| **Controle Ponto** | **Custo fixo (até 100 colab.)** | **R$ 99,90/mês** | **R$ 99,90/mês** |
+
+### 🏷️ Destaques
+
+| Métrica | Valor |
+| :--- | :--- |
+| Custo fixo mensal (até 50 colab.) | R$ 49,90 |
+| Custo fixo mensal (até 100 colab.) | R$ 99,90 |
+| Custo por colaborador (45 func.) | R$ 1,11 |
+| Mais barato vs. concorrência | 80% |
 
 ---
+
+## 🔐 Credenciais de Teste
+
+| 👤Usuário            | 🔑Identificador    | 🔒Senha    | 🏷️Papel       |
+| ------------------ | ---------------- | -------- | ----------- |
+| Admin              | admin@teste.com  | Senha123 | admin       |
+| Admin (CPF)        | 123.456.789-00   | Senha123 | admin       |
+| Carlos Souza       | carlos@teste.com | Senha123 | colaborador |
+| Carlos Souza (CPF) | 111.444.777-35   | Senha123 | colaborador |
+| Teste              | teste@teste.com  | Senha123 | colaborador |
+
+----

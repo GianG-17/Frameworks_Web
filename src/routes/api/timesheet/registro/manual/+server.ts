@@ -58,11 +58,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		data: {
 			colaboradorId: colaborador.id,
 			empresaId: admin.empresaId,
-			type: body.type,
-			timestamp: ts,
-			method: 'manual',
-			createdBy: admin.id,
-			createdReason: body.reason.trim()
+			tipo: body.type,
+			marcadoEm: ts,
+			metodo: 'manual',
+			criadoPor: admin.id,
+			criadoMotivo: body.reason.trim()
 		},
 		include: { anulacao: true }
 	});

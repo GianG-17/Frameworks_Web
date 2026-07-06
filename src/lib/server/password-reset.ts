@@ -5,6 +5,9 @@
  * O token é assinado com `JWT_SECRET + hash-da-senha-atual`. Assim que a senha
  * é trocada, o hash muda e o segredo derivado deixa de validar tokens antigos —
  * garantindo uso único sem tabela auxiliar.
+ *
+ * Login mora só em `usuarios` (identidade). Um colaborador desligado (extensão
+ * `Colaborador` com `deletedAt`) não pode redefinir senha.
  */
 
 import jwt from 'jsonwebtoken';
@@ -17,23 +20,23 @@ const PURPOSE = 'pwd-reset';
 export type Role = 'admin' | 'colaborador';
 
 export interface Account {
-	id: string;
-	name: string;
+	id: string; // Usuario.id
+	nome: string;
 	email: string;
 	role: Role;
-	password: string;
+	senhaHash: string;
 }
 
 /** Segredo derivado: some quando a senha (e portanto seu hash) muda → uso único. */
-function resetSecret(passwordHash: string): string {
-	return JWT_SECRET + passwordHash;
+function resetSecret(senhaHash: string): string {
+	return JWT_SECRET + senhaHash;
 }
 
 export function encodeResetToken(
-	account: Pick<Account, 'id' | 'role' | 'password'>,
+	account: Pick<Account, 'id' | 'role' | 'senhaHash'>,
 	expiresIn: string = RESET_EXPIRES_IN
 ): string {
-	return jwt.sign({ purpose: PURPOSE, role: account.role }, resetSecret(account.password), {
+	return jwt.sign({ purpose: PURPOSE, role: account.role }, resetSecret(account.senhaHash), {
 		subject: account.id,
 		expiresIn: expiresIn as jwt.SignOptions['expiresIn']
 	});
@@ -60,40 +63,57 @@ export function peekResetToken(token: string): { id: string; role: Role } | null
 }
 
 /** Verifica o token contra o hash de senha atual da conta. */
-export function verifyResetToken(token: string, passwordHash: string): boolean {
+export function verifyResetToken(token: string, senhaHash: string): boolean {
 	try {
-		const decoded = jwt.verify(token, resetSecret(passwordHash)) as { purpose?: string };
+		const decoded = jwt.verify(token, resetSecret(senhaHash)) as { purpose?: string };
 		return decoded.purpose === PURPOSE;
 	} catch {
 		return false;
 	}
 }
 
+/** Monta o Account a partir de uma identidade; bloqueia colaborador desligado. */
+function toAccount(usuario: {
+	id: string;
+	nome: string;
+	email: string;
+	role: string;
+	senhaHash: string;
+	colaborador: { deletedAt: Date | null } | null;
+}): Account | null {
+	if (usuario.colaborador?.deletedAt) return null;
+	return {
+		id: usuario.id,
+		nome: usuario.nome,
+		email: usuario.email,
+		role: usuario.role === 'admin' ? 'admin' : 'colaborador',
+		senhaHash: usuario.senhaHash
+	};
+}
+
 /**
- * Busca a conta pelo identificador de login: e-mail → admin (Usuario);
- * caso contrário CPF → colaborador (só ativos, `deletedAt: null`).
+ * Busca a conta pelo identificador de login: e-mail ou CPF (só dígitos).
+ * Com unicidade por empresa, o identificador pode colidir entre empresas — no MVP
+ * de empresa única usamos o primeiro match (ver limitação em login/+server.ts).
  */
 export async function findAccountByIdentifier(identifier: string): Promise<Account | null> {
 	const isEmail = identifier.includes('@');
+	const where = isEmail
+		? { email: identifier.trim().toLowerCase() }
+		: { cpf: identifier.replace(/\D/g, '') };
 
-	if (isEmail) {
-		const admin = await prisma.usuario.findFirst({
-			where: { email: identifier.trim().toLowerCase() }
-		});
-		return admin ? { ...admin, role: 'admin' } : null;
-	}
-
-	const cpf = identifier.replace(/\D/g, '');
-	const colaborador = await prisma.colaborador.findFirst({ where: { cpf, deletedAt: null } });
-	return colaborador ? { ...colaborador, role: 'colaborador' } : null;
+	const usuario = await prisma.usuario.findFirst({
+		where,
+		include: { colaborador: { select: { deletedAt: true } } }
+	});
+	return usuario ? toAccount(usuario) : null;
 }
 
-/** Busca a conta por id + papel (usado ao redefinir a senha a partir do token). */
-export async function findAccountByIdAndRole(id: string, role: Role): Promise<Account | null> {
-	if (role === 'admin') {
-		const admin = await prisma.usuario.findUnique({ where: { id } });
-		return admin ? { ...admin, role: 'admin' } : null;
-	}
-	const colaborador = await prisma.colaborador.findFirst({ where: { id, deletedAt: null } });
-	return colaborador ? { ...colaborador, role: 'colaborador' } : null;
+/** Busca a conta por id (usado ao redefinir a senha a partir do token). */
+export async function findAccountById(id: string): Promise<Account | null> {
+	const usuario = await prisma.usuario.findUnique({
+		where: { id },
+		include: { colaborador: { select: { deletedAt: true } } }
+	});
+	return usuario ? toAccount(usuario) : null;
 }

@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { prisma } from '@/lib/server/db';
-import { buildDailySummaries, dateKey } from '@/lib/server/timesheet';
+import { buildDailySummaries, ausenciaDateKeys } from '@/lib/server/timesheet';
 import { calcularHorasEsperadasMes } from '@/lib/server/jornada';
 import { requireAdmin, jsonError, jsonOk } from '../../_lib/auth-helpers';
 
@@ -24,25 +24,23 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	const colaboradores = await prisma.colaborador.findMany({
 		// MVP: consolidado do mês lista apenas colaboradores ativos.
 		where: { empresaId: admin.empresaId, deletedAt: null },
-		orderBy: { name: 'asc' },
-		include: { jornada: { include: { versoes: true } } }
+		orderBy: { usuario: { nome: 'asc' } },
+		include: { jornada: { include: { versoes: true } }, usuario: { select: { nome: true } } }
 	});
 
 	const registros = await prisma.registro.findMany({
-		where: { empresaId: admin.empresaId, timestamp: { gte: start, lte: end } },
-		orderBy: { timestamp: 'asc' }
+		where: { empresaId: admin.empresaId, marcadoEm: { gte: start, lte: end } },
+		orderBy: { marcadoEm: 'asc' }
 	});
 
-	const feriasMes = await prisma.ferias.findMany({
+	// Ausências que tocam o mês (qualquer status). Aprovadas abonam o dia; a
+	// contagem por tipo alimenta os totais de férias e faltas justificadas.
+	const ausenciasMes = await prisma.ausencia.findMany({
 		where: {
 			empresaId: admin.empresaId,
 			dataInicio: { lte: end },
 			dataFim: { gte: start }
 		}
-	});
-
-	const justMes = await prisma.justificativa.findMany({
-		where: { empresaId: admin.empresaId, data: { gte: start, lte: end } }
 	});
 
 	const byUser = new Map<string, typeof registros>();
@@ -53,24 +51,21 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	}
 
 	const linhas = colaboradores.map((c) => {
-		const datasAbonadas = new Set(
-			justMes
-				.filter((j) => j.colaboradorId === c.id && j.status === 'approved')
-				.map((j) => dateKey(j.data))
-		);
+		const ausenciasColab = ausenciasMes.filter((a) => a.colaboradorId === c.id);
+		const datasAbonadas = ausenciaDateKeys(ausenciasColab.filter((a) => a.status === 'aprovada'));
 		const dias = buildDailySummaries(byUser.get(c.id) ?? [], datasAbonadas);
 		const horas = dias.reduce((acc, d) => acc + d.totalHours, 0);
 		const extras = dias.reduce((acc, d) => acc + d.overtime, 0);
 		const deficit = dias.reduce((acc, d) => acc + d.deficit, 0);
-		const ferias = feriasMes.filter((f) => f.colaboradorId === c.id).length;
-		const faltasJustificadas = justMes.filter((j) => j.colaboradorId === c.id).length;
+		const ferias = ausenciasColab.filter((a) => a.tipo === 'ferias').length;
+		const faltasJustificadas = ausenciasColab.filter((a) => a.tipo !== 'ferias').length;
 		const horasEsperadas = c.jornada
 			? calcularHorasEsperadasMes(c.jornada.versoes, ano, mesNum)
 			: 0;
 
 		return {
 			colaboradorId: c.id,
-			colaboradorNome: c.name,
+			colaboradorNome: c.usuario.nome,
 			diasTrabalhados: dias.filter((d) => d.totalHours > 0).length,
 			horas: Number(horas.toFixed(2)),
 			horasEsperadas: Number(horasEsperadas.toFixed(2)),

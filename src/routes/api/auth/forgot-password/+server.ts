@@ -37,7 +37,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const token = encodeResetToken(account);
 		const resetUrl = buildResetUrl(token);
 		try {
-			await sendPasswordResetEmail(account.email, account.name, resetUrl);
+			await sendPasswordResetEmail(account.email, account.nome, resetUrl);
 		} catch (e) {
 			// Falha de envio não deve vazar existência da conta; loga e segue com 200.
 			console.error('Erro ao enviar e-mail de recuperação:', e);

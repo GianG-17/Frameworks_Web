@@ -4,7 +4,11 @@
  *
  * Conformidade com Portaria 671/2021:
  *  - Registros são imutáveis.
- *  - Correções via batidas manuais (createdBy) ou anulações (RegistroAnulacao).
+ *  - Correções via batidas manuais (criadoPor) ou anulações (RegistroAnulacao).
+ *
+ * Nota: os campos do DTO (`type`/`timestamp`/`method`/`createdBy`) mantêm o
+ * contrato estável da API; o mapper traduz dos campos do schema (`tipo`/
+ * `marcadoEm`/`metodo`/`criadoPor`).
  *  - Cálculo ignora batidas anuladas, mas o DTO continua expondo a anulação
  *    para que o front exiba a marcação visual e o AFD futuro liste tudo.
  */
@@ -45,11 +49,11 @@ export function toRegistroDTO(p: RegistroComAnulacao): RegistroDTO {
 	return {
 		id: p.id,
 		colaboradorId: p.colaboradorId,
-		type: p.type,
-		timestamp: p.timestamp.toISOString(),
-		method: p.method,
-		createdBy: p.createdBy ?? null,
-		createdReason: p.createdReason ?? null,
+		type: p.tipo,
+		timestamp: p.marcadoEm.toISOString(),
+		method: p.metodo,
+		createdBy: p.criadoPor ?? null,
+		createdReason: p.criadoMotivo ?? null,
 		anulacao: p.anulacao
 			? {
 					motivo: p.anulacao.motivo,
@@ -63,6 +67,30 @@ export function toRegistroDTO(p: RegistroComAnulacao): RegistroDTO {
 
 export function dateKey(date: Date): string {
 	return date.toISOString().split('T')[0];
+}
+
+/**
+ * Expande ausências [dataInicio, dataFim] no conjunto de datas (YYYY-MM-DD) que
+ * cobrem — usado para abonar dias no espelho/histórico. Substitui o antigo
+ * `justificativa.data` (ponto único) agora que a ausência tem intervalo.
+ */
+export function ausenciaDateKeys(ausencias: { dataInicio: Date; dataFim: Date }[]): Set<string> {
+	const keys = new Set<string>();
+	for (const a of ausencias) {
+		const d = new Date(
+			Date.UTC(a.dataInicio.getUTCFullYear(), a.dataInicio.getUTCMonth(), a.dataInicio.getUTCDate())
+		);
+		const fim = Date.UTC(
+			a.dataFim.getUTCFullYear(),
+			a.dataFim.getUTCMonth(),
+			a.dataFim.getUTCDate()
+		);
+		while (d.getTime() <= fim) {
+			keys.add(dateKey(d));
+			d.setUTCDate(d.getUTCDate() + 1);
+		}
+	}
+	return keys;
 }
 
 /**
@@ -86,7 +114,7 @@ export function buildDailySummaries(
 	const byDay = new Map<string, RegistroComAnulacao[]>();
 
 	for (const p of registros) {
-		const key = dateKey(p.timestamp);
+		const key = dateKey(p.marcadoEm);
 		const list = byDay.get(key) ?? [];
 		list.push(p);
 		byDay.set(key, list);
@@ -94,7 +122,7 @@ export function buildDailySummaries(
 
 	const summaries: DailySummaryDTO[] = [];
 	for (const [date, dayRegistros] of byDay.entries()) {
-		dayRegistros.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+		dayRegistros.sort((a, b) => a.marcadoEm.getTime() - b.marcadoEm.getTime());
 		summaries.push(buildSummary(date, dayRegistros, datasAbonadas.has(date), isValida));
 	}
 
@@ -109,7 +137,7 @@ export function buildSummary(
 	isValida: RegistroValido = NAO_ANULADA
 ): DailySummaryDTO {
 	const validas = registros.filter(isValida);
-	const byType = new Map(validas.map((p) => [p.type, p]));
+	const byType = new Map(validas.map((p) => [p.tipo, p]));
 	const entrada = byType.get('entrada');
 	const saidaAlmoco = byType.get('saida_almoco');
 	const retornoAlmoco = byType.get('retorno_almoco');
@@ -117,8 +145,8 @@ export function buildSummary(
 
 	let totalHours = 0;
 	if (entrada && saidaAlmoco && retornoAlmoco && saida) {
-		const manha = (saidaAlmoco.timestamp.getTime() - entrada.timestamp.getTime()) / 3_600_000;
-		const tarde = (saida.timestamp.getTime() - retornoAlmoco.timestamp.getTime()) / 3_600_000;
+		const manha = (saidaAlmoco.marcadoEm.getTime() - entrada.marcadoEm.getTime()) / 3_600_000;
+		const tarde = (saida.marcadoEm.getTime() - retornoAlmoco.marcadoEm.getTime()) / 3_600_000;
 		totalHours = Number((manha + tarde).toFixed(2));
 	}
 

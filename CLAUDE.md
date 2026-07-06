@@ -43,17 +43,20 @@ Híbrida Camada + Feature:
 ## Persistência (Prisma + PostgreSQL)
 
 - Postgres em container via `docker-compose.yml` (porta 5432, user `ponto`/`ponto`, DB `ponto_digital`). Em produção: `DATABASE_URL` apontando para Postgres gerenciado (Neon/Supabase/Railway).
-- Schema em `prisma/schema.prisma` — modelos `Empresa`, `Usuario` (admin), `Colaborador`, `Departamento`, `Jornada`, `Registro` (batida de ponto), `RegistroAnulacao`, `Ferias`, `Justificativa`. Admins e colaboradores vivem em tabelas separadas (`usuarios` × `colaboradores`); não há mais campo `role` no banco (o papel é derivado de qual tabela autenticou e gravado só no token). Tabelas mapeadas para plural snake_case via `@@map`.
+- Schema em `prisma/schema.prisma` — modelos `Empresa`, `Usuario` (identidade de login), `Colaborador` (extensão de vínculo), `Departamento`, `Jornada`, `Registro` (batida de ponto), `RegistroAnulacao`, `Ausencia` (férias + justificativas unificadas). Tabelas mapeadas para plural snake_case via `@@map`; colunas em snake_case via `@map` (camelCase no Prisma), domínio em PT; timestamps de auditoria (`createdAt`/`updatedAt`) mantêm nome EN. Datas com `@db.Timestamptz(6)`.
+- **Identidade × vínculo**: `Usuario` é a **única entidade de login** (admin e colaborador), com `role` (`admin` | `colaborador`) marcando acesso de gestão. `Colaborador` é uma **extensão 1:1 opcional** (`usuarioId`), sem credencial própria — sua existência é o que indica "tem vínculo / bate ponto". Uma pessoa pode ser os dois (ex.: RH que gerencia **e** bate ponto = `role='admin'` + linha em `colaboradores`).
+- **Campos de auditoria** (`Registro.criadoPor`, `RegistroAnulacao.anuladoPor`, `Ausencia.revisadoPor`) são **FK** para `Usuario` (`onDelete: Restrict`). Unicidade de `email`/`cpf` é **por empresa** (`@@unique([empresaId, ...])`).
 - Singleton do client: `src/lib/server/db.ts` (usado em `+server.ts`).
-- Senhas com `bcryptjs`. `Jornada.dias` serializada como JSON string (compatibilidade com `src/lib/server/jornada.ts`).
+- Senhas (`Usuario.senhaHash`) com `bcryptjs`. `JornadaVersao.dias` serializada como JSON (compatibilidade com `src/lib/server/jornada.ts`).
 - **Multi-tenancy**: todas as entidades são escopadas por `empresaId`. Admin só enxerga dados da própria empresa.
+- **DTOs estáveis**: os mappers (`src/lib/server/timesheet.ts`, `ausencia.ts`, `colaborador.ts`) preservam o contrato antigo da API (`type`/`timestamp`/`method`, status `pending/approved/rejected`, campo `observacao`) traduzindo dos nomes novos do schema — o frontend não mudou.
 
 ## Autenticação
 
-- **Token**: Base64(JSON do payload do usuário, incluindo `empresaId` e `role`). Codificado/decodificado em `src/lib/server/token.ts`. `toPayload(entity, role)` recebe o `role` explicitamente — o login busca em `usuario` (→ `admin`) e, se não achar, em `colaborador` (→ `colaborador`).
+- **Token**: JWT assinado (HS256, `JWT_SECRET`) codificado/decodificado em `src/lib/server/token.ts`. Payload: `{ id (usuarioId), nome, email, cpf, role, empresaId, colaboradorId }`. O login faz **um** lookup em `usuarios` (por email ou CPF), lê o `role` da coluna e preenche `colaboradorId` quando há extensão de colaborador; colaborador desligado (`deletedAt`) não autentica. (Unicidade por empresa: login multi-empresa exigirá discriminador de tenant; no MVP de empresa única, `findFirst` basta.)
 - **Persistência client**: gravado em `localStorage` (para `api.ts`) e `document.cookie` (para `hooks.server.ts`).
-- **Servidor**: `hooks.server.ts` lê o cookie, decodifica via `token.ts` e popula `event.locals.user` (com `empresaId`). Helpers em `src/routes/api/_lib/auth-helpers.ts`.
-- **Proteção de rotas**: sem token → `/auth/login`; colaborador em `/admin/*` → `/colaborador/registro`. Raiz `/` redireciona por papel em `+page.server.ts`.
+- **Servidor**: `hooks.server.ts` lê o cookie, decodifica via `token.ts` e popula `event.locals.user`. Helpers em `src/routes/api/_lib/auth-helpers.ts`.
+- **Proteção de rotas**: sem token → `/auth/login`; `/admin/*` exige `role='admin'`; `/colaborador/*` exige `colaboradorId` presente (assim o RH admin+colaborador passa nos dois). Raiz `/` redireciona por papel em `+page.server.ts`.
 
 ## Setup em nova máquina
 
@@ -68,8 +71,9 @@ Volume nomeado `postgres_data` (não polui o repo). `.gitattributes` força `eol
 
 **Credenciais de seed** (senha `Senha123` para todos):
 
-- `admin@teste.com` — admin
+- `admin@teste.com` — admin puro (sem vínculo de colaborador)
 - `carlos@teste.com`, `ana@teste.com` — colaboradores
+- `daniela@teste.com` — **caso RH**: `role='admin'` **e** colaborador (gerencia e bate ponto)
 
 ## Qualidade de Código
 

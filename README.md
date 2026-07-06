@@ -114,3 +114,15 @@ O projeto adota um modelo de precificação simplificado com custo fixo mensal, 
 | **Controle Ponto** | **Custo fixo (Até 100 colaboradores)** | **R$ 99,90** |
 
 ---
+
+### Credenciais de teste
+
+| Usuário            | Identificador    | Senha    | Papel       |
+| ------------------ | ---------------- | -------- | ----------- |
+| Admin              | admin@teste.com  | Senha123 | admin       |
+| Admin (CPF)        | 123.456.789-00   | Senha123 | admin       |
+| Carlos Souza       | carlos@teste.com | Senha123 | colaborador |
+| Carlos Souza (CPF) | 111.444.777-35   | Senha123 | colaborador |
+| Teste              | teste@teste.com  | Senha123 | colaborador |
+
+---

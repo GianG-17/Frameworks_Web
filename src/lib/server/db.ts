@@ -5,7 +5,7 @@
  *
  * Prisma 7 exige um driver adapter explícito (sem engine binário).
  */
-
+import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from './prisma-client/client';
 

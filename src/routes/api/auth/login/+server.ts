@@ -28,7 +28,9 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	// Busca em ambas as tabelas: admin (Usuario) tem precedência sobre Colaborador.
 	const admin = await prisma.usuario.findFirst({ where });
-	const colaborador = admin ? null : await prisma.colaborador.findFirst({ where });
+	const colaborador = admin
+		? null
+		: await prisma.colaborador.findFirst({ where: { ...where, deletedAt: null } });
 
 	const account = admin ?? colaborador;
 	if (!account) return jsonError('Credenciais inválidas', 401);

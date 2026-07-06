@@ -64,10 +64,15 @@ model Colaborador {
   registros      Registro[]
   ferias         Ferias[]
   justificativas Justificativa[]
+  // Soft delete — Portaria 671/2021: demitir um colaborador não pode apagar o
+  // histórico de ponto. Registros das leituras "ativas" filtram `deletedAt: null`;
+  // relatórios legais (espelho) ainda alcançam demitidos.
+  deletedAt      DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   @@index([empresaId])
+  @@index([empresaId, deletedAt])
   @@map("colaboradores")
 }
 
@@ -122,7 +127,9 @@ model JornadaVersao {
 model Registro {
   id            String      @id @default(cuid())
   colaboradorId String
-  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  // Restrict (não Cascade): batidas nunca são destruídas por remoção de colaborador.
+  // A remoção de colaborador é soft (deletedAt), então na prática isto não dispara.
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Restrict)
   empresaId     String
   empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   type          String      // "entrada" | "saida_almoco" | "retorno_almoco" | "saida"

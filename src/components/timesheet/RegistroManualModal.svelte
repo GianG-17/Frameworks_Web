@@ -8,7 +8,6 @@
 
 	interface Props {
 		aberto: boolean;
-		colaboradorNome: string;
 		/** Data inicial do datetime-local (YYYY-MM-DDTHH:mm) */
 		dataInicial: string;
 		tipoInicial: RegistroType;
@@ -20,8 +19,7 @@
 		}) => Promise<void>;
 	}
 
-	let { aberto, colaboradorNome, dataInicial, tipoInicial, onFechar, onConfirmar }: Props =
-		$props();
+	let { aberto, dataInicial, tipoInicial, onFechar, onConfirmar }: Props = $props();
 
 	let tipo = $state<RegistroType>('entrada');
 	let dataHora = $state('');

@@ -13,7 +13,8 @@ FROM node:22-slim AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN npx prisma generate --schema prisma/schema.prisma \
+	&& npm run build
 
 FROM node:22-slim AS prod-deps
 WORKDIR /app

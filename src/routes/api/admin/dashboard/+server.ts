@@ -52,7 +52,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	]);
 
 	const pontosHoje = await prisma.registro.count({
-		where: { empresaId, timestamp: { gte: refDayStart, lte: refDayEnd } }
+		where: { empresaId, marcadoEm: { gte: refDayStart, lte: refDayEnd } }
 	});
 
 	// ── Janela do mês de referência ────────────────────────────────────────────
@@ -62,8 +62,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	);
 
 	const registrosMes = await prisma.registro.findMany({
-		where: { empresaId, timestamp: { gte: mesStart, lte: mesEnd } },
-		orderBy: { timestamp: 'asc' }
+		where: { empresaId, marcadoEm: { gte: mesStart, lte: mesEnd } },
+		orderBy: { marcadoEm: 'asc' }
 	});
 
 	// Index por usuário
@@ -111,7 +111,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		where: { empresaId, deletedAt: null },
 		select: {
 			id: true,
-			name: true,
+			usuario: { select: { nome: true } },
 			status: true,
 			jornada: { select: { versoes: { select: { vigenciaInicio: true, dias: true } } } }
 		}
@@ -120,7 +120,11 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	const topExtras = [...extrasPorUser.entries()]
 		.map(([userId, horas]) => {
 			const c = colaboradores.find((x) => x.id === userId);
-			return { colaboradorId: userId, nome: c?.name ?? '—', horas: Number(horas.toFixed(2)) };
+			return {
+				colaboradorId: userId,
+				nome: c?.usuario.nome ?? '—',
+				horas: Number(horas.toFixed(2))
+			};
 		})
 		.filter((row) => row.horas > 0)
 		.sort((a, b) => b.horas - a.horas)
@@ -128,8 +132,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
 	// ── Entradas do dia (status: pontual / atrasado / falta / sem_jornada) ────
 	const registrosDia = await prisma.registro.findMany({
-		where: { empresaId, timestamp: { gte: refDayStart, lte: refDayEnd }, type: 'entrada' },
-		orderBy: { timestamp: 'asc' }
+		where: { empresaId, marcadoEm: { gte: refDayStart, lte: refDayEnd }, tipo: 'entrada' },
+		orderBy: { marcadoEm: 'asc' }
 	});
 	const entradaByUser = new Map(registrosDia.map((p) => [p.colaboradorId, p]));
 
@@ -145,9 +149,9 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			if (!c.jornada || !dias) {
 				return {
 					colaboradorId: c.id,
-					nome: c.name,
+					nome: c.usuario.nome,
 					jornadaEntrada: null,
-					batidaEntrada: entradaByUser.get(c.id)?.timestamp.toISOString() ?? null,
+					batidaEntrada: entradaByUser.get(c.id)?.marcadoEm.toISOString() ?? null,
 					atrasoMin: 0,
 					status: 'sem_jornada' as const
 				};
@@ -156,9 +160,9 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			if (!cfg?.ativo) {
 				return {
 					colaboradorId: c.id,
-					nome: c.name,
+					nome: c.usuario.nome,
 					jornadaEntrada: null,
-					batidaEntrada: entradaByUser.get(c.id)?.timestamp.toISOString() ?? null,
+					batidaEntrada: entradaByUser.get(c.id)?.marcadoEm.toISOString() ?? null,
 					atrasoMin: 0,
 					status: 'folga' as const
 				};
@@ -176,7 +180,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 				const aindaNaoBateu = previstoMin !== null && agoraMin < previstoMin;
 				return {
 					colaboradorId: c.id,
-					nome: c.name,
+					nome: c.usuario.nome,
 					jornadaEntrada: previsto,
 					batidaEntrada: null,
 					atrasoMin: 0,
@@ -186,14 +190,14 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
 			// Tem batida: calcula atraso em minutos relativo ao horário previsto local (UTC-3)
 			const isoPrevisto = new Date(`${refKey}T${previsto}:00-03:00`);
-			const atrasoMin = Math.round((registro.timestamp.getTime() - isoPrevisto.getTime()) / 60_000);
+			const atrasoMin = Math.round((registro.marcadoEm.getTime() - isoPrevisto.getTime()) / 60_000);
 			const atrasado = atrasoMin > TOLERANCIA_ATRASO_MIN;
 
 			return {
 				colaboradorId: c.id,
-				nome: c.name,
+				nome: c.usuario.nome,
 				jornadaEntrada: previsto,
-				batidaEntrada: registro.timestamp.toISOString(),
+				batidaEntrada: registro.marcadoEm.toISOString(),
 				atrasoMin,
 				status: atrasado ? ('atrasado' as const) : ('pontual' as const)
 			};
@@ -206,14 +210,20 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	const atrasosHoje = entradasHoje.filter((e) => e.status === 'atrasado').length;
 	const faltasHoje = entradasHoje.filter((e) => e.status === 'falta').length;
 
-	// ── Justificativas e férias ativas no mês ─────────────────────────────────
+	// ── Ausências no mês: justificativas (não-férias) e férias ativas ─────────
 	const [justificativasMes, feriasAtivasNoMes] = await Promise.all([
-		prisma.justificativa.count({
-			where: { empresaId, data: { gte: mesStart, lte: mesEnd } }
-		}),
-		prisma.ferias.count({
+		prisma.ausencia.count({
 			where: {
 				empresaId,
+				tipo: { not: 'ferias' },
+				dataInicio: { lte: mesEnd },
+				dataFim: { gte: mesStart }
+			}
+		}),
+		prisma.ausencia.count({
+			where: {
+				empresaId,
+				tipo: 'ferias',
 				dataInicio: { lte: mesEnd },
 				dataFim: { gte: mesStart }
 			}

@@ -10,11 +10,11 @@ export const DELETE: RequestHandler = async ({ request, params }) => {
 		return response as Response;
 	}
 
-	const existing = await prisma.ferias.findUnique({ where: { id: params.id } });
-	if (!existing || existing.empresaId !== admin.empresaId) {
+	const existing = await prisma.ausencia.findUnique({ where: { id: params.id } });
+	if (!existing || existing.empresaId !== admin.empresaId || existing.tipo !== 'ferias') {
 		return jsonError('Férias não encontradas', 404);
 	}
 
-	await prisma.ferias.delete({ where: { id: params.id } });
+	await prisma.ausencia.delete({ where: { id: params.id } });
 	return new Response(null, { status: 204 });
 };

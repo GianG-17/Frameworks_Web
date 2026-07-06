@@ -13,32 +13,37 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-insecure-secret-trocar-em-prod
 const JWT_EXPIRES_IN = '12h';
 
 export interface TokenPayload {
-	id: string;
-	name: string;
+	id: string; // Usuario.id (identidade autenticável)
+	nome: string;
 	email: string;
 	cpf: string;
-	role: string;
+	role: string; // "admin" | "colaborador" — acesso de gestão
 	empresaId: string;
+	// Presente quando a identidade tem extensão Colaborador (bate ponto). Habilita
+	// o registro de ponto inclusive para um admin que também é colaborador (RH).
+	colaboradorId: string | null;
 }
 
-// Entidade autenticável: Usuario (admin) ou Colaborador. O `role` não vive mais
-// na tabela — é derivado de qual modelo originou o login e injetado aqui.
-type Autenticavel = {
+// Identidade autenticável (Usuario). `role` e o vínculo de colaborador vivem no
+// banco: `role` na própria identidade e `colaboradorId` na extensão Colaborador.
+type Identidade = {
 	id: string;
-	name: string;
+	nome: string;
 	email: string;
 	cpf: string;
 	empresaId: string;
+	role: string;
 };
 
-export function toPayload(user: Autenticavel, role: 'admin' | 'colaborador'): TokenPayload {
+export function toPayload(usuario: Identidade, colaboradorId?: string | null): TokenPayload {
 	return {
-		id: user.id,
-		name: user.name,
-		email: user.email,
-		cpf: user.cpf,
-		role,
-		empresaId: user.empresaId
+		id: usuario.id,
+		nome: usuario.nome,
+		email: usuario.email,
+		cpf: usuario.cpf,
+		role: usuario.role,
+		empresaId: usuario.empresaId,
+		colaboradorId: colaboradorId ?? null
 	};
 }
 
@@ -52,11 +57,12 @@ export function decodeToken(token: string): TokenPayload | null {
 		// Descarta os claims do JWT (iat/exp) e devolve só o payload da aplicação.
 		return {
 			id: decoded.id,
-			name: decoded.name,
+			nome: decoded.nome,
 			email: decoded.email,
 			cpf: decoded.cpf,
 			role: decoded.role,
-			empresaId: decoded.empresaId
+			empresaId: decoded.empresaId,
+			colaboradorId: decoded.colaboradorId ?? null
 		};
 	} catch {
 		// Assinatura inválida, token expirado ou malformado.

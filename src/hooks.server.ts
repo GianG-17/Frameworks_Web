@@ -56,9 +56,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 		throw redirect(303, '/auth/login');
 	}
 
-	// Rotas admin → verificar role
+	// Rotas admin → exigem acesso de gestão (role='admin').
 	if (pathname.startsWith('/admin') && decoded.role !== 'admin') {
 		throw redirect(303, '/colaborador/registro');
+	}
+
+	// Rotas de colaborador (bater ponto) → exigem vínculo de colaborador.
+	// Um admin puro (sem `colaboradorId`) não tem ponto; o RH (admin + colaborador)
+	// tem `colaboradorId` e passa normalmente.
+	if (pathname.startsWith('/colaborador') && !decoded.colaboradorId) {
+		throw redirect(303, '/admin/dashboard');
 	}
 
 	return resolve(event);

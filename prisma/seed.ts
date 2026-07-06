@@ -139,12 +139,12 @@ function* iterDates(year: number, month: number): Generator<{ iso: string; dow: 
 }
 
 // ── Geração de pontos de um dia ──────────────────────────────────────────────
-type RegistroType = 'entrada' | 'saida_almoco' | 'retorno_almoco' | 'saida';
+type RegistroTipo = 'entrada' | 'saida_almoco' | 'retorno_almoco' | 'saida';
 
 interface RegistroSpec {
-	type: RegistroType;
-	timestamp: Date;
-	method: 'manual';
+	tipo: RegistroTipo;
+	marcadoEm: Date;
+	metodo: 'manual';
 }
 
 interface DayBehavior {
@@ -165,11 +165,11 @@ function gerarPontosDoDia(
 	if (!diaConfig.ativo) return [];
 	if (chance(rng, comportamento.faltaProb)) return [];
 
-	const planejado: { type: RegistroType; horario: string }[] = [
-		{ type: 'entrada', horario: diaConfig.entrada },
-		{ type: 'saida_almoco', horario: diaConfig.saida_almoco },
-		{ type: 'retorno_almoco', horario: diaConfig.retorno_almoco },
-		{ type: 'saida', horario: diaConfig.saida }
+	const planejado: { tipo: RegistroTipo; horario: string }[] = [
+		{ tipo: 'entrada', horario: diaConfig.entrada },
+		{ tipo: 'saida_almoco', horario: diaConfig.saida_almoco },
+		{ tipo: 'retorno_almoco', horario: diaConfig.retorno_almoco },
+		{ tipo: 'saida', horario: diaConfig.saida }
 	];
 
 	// Atraso grave concentrado na entrada, "puxa" o dia
@@ -179,21 +179,21 @@ function gerarPontosDoDia(
 		let offset: number;
 		if (i === 0 && atrasoGrave) {
 			offset = randInt(rng, 30, 65);
-		} else if (p.type === 'saida') {
+		} else if (p.tipo === 'saida') {
 			// Saída tende a ser pontual ou um pouco depois (hora extra leve às vezes)
 			offset = randInt(rng, -5, 15);
-		} else if (p.type === 'saida_almoco') {
+		} else if (p.tipo === 'saida_almoco') {
 			offset = randInt(rng, -5, 10);
-		} else if (p.type === 'retorno_almoco') {
+		} else if (p.tipo === 'retorno_almoco') {
 			// Volta do almoço atrasa um pouco mais
 			offset = randInt(rng, -3, 12);
 		} else {
 			offset = randInt(rng, -8, 10);
 		}
 		return {
-			type: p.type,
-			timestamp: buildTimestamp(dateISO, p.horario, offset),
-			method: 'manual'
+			tipo: p.tipo,
+			marcadoEm: buildTimestamp(dateISO, p.horario, offset),
+			metodo: 'manual'
 		};
 	});
 
@@ -208,7 +208,7 @@ function gerarPontosDoDia(
 
 // ── Definição dos colaboradores ──────────────────────────────────────────────
 interface ColaboradorSeed {
-	name: string;
+	nome: string;
 	email: string;
 	cpf: string;
 	cargo: string;
@@ -219,6 +219,8 @@ interface ColaboradorSeed {
 	jornada: 'comercial' | 'meioPeriodo';
 	rngSeed: number;
 	comportamento: DayBehavior;
+	/** Também tem acesso de gestão? (RH que gerencia E bate ponto → role='admin') */
+	isAdmin?: boolean;
 	/** Período de férias dentro de Jan/2026 (opcional) */
 	feriasJaneiro?: { inicio: string; fim: string };
 	/** Faltas justificadas (datas dentro de Jan/2026) */
@@ -227,7 +229,7 @@ interface ColaboradorSeed {
 
 const colaboradoresSeed: ColaboradorSeed[] = [
 	{
-		name: 'Carlos Souza',
+		nome: 'Carlos Souza',
 		email: 'carlos@teste.com',
 		cpf: '111.444.777-35',
 		cargo: 'Desenvolvedor',
@@ -240,7 +242,7 @@ const colaboradoresSeed: ColaboradorSeed[] = [
 		comportamento: { faltaProb: 0.0, atrasoGraveProb: 0.05, esqueceBatidaProb: 0.04 }
 	},
 	{
-		name: 'Ana Pereira',
+		nome: 'Ana Pereira',
 		email: 'ana@teste.com',
 		cpf: '222.555.888-46',
 		cargo: 'Analista Financeiro',
@@ -253,7 +255,7 @@ const colaboradoresSeed: ColaboradorSeed[] = [
 		comportamento: { faltaProb: 0.0, atrasoGraveProb: 0.02, esqueceBatidaProb: 0.06 }
 	},
 	{
-		name: 'Bruno Oliveira',
+		nome: 'Bruno Oliveira',
 		email: 'bruno@teste.com',
 		cpf: '333.666.999-57',
 		cargo: 'Designer',
@@ -267,7 +269,8 @@ const colaboradoresSeed: ColaboradorSeed[] = [
 		justificativas: [{ data: '2026-01-22', motivo: 'Consulta médica' }]
 	},
 	{
-		name: 'Daniela Martins',
+		// Coordenadora de RH: gerencia (role='admin') E bate ponto (tem colaborador).
+		nome: 'Daniela Martins',
 		email: 'daniela@teste.com',
 		cpf: '444.777.000-68',
 		cargo: 'Coordenadora',
@@ -277,10 +280,11 @@ const colaboradoresSeed: ColaboradorSeed[] = [
 		status: 'ativo',
 		jornada: 'comercial',
 		rngSeed: 404,
-		comportamento: { faltaProb: 0.0, atrasoGraveProb: 0.03, esqueceBatidaProb: 0.02 }
+		comportamento: { faltaProb: 0.0, atrasoGraveProb: 0.03, esqueceBatidaProb: 0.02 },
+		isAdmin: true
 	},
 	{
-		name: 'Eduardo Lima',
+		nome: 'Eduardo Lima',
 		email: 'eduardo@teste.com',
 		cpf: '555.888.111-79',
 		cargo: 'Suporte Técnico',
@@ -294,7 +298,7 @@ const colaboradoresSeed: ColaboradorSeed[] = [
 		feriasJaneiro: { inicio: '2026-01-26', fim: '2026-01-30' }
 	},
 	{
-		name: 'Fernanda Costa',
+		nome: 'Fernanda Costa',
 		email: 'fernanda@teste.com',
 		cpf: '666.999.222-80',
 		cargo: 'Estagiária',
@@ -310,13 +314,13 @@ const colaboradoresSeed: ColaboradorSeed[] = [
 ];
 
 // ── Ajustes/lançamentos de exemplo (admin) ───────────────────────────────────
-// Demonstra a comparação do espelho: marcações do colaborador (createdBy null,
+// Demonstra a comparação do espelho: marcações do colaborador (criadoPor null,
 // imutáveis) × estado com ajustes do admin. Cada ajuste anula a batida original
 // e cria a corrigida vinculada (registroSubstitutoId); lançamentos manuais
 // preenchem batidas que faltaram. Determinístico (usa os primeiros dias que se
 // qualificam), então sobrevive a cada `db:seed`.
-const TODOS_TIPOS: RegistroType[] = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'];
-const HORARIO_PADRAO: Record<RegistroType, string> = {
+const TODOS_TIPOS: RegistroTipo[] = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'];
+const HORARIO_PADRAO: Record<RegistroTipo, string> = {
 	entrada: '08:00',
 	saida_almoco: '12:00',
 	retorno_almoco: '13:00',
@@ -325,13 +329,13 @@ const HORARIO_PADRAO: Record<RegistroType, string> = {
 
 async function seedAjustesDemo(empresaId: string, adminId: string, colaboradorId: string) {
 	const registros = await prisma.registro.findMany({
-		where: { colaboradorId, createdBy: null },
-		orderBy: { timestamp: 'asc' }
+		where: { colaboradorId, criadoPor: null },
+		orderBy: { marcadoEm: 'asc' }
 	});
 
 	const porDia = new Map<string, typeof registros>();
 	for (const r of registros) {
-		const dia = r.timestamp.toISOString().slice(0, 10);
+		const dia = r.marcadoEm.toISOString().slice(0, 10);
 		const lista = porDia.get(dia) ?? [];
 		lista.push(r);
 		porDia.set(dia, lista);
@@ -343,7 +347,7 @@ async function seedAjustesDemo(empresaId: string, adminId: string, colaboradorId
 	// 1) Lançamentos manuais: até 2 dias com alguma batida faltando.
 	for (const [dia, regs] of porDia) {
 		if (manuais >= 2) break;
-		const tipos = new Set(regs.map((r) => r.type));
+		const tipos = new Set(regs.map((r) => r.tipo));
 		if (tipos.size === 0 || tipos.size === 4) continue;
 		const faltando = TODOS_TIPOS.find((t) => !tipos.has(t));
 		if (!faltando) continue;
@@ -351,18 +355,18 @@ async function seedAjustesDemo(empresaId: string, adminId: string, colaboradorId
 			data: {
 				colaboradorId,
 				empresaId,
-				type: faltando,
-				timestamp: buildTimestamp(dia, HORARIO_PADRAO[faltando], 0),
-				method: 'manual',
-				createdBy: adminId,
-				createdReason: 'Colaborador esqueceu de bater — confirmado pelo gestor.'
+				tipo: faltando,
+				marcadoEm: buildTimestamp(dia, HORARIO_PADRAO[faltando], 0),
+				metodo: 'manual',
+				criadoPor: adminId,
+				criadoMotivo: 'Colaborador esqueceu de bater — confirmado pelo gestor.'
 			}
 		});
 		manuais++;
 	}
 
 	// 2) Ajustes: até 3 dias completos, corrige um horário (anula + substitui).
-	const correcoes: { tipo: RegistroType; horario: string; motivo: string }[] = [
+	const correcoes: { tipo: RegistroTipo; horario: string; motivo: string }[] = [
 		{
 			tipo: 'entrada',
 			horario: '07:30',
@@ -382,19 +386,19 @@ async function seedAjustesDemo(empresaId: string, adminId: string, colaboradorId
 	let ci = 0;
 	for (const [dia, regs] of porDia) {
 		if (ci >= correcoes.length) break;
-		if (new Set(regs.map((r) => r.type)).size !== 4) continue;
+		if (new Set(regs.map((r) => r.tipo)).size !== 4) continue;
 		const corr = correcoes[ci];
-		const original = regs.find((r) => r.type === corr.tipo)!;
+		const original = regs.find((r) => r.tipo === corr.tipo)!;
 		await prisma.$transaction(async (tx) => {
 			const novo = await tx.registro.create({
 				data: {
 					colaboradorId,
 					empresaId,
-					type: corr.tipo,
-					timestamp: buildTimestamp(dia, corr.horario, 0),
-					method: 'manual',
-					createdBy: adminId,
-					createdReason: corr.motivo
+					tipo: corr.tipo,
+					marcadoEm: buildTimestamp(dia, corr.horario, 0),
+					metodo: 'manual',
+					criadoPor: adminId,
+					criadoMotivo: corr.motivo
 				}
 			});
 			await tx.registroAnulacao.create({
@@ -418,8 +422,7 @@ async function seedAjustesDemo(empresaId: string, adminId: string, colaboradorId
 async function main() {
 	const senhaHash = await bcrypt.hash('Senha123', 10);
 
-	await prisma.justificativa.deleteMany();
-	await prisma.ferias.deleteMany();
+	await prisma.ausencia.deleteMany();
 	await prisma.registroAnulacao.deleteMany();
 	await prisma.registro.deleteMany();
 	await prisma.colaborador.deleteMany();
@@ -463,13 +466,15 @@ async function main() {
 		}
 	});
 
+	// Admin puro (sem vínculo de colaborador).
 	const admin = await prisma.usuario.create({
 		data: {
 			empresaId: empresa.id,
-			name: 'Admin',
+			nome: 'Admin',
 			email: 'admin@teste.com',
 			cpf: '12345678900',
-			password: senhaHash
+			senhaHash,
+			role: 'admin'
 		}
 	});
 
@@ -483,13 +488,23 @@ async function main() {
 	for (const c of colaboradoresSeed) {
 		const jornada = jornadasMap[c.jornada];
 
-		const user = await prisma.colaborador.create({
+		// Identidade (login) + extensão de vínculo (colaborador). Daniela (RH) tem
+		// role='admin' e ainda ganha a linha de colaborador para bater ponto.
+		const usuario = await prisma.usuario.create({
 			data: {
 				empresaId: empresa.id,
-				name: c.name,
+				nome: c.nome,
 				email: c.email,
 				cpf: c.cpf.replace(/\D/g, ''),
-				password: senhaHash,
+				senhaHash,
+				role: c.isAdmin ? 'admin' : 'colaborador'
+			}
+		});
+
+		const colaborador = await prisma.colaborador.create({
+			data: {
+				usuarioId: usuario.id,
+				empresaId: empresa.id,
 				cargo: c.cargo,
 				departamentoId: departamentosMap.get(c.departamento)!,
 				telefone: c.telefone,
@@ -500,25 +515,34 @@ async function main() {
 		});
 
 		if (c.feriasJaneiro) {
-			await prisma.ferias.create({
+			await prisma.ausencia.create({
 				data: {
 					empresaId: empresa.id,
-					colaboradorId: user.id,
+					colaboradorId: colaborador.id,
+					tipo: 'ferias',
 					dataInicio: new Date(c.feriasJaneiro.inicio),
 					dataFim: new Date(c.feriasJaneiro.fim),
-					observacao: 'Férias programadas'
+					motivo: 'Férias programadas',
+					status: 'aprovada',
+					revisadoPor: admin.id,
+					revisadoEm: new Date('2025-12-15T12:00:00.000Z')
 				}
 			});
 		}
 
 		if (c.justificativas) {
 			for (const j of c.justificativas) {
-				await prisma.justificativa.create({
+				await prisma.ausencia.create({
 					data: {
 						empresaId: empresa.id,
-						colaboradorId: user.id,
-						data: new Date(j.data),
-						motivo: j.motivo
+						colaboradorId: colaborador.id,
+						tipo: 'atestado',
+						dataInicio: new Date(j.data),
+						dataFim: new Date(j.data),
+						motivo: j.motivo,
+						status: 'aprovada',
+						revisadoPor: admin.id,
+						revisadoEm: new Date(`${j.data}T12:00:00.000Z`)
 					}
 				});
 			}
@@ -538,9 +562,9 @@ async function main() {
 		const registrosData: {
 			colaboradorId: string;
 			empresaId: string;
-			type: RegistroType;
-			timestamp: Date;
-			method: 'manual';
+			tipo: RegistroTipo;
+			marcadoEm: Date;
+			metodo: 'manual';
 		}[] = [];
 
 		for (const { iso, dow } of iterDates(2026, 1)) {
@@ -549,11 +573,11 @@ async function main() {
 			const pontos = gerarPontosDoDia(rng, iso, diaConfig, c.comportamento);
 			for (const p of pontos) {
 				registrosData.push({
-					colaboradorId: user.id,
+					colaboradorId: colaborador.id,
 					empresaId: empresa.id,
-					type: p.type,
-					timestamp: p.timestamp,
-					method: p.method
+					tipo: p.tipo,
+					marcadoEm: p.marcadoEm,
+					metodo: p.metodo
 				});
 			}
 		}
@@ -565,7 +589,9 @@ async function main() {
 	}
 
 	// Ajustes/lançamentos de exemplo no Carlos, para demonstrar a comparação no espelho.
-	const carlos = await prisma.colaborador.findFirst({ where: { email: 'carlos@teste.com' } });
+	const carlos = await prisma.colaborador.findFirst({
+		where: { usuario: { email: 'carlos@teste.com' } }
+	});
 	const demo = carlos
 		? await seedAjustesDemo(empresa.id, admin.id, carlos.id)
 		: { ajustes: 0, manuais: 0 };

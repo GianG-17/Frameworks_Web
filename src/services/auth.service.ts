@@ -14,11 +14,12 @@ export interface AuthResponse {
 	token: string;
 	user: {
 		id: string;
-		name: string;
+		nome: string;
 		email: string;
 		cpf: string;
 		role: 'admin' | 'colaborador';
 		empresaId: string;
+		colaboradorId: string | null;
 	};
 }
 

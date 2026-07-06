@@ -1,5 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { prisma } from '@/lib/server/db';
+import { toFeriasDTO, STATUS_APROVADA } from '@/lib/server/ausencia';
 import { requireAdmin, jsonError, jsonOk } from '../_lib/auth-helpers';
 
 export const GET: RequestHandler = async ({ request }) => {
@@ -10,22 +11,13 @@ export const GET: RequestHandler = async ({ request }) => {
 		return response as Response;
 	}
 
-	const lista = await prisma.ferias.findMany({
-		where: { empresaId: admin.empresaId },
+	const lista = await prisma.ausencia.findMany({
+		where: { empresaId: admin.empresaId, tipo: 'ferias' },
 		orderBy: { dataInicio: 'desc' },
-		include: { colaborador: { select: { id: true, name: true } } }
+		include: { colaborador: { select: { id: true, usuario: { select: { nome: true } } } } }
 	});
 
-	return jsonOk(
-		lista.map((f) => ({
-			id: f.id,
-			colaboradorId: f.colaboradorId,
-			colaboradorNome: f.colaborador.name,
-			dataInicio: f.dataInicio.toISOString(),
-			dataFim: f.dataFim.toISOString(),
-			observacao: f.observacao
-		}))
-	);
+	return jsonOk(lista.map(toFeriasDTO));
 };
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -59,15 +51,21 @@ export const POST: RequestHandler = async ({ request }) => {
 		return jsonError('Colaborador não encontrado', 404);
 	}
 
-	const ferias = await prisma.ferias.create({
+	// Férias lançadas pelo admin já entram aprovadas (abonam o período no espelho).
+	const ferias = await prisma.ausencia.create({
 		data: {
 			empresaId: admin.empresaId,
 			colaboradorId: body.colaboradorId,
+			tipo: 'ferias',
 			dataInicio: new Date(body.dataInicio),
 			dataFim: new Date(body.dataFim),
-			observacao: body.observacao ?? null
-		}
+			motivo: body.observacao ?? null,
+			status: STATUS_APROVADA,
+			revisadoPor: admin.id,
+			revisadoEm: new Date()
+		},
+		include: { colaborador: { select: { id: true, usuario: { select: { nome: true } } } } }
 	});
 
-	return jsonOk(ferias, 201);
+	return jsonOk(toFeriasDTO(ferias), 201);
 };

@@ -12,64 +12,79 @@ model Empresa {
   id             String   @id @default(cuid())
   nome           String
   cnpj           String?  @unique
-  horaAbertura   String   // "08:00"
-  horaFechamento String   // "18:00"
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  // Setting da empresa; `<input type="time">` no admin já garante o formato "HH:MM".
+  // Mantido como String de propósito: `@db.Time` viraria Date (data fantasma) e
+  // exigiria conversão frágil com timezone para um campo de baixo risco.
+  horaAbertura   String   @map("hora_abertura") // "08:00"
+  horaFechamento String   @map("hora_fechamento") // "18:00"
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  usuarios       Usuario[]
-  colaboradores  Colaborador[]
-  jornadas       Jornada[]
-  departamentos  Departamento[]
-  registros      Registro[]
-  ferias         Ferias[]
-  justificativas Justificativa[]
+  usuarios      Usuario[]
+  colaboradores Colaborador[]
+  jornadas      Jornada[]
+  departamentos Departamento[]
+  registros     Registro[]
+  ausencias     Ausencia[]
 
   @@map("empresas")
 }
 
-// Usuário administrador — gerencia colaboradores, jornadas e dashboard.
+// Identidade autenticável — ÚNICA entidade de login (admin e colaborador).
+// `role` marca o acesso de gestão; "é colaborador / bate ponto" é dado pela
+// existência da extensão `Colaborador` vinculada. Uma pessoa pode ter os dois
+// (ex.: RH que gerencia e bate ponto = role='admin' + linha em colaboradores).
 model Usuario {
   id        String   @id @default(cuid())
-  empresaId String
+  empresaId String   @map("empresa_id")
   empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  name      String
-  email     String   @unique
-  cpf       String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  nome      String
+  email     String
+  cpf       String
+  senhaHash String   @map("senha_hash")
+  role      String // "admin" | "colaborador"
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  // Extensão 1:1 opcional com o vínculo de emprego.
+  colaborador Colaborador?
+
+  // Back-relations dos campos de auditoria (quem fez a ação).
+  registrosCriados   Registro[]         @relation("registroCriadoPor")
+  anulacoes          RegistroAnulacao[] @relation("anulacaoAnuladoPor")
+  ausenciasRevisadas Ausencia[]         @relation("ausenciaRevisadoPor")
+
+  @@unique([empresaId, email])
+  @@unique([empresaId, cpf])
   @@index([empresaId])
   @@map("usuarios")
 }
 
-// Colaborador — registra ponto via login manual.
+// Colaborador — extensão 1:1 da identidade com os dados de vínculo de emprego.
+// NÃO guarda credencial: login mora só em `usuarios`. `usuarioId` amarra a
+// identidade autenticável correspondente.
 model Colaborador {
   id             String        @id @default(cuid())
-  empresaId      String
+  usuarioId      String        @unique @map("usuario_id")
+  usuario        Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  empresaId      String        @map("empresa_id")
   empresa        Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  name           String
-  email          String        @unique
-  cpf            String        @unique
-  password       String
   cargo          String?
-  departamentoId String?
+  departamentoId String?       @map("departamento_id")
   departamento   Departamento? @relation(fields: [departamentoId], references: [id], onDelete: SetNull)
   telefone       String?
-  dataAdmissao   DateTime?
-  status         String?       // "ativo" | "inativo" | "ferias" | "afastado"
-  jornadaId      String?
+  dataAdmissao   DateTime?     @map("data_admissao") @db.Timestamptz(6)
+  status         String? // "ativo" | "inativo" | "ferias" | "afastado"
+  jornadaId      String?       @map("jornada_id")
   jornada        Jornada?      @relation(fields: [jornadaId], references: [id], onDelete: SetNull)
   registros      Registro[]
-  ferias         Ferias[]
-  justificativas Justificativa[]
+  ausencias      Ausencia[]
   // Soft delete — Portaria 671/2021: demitir um colaborador não pode apagar o
   // histórico de ponto. Registros das leituras "ativas" filtram `deletedAt: null`;
   // relatórios legais (espelho) ainda alcançam demitidos.
-  deletedAt      DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([empresaId])
   @@index([empresaId, deletedAt])
@@ -78,12 +93,12 @@ model Colaborador {
 
 model Departamento {
   id            String        @id @default(cuid())
-  empresaId     String
+  empresaId     String        @map("empresa_id")
   empresa       Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome          String
   colaboradores Colaborador[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([empresaId, nome])
   @@index([empresaId])
@@ -92,15 +107,15 @@ model Departamento {
 
 model Jornada {
   id            String          @id @default(cuid())
-  empresaId     String
+  empresaId     String          @map("empresa_id")
   empresa       Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome          String
   colaboradores Colaborador[]
   // Versões do horário ao longo do tempo (vigência). O cálculo de datas passadas
   // resolve qual versão estava vigente no dia — alterar o horário não reescreve o histórico.
   versoes       JornadaVersao[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([empresaId])
   @@map("jornadas")
@@ -111,12 +126,12 @@ model Jornada {
 // versão vigente a partir do dia seguinte; ver PUT /api/jornadas/[id].
 model JornadaVersao {
   id             String   @id @default(cuid())
-  jornadaId      String
+  jornadaId      String   @map("jornada_id")
   jornada        Jornada  @relation(fields: [jornadaId], references: [id], onDelete: Cascade)
   // JSON com os 7 dias (segunda..domingo)
   dias           Json
-  vigenciaInicio DateTime @db.Date
-  createdAt      DateTime @default(now())
+  vigenciaInicio DateTime @map("vigencia_inicio") @db.Date
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@unique([jornadaId, vigenciaInicio])
   @@index([jornadaId, vigenciaInicio])
@@ -125,26 +140,27 @@ model JornadaVersao {
 
 // Registro de ponto (batida) — imutável conforme Portaria 671/2021.
 model Registro {
-  id            String      @id @default(cuid())
-  colaboradorId String
+  id                String            @id @default(cuid())
+  colaboradorId     String            @map("colaborador_id")
   // Restrict (não Cascade): batidas nunca são destruídas por remoção de colaborador.
   // A remoção de colaborador é soft (deletedAt), então na prática isto não dispara.
-  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Restrict)
-  empresaId     String
-  empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  type          String      // "entrada" | "saida_almoco" | "retorno_almoco" | "saida"
-  timestamp     DateTime    @default(now())
-  method        String      // "manual"
+  colaborador       Colaborador       @relation(fields: [colaboradorId], references: [id], onDelete: Restrict)
+  empresaId         String            @map("empresa_id")
+  empresa           Empresa           @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  tipo              String // "entrada" | "saida_almoco" | "retorno_almoco" | "saida"
+  marcadoEm         DateTime          @default(now()) @map("marcado_em") @db.Timestamptz(6)
+  metodo            String // "manual"
   // Auditoria — Portaria 671/2021: registros são imutáveis.
-  // createdBy preenchido apenas quando admin cria batida em nome de um colaborador (Usuario.id).
-  createdBy     String?
-  createdReason String?
-  anulacao      RegistroAnulacao? @relation("registroAnulado")
+  // criadoPor preenchido apenas quando admin cria batida em nome de um colaborador (Usuario.id).
+  criadoPor         String?           @map("criado_por")
+  criadoPorRef      Usuario?          @relation("registroCriadoPor", fields: [criadoPor], references: [id], onDelete: Restrict)
+  criadoMotivo      String?           @map("criado_motivo")
+  anulacao          RegistroAnulacao? @relation("registroAnulado")
   // Anulação que esta batida corrige (preenchido quando a batida nasceu de um ajuste).
   substituiAnulacao RegistroAnulacao? @relation("registroSubstituto")
 
-  @@index([colaboradorId, timestamp])
-  @@index([empresaId, timestamp])
+  @@index([colaboradorId, marcadoEm])
+  @@index([empresaId, marcadoEm])
   @@map("registros")
 }
 
@@ -153,52 +169,42 @@ model Registro {
 // Ajuste = anulação com `registroSubstitutoId` apontando para a batida corrigida.
 // Anulação avulsa (ex.: clique duplicado) tem `registroSubstitutoId` nulo.
 model RegistroAnulacao {
-  id         String   @id @default(cuid())
-  registroId String   @unique
-  registro   Registro @relation("registroAnulado", fields: [registroId], references: [id], onDelete: Cascade)
-  registroSubstitutoId String?   @unique
+  id                   String    @id @default(cuid())
+  registroId           String    @unique @map("registro_id")
+  registro             Registro  @relation("registroAnulado", fields: [registroId], references: [id], onDelete: Cascade)
+  registroSubstitutoId String?   @unique @map("registro_substituto_id")
   registroSubstituto   Registro? @relation("registroSubstituto", fields: [registroSubstitutoId], references: [id], onDelete: SetNull)
-  empresaId  String
-  motivo     String
-  anuladoPor String   // Usuario.id do admin
-  anuladoEm  DateTime @default(now())
+  empresaId            String    @map("empresa_id")
+  motivo               String
+  anuladoPor           String    @map("anulado_por") // Usuario.id do admin
+  anuladoPorRef        Usuario   @relation("anulacaoAnuladoPor", fields: [anuladoPor], references: [id], onDelete: Restrict)
+  anuladoEm            DateTime  @default(now()) @map("anulado_em") @db.Timestamptz(6)
 
   @@index([empresaId])
   @@map("registro_anulacoes")
 }
 
-model Ferias {
-  id            String      @id @default(cuid())
-  colaboradorId String
-  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
-  empresaId     String
-  empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  dataInicio    DateTime
-  dataFim       DateTime
-  observacao    String?
-  createdAt     DateTime    @default(now())
+// Ausência / afastamento — unifica férias, atestados e folgas sob um único
+// fluxo de aprovação. `tipo` discrimina a natureza; `status` rege a aprovação.
+model Ausencia {
+  id             String      @id @default(cuid())
+  colaboradorId  String      @map("colaborador_id")
+  colaborador    Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  empresaId      String      @map("empresa_id")
+  empresa        Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  tipo           String // "ferias" | "atestado" | "folga" | "outro"
+  dataInicio     DateTime    @map("data_inicio") @db.Timestamptz(6)
+  dataFim        DateTime    @map("data_fim") @db.Timestamptz(6)
+  motivo         String?
+  anexoUrl       String?     @map("anexo_url")
+  status         String      @default("pendente") // "pendente" | "aprovada" | "rejeitada"
+  revisadoPor    String?     @map("revisado_por") // Usuario.id do admin que revisou
+  revisadoPorRef Usuario?    @relation("ausenciaRevisadoPor", fields: [revisadoPor], references: [id], onDelete: Restrict)
+  revisadoEm     DateTime?   @map("revisado_em") @db.Timestamptz(6)
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([empresaId])
   @@index([colaboradorId])
-  @@map("ferias")
-}
-
-model Justificativa {
-  id            String      @id @default(cuid())
-  colaboradorId String
-  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
-  empresaId     String
-  empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  data          DateTime
-  motivo        String
-  anexoUrl      String?
-  status        String      @default("pending") // "pending" | "approved" | "rejected"
-  approvedBy    String?     // Usuario.id do admin que aprovou
-  approvedAt    DateTime?
-  createdAt     DateTime    @default(now())
   @@index([status])
-
-  @@index([empresaId])
-  @@index([colaboradorId])
-  @@map("justificativas")
+  @@map("ausencias")
 }

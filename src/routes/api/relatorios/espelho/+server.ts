@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { prisma } from '@/lib/server/db';
-import { buildDailySummaries, dateKey } from '@/lib/server/timesheet';
+import { buildDailySummaries, ausenciaDateKeys } from '@/lib/server/timesheet';
 import { requireAdmin, jsonError, jsonOk } from '../../_lib/auth-helpers';
 
 export const GET: RequestHandler = async ({ request, url }) => {
@@ -19,7 +19,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		return jsonError('colaboradorId, inicio e fim são obrigatórios', 400);
 	}
 
-	const colaborador = await prisma.colaborador.findUnique({ where: { id: colaboradorId } });
+	const colaborador = await prisma.colaborador.findUnique({
+		where: { id: colaboradorId },
+		include: { usuario: { select: { nome: true } } }
+	});
 	if (!colaborador || colaborador.empresaId !== admin.empresaId) {
 		return jsonError('Colaborador não encontrado', 404);
 	}
@@ -30,28 +33,29 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		return jsonError('Datas inválidas', 400);
 	}
 
-	const [registros, justificativas] = await Promise.all([
+	const [registros, ausencias] = await Promise.all([
 		prisma.registro.findMany({
-			where: { colaboradorId, timestamp: { gte: start, lte: end } },
-			orderBy: { timestamp: 'asc' },
+			where: { colaboradorId, marcadoEm: { gte: start, lte: end } },
+			orderBy: { marcadoEm: 'asc' },
 			include: { anulacao: true }
 		}),
-		prisma.justificativa.findMany({
+		prisma.ausencia.findMany({
 			where: {
 				colaboradorId,
 				empresaId: admin.empresaId,
-				status: 'approved',
-				data: { gte: start, lte: end }
+				status: 'aprovada',
+				dataInicio: { lte: end },
+				dataFim: { gte: start }
 			}
 		})
 	]);
 
-	const datasAbonadas = new Set(justificativas.map((j) => dateKey(j.data)));
+	const datasAbonadas = ausenciaDateKeys(ausencias);
 
 	// Estado efetivo (com ajustes do admin) e estado original (só marcações do
-	// colaborador, createdBy == null) — ambos a partir dos mesmos registros.
+	// colaborador, criadoPor == null) — ambos a partir dos mesmos registros.
 	const diasEfetivos = buildDailySummaries(registros, datasAbonadas);
-	const diasOriginais = buildDailySummaries(registros, datasAbonadas, (p) => p.createdBy == null);
+	const diasOriginais = buildDailySummaries(registros, datasAbonadas, (p) => p.criadoPor == null);
 	const origPorData = new Map(diasOriginais.map((d) => [d.date, d]));
 
 	const dias = diasEfetivos.map((d) => {
@@ -73,7 +77,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	});
 
 	return jsonOk({
-		colaborador: { id: colaborador.id, nome: colaborador.name },
+		colaborador: { id: colaborador.id, nome: colaborador.usuario.nome },
 		inicio,
 		fim,
 		dias,

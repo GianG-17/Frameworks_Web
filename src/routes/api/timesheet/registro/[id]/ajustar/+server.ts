@@ -55,8 +55,8 @@ export const POST: RequestHandler = async ({ request, params }) => {
 		return jsonError('Batida já anulada', 409);
 	}
 
-	const type = body.type ?? registro.type;
-	if (!VALID_TYPES.includes(type)) {
+	const tipo = body.type ?? registro.tipo;
+	if (!VALID_TYPES.includes(tipo)) {
 		return jsonError(`type deve ser um de: ${VALID_TYPES.join(', ')}`, 400);
 	}
 
@@ -67,11 +67,11 @@ export const POST: RequestHandler = async ({ request, params }) => {
 			data: {
 				colaboradorId: registro.colaboradorId,
 				empresaId: admin.empresaId,
-				type,
-				timestamp: ts,
-				method: 'manual',
-				createdBy: admin.id,
-				createdReason: motivo
+				tipo,
+				marcadoEm: ts,
+				metodo: 'manual',
+				criadoPor: admin.id,
+				criadoMotivo: motivo
 			}
 		});
 

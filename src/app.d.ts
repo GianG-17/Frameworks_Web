@@ -8,11 +8,12 @@ declare global {
 		interface Locals {
 			user: {
 				id: string;
-				name: string;
+				nome: string;
 				email: string;
 				cpf: string;
 				role: 'admin' | 'colaborador';
 				empresaId: string;
+				colaboradorId: string | null;
 			} | null;
 		}
 

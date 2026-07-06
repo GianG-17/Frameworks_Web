@@ -115,7 +115,7 @@ O projeto adota um modelo de precificação simplificado com custo fixo mensal, 
 
 ---
 
-### Credenciais de teste
+### Credenciais de Teste
 
 | Usuário            | Identificador    | Senha    | Papel       |
 | ------------------ | ---------------- | -------- | ----------- |

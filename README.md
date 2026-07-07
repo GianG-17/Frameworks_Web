@@ -22,7 +22,7 @@ Projeto desenvolvido para a disciplina de **Projeto de Desenvolvimento I** da **
 
 ## 🔗 Links Principais
 * 💻 **GitHub:** *https://github.com/GianG-17/Frameworks_Web*
-* 🌐 **Deploy da Aplicação:** *https://frameworks-web-034l.onrender.com/auth/login*
+* 🌐 **Deploy da Aplicação:** *https://controle-ponto-6l0g.onrender.com/*
 * 🗂️ **Trello:** *https://trello.com/b/aX6doi72/controle-de-ponto-pd1*
 * 📊 **Apresentação:** *https://canva.link/l2whdkiic5za996*
 

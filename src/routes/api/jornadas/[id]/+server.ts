@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { prisma } from '@/lib/server/db';
-import { toJornadaDTO, dataHojeUTC, dataAmanhaUTC } from '@/lib/server/jornada';
+import { toJornadaDTO, dataAmanhaUTC, parseDataUTC } from '@/lib/server/jornada';
 import { requireAdmin, jsonError, jsonOk } from '../../_lib/auth-helpers';
 
 export const PUT: RequestHandler = async ({ request, params }) => {
@@ -11,7 +11,7 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 		return response as Response;
 	}
 
-	let body: { nome?: string; dias?: unknown };
+	let body: { nome?: string; dias?: unknown; vigenciaInicio?: string };
 	try {
 		body = await request.json();
 	} catch {
@@ -19,8 +19,7 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 	}
 
 	const existing = await prisma.jornada.findUnique({
-		where: { id: params.id },
-		include: { versoes: { orderBy: { vigenciaInicio: 'desc' }, take: 1 } }
+		where: { id: params.id }
 	});
 	if (!existing || existing.empresaId !== admin.empresaId) {
 		return jsonError('Jornada não encontrada', 404);
@@ -30,31 +29,23 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 		await prisma.jornada.update({ where: { id: params.id }, data: { nome: body.nome } });
 	}
 
-	// Alteração de horário: versões já vigentes são imutáveis (histórico). A nova
-	// versão vale a partir de amanhã. Exceção segura: corrigir uma jornada
-	// recém-criada (versão vigente começou hoje) que ainda não tem batidas.
+	// Alteração de horário: a pessoa escolhe a data de vigência (default amanhã).
+	// Versões passadas permanecem como histórico; o upsert por (jornadaId,
+	// vigenciaInicio) sobrescreve a versão daquela data — inclusive "hoje", quando
+	// é uma correção. A proteção do passado é a resolução por versão em `versaoVigenteEm`.
 	if (body.dias) {
 		const dias = body.dias as object;
-		const latest = existing.versoes[0];
-		const hoje = dataHojeUTC();
-
-		const versaoDeHoje = latest && latest.vigenciaInicio.getTime() === hoje.getTime();
-		const semUso =
-			versaoDeHoje &&
-			(await prisma.registro.count({
-				where: { empresaId: admin.empresaId, colaborador: { jornadaId: params.id } }
-			})) === 0;
-
-		if (latest && semUso) {
-			await prisma.jornadaVersao.update({ where: { id: latest.id }, data: { dias } });
-		} else {
-			const vigenciaInicio = dataAmanhaUTC();
-			await prisma.jornadaVersao.upsert({
-				where: { jornadaId_vigenciaInicio: { jornadaId: params.id, vigenciaInicio } },
-				update: { dias },
-				create: { jornadaId: params.id, dias, vigenciaInicio }
-			});
+		const vigenciaInicio = body.vigenciaInicio
+			? parseDataUTC(body.vigenciaInicio)
+			: dataAmanhaUTC();
+		if (!vigenciaInicio) {
+			return jsonError('Data de vigência inválida', 400);
 		}
+		await prisma.jornadaVersao.upsert({
+			where: { jornadaId_vigenciaInicio: { jornadaId: params.id, vigenciaInicio } },
+			update: { dias },
+			create: { jornadaId: params.id, dias, vigenciaInicio }
+		});
 	}
 
 	const jornada = await prisma.jornada.findUnique({

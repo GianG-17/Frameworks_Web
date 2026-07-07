@@ -28,6 +28,27 @@
 		return `${h}h ${String(m).padStart(2, '0')}min`;
 	}
 
+	function toIsoDate(d: Date): string {
+		const y = d.getFullYear();
+		const m = String(d.getMonth() + 1).padStart(2, '0');
+		const day = String(d.getDate()).padStart(2, '0');
+		return `${y}-${m}-${day}`;
+	}
+
+	function hojeStr(): string {
+		return toIsoDate(new Date());
+	}
+
+	function amanhaStr(): string {
+		const h = new Date();
+		return toIsoDate(new Date(h.getFullYear(), h.getMonth(), h.getDate() + 1));
+	}
+
+	function formatarDataBR(iso: string): string {
+		const [y, m, d] = iso.split('-');
+		return `${d}/${m}/${y}`;
+	}
+
 	function diaPadrao(ativo: boolean): DiaSemana {
 		return { ativo, entrada: '', saida_almoco: '', retorno_almoco: '', saida: '' };
 	}
@@ -57,6 +78,7 @@
 
 	// ── Campos do formulário ───────────────────────────────────
 	let formNome = $state('');
+	let formVigenciaInicio = $state('');
 	let mesmoHorario = $state(true);
 	let horarioUnico = $state({ entrada: '', saida_almoco: '', retorno_almoco: '', saida: '' });
 	let formDias = $state<Record<DiaSemanaKey, DiaSemana>>(diasPadrao());
@@ -73,7 +95,13 @@
 				);
 			});
 			const totalSemana = minutosPorDia.reduce((a, b) => a + b, 0);
-			return { ...j, quantidadeDias: diasAtivos.length, totalSemana };
+			// Menor data de vigência futura (versão agendada que ainda não vale hoje).
+			const hoje = hojeStr();
+			const proximaVigencia = j.versoes
+				.map((v) => v.vigenciaInicio)
+				.filter((d) => d > hoje)
+				.sort()[0];
+			return { ...j, quantidadeDias: diasAtivos.length, totalSemana, proximaVigencia };
 		})
 	);
 
@@ -151,6 +179,7 @@
 	function openCreate() {
 		editingId = null;
 		formNome = '';
+		formVigenciaInicio = hojeStr();
 		mesmoHorario = true;
 		horarioUnico = { entrada: '', saida_almoco: '', retorno_almoco: '', saida: '' };
 		formDias = diasPadrao();
@@ -161,6 +190,7 @@
 	function openEdit(j: Jornada) {
 		editingId = j.id;
 		formNome = j.nome;
+		formVigenciaInicio = amanhaStr();
 
 		// Detecta se todos os dias ativos têm o mesmo horário
 		const ativos = DIAS_CONFIG.filter((d) => j.dias[d.key].ativo);
@@ -212,6 +242,17 @@
 
 	async function handleSave() {
 		if (!validate()) return;
+
+		// Vigência hoje ou no passado pode reescrever dias já batidos → confirmar.
+		if (editingId && formVigenciaInicio <= hojeStr()) {
+			const ok = window.confirm(
+				`O novo horário passa a valer em ${formatarDataBR(formVigenciaInicio)}. ` +
+					'Dias com registros de ponto nessa data em diante terão a classificação ' +
+					'(pontual/atraso/falta) recalculada. Deseja continuar?'
+			);
+			if (!ok) return;
+		}
+
 		saving = true;
 		errorMsg = '';
 
@@ -226,7 +267,11 @@
 			}
 		}
 
-		const data: JornadaInput = { nome: formNome.trim(), dias: diasFinal };
+		const data: JornadaInput = {
+			nome: formNome.trim(),
+			dias: diasFinal,
+			vigenciaInicio: formVigenciaInicio
+		};
 		try {
 			if (editingId) {
 				const updated = await jornadaService.update(editingId, data);
@@ -323,6 +368,12 @@
 						<span class="badge badge--blue">{j.quantidadeDias} dias/semana</span>
 						<span class="badge badge--muted">{formatMinutes(j.totalSemana)}/semana</span>
 					</div>
+
+					{#if j.proximaVigencia}
+						<p class="jornada-card__pendente">
+							Novo horário a partir de {formatarDataBR(j.proximaVigencia)}
+						</p>
+					{/if}
 				</div>
 			{/each}
 		</div>
@@ -353,10 +404,21 @@
 				}}
 			>
 				{#if editingId}
-					<p class="vigencia-nota">
-						Alterações de horário passam a valer no dia seguinte. As datas anteriores mantêm o
-						horário antigo — o histórico é preservado.
-					</p>
+					<!-- Vigência: a pessoa decide quando o novo horário passa a valer -->
+					<div class="field">
+						<label for="vigencia">Vigente a partir de</label>
+						<input id="vigencia" type="date" bind:value={formVigenciaInicio} min={hojeStr()} />
+						<span class="field__hint">
+							{#if formVigenciaInicio > hojeStr()}
+								O horário atual continua até lá; o novo passa a valer em {formatarDataBR(
+									formVigenciaInicio
+								)}. O histórico anterior é preservado.
+							{:else}
+								Passa a valer já hoje. Dias com registros terão a classificação
+								(pontual/atraso/falta) recalculada.
+							{/if}
+						</span>
+					</div>
 				{/if}
 
 				<!-- Nome -->
@@ -654,6 +716,23 @@
 		border-top: 1px solid #f1f5f9;
 	}
 
+	.jornada-card__pendente {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: #2563eb;
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+	}
+
+	.jornada-card__pendente::before {
+		content: '';
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 50%;
+		background: #2563eb;
+	}
+
 	.badge {
 		font-size: 0.75rem;
 		font-weight: 600;
@@ -746,17 +825,6 @@
 		flex: 1;
 	}
 
-	/* ── Nota de vigência ───────────────────────────────────── */
-	.vigencia-nota {
-		font-size: 0.8rem;
-		line-height: 1.4;
-		color: var(--color-text-muted);
-		background: var(--color-surface-muted);
-		border-left: 3px solid #2563eb;
-		border-radius: var(--radius-sm);
-		padding: 0.625rem 0.75rem;
-	}
-
 	/* ── Campos ─────────────────────────────────────────────── */
 	.field {
 		display: flex;
@@ -771,7 +839,8 @@
 	}
 
 	.field input[type='text'],
-	.field input[type='time'] {
+	.field input[type='time'],
+	.field input[type='date'] {
 		border: 1.5px solid #cbd5e1;
 		border-radius: var(--radius-sm);
 		padding: 0.5rem 0.75rem;
@@ -793,6 +862,12 @@
 	.field__error {
 		font-size: 0.75rem;
 		color: var(--color-danger);
+	}
+
+	.field__hint {
+		font-size: 0.75rem;
+		line-height: 1.4;
+		color: var(--color-text-muted);
 	}
 
 	.time-grid {

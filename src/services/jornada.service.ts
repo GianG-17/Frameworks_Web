@@ -37,7 +37,10 @@ export interface Jornada {
 	versoes: JornadaVersao[];
 }
 
-export type JornadaInput = Omit<Jornada, 'id' | 'versoes'>;
+export type JornadaInput = Omit<Jornada, 'id' | 'versoes'> & {
+	/** Data (YYYY-MM-DD) a partir da qual o horário vale. Default: amanhã (edição) / hoje (criação). */
+	vigenciaInicio?: string;
+};
 
 export const jornadaService = {
 	list: () => get<Jornada[]>('/jornadas'),

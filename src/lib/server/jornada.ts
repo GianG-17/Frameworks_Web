@@ -85,6 +85,21 @@ function toDateString(d: Date): string {
 }
 
 /**
+ * Converte uma string `YYYY-MM-DD` para `Date` à meia-noite UTC (formato `@db.Date`).
+ * Retorna `null` se o formato for inválido ou a data não existir.
+ */
+export function parseDataUTC(s: string): Date | null {
+	const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+	if (!m) return null;
+	const [ano, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])];
+	const d = new Date(Date.UTC(ano, mes - 1, dia));
+	if (d.getUTCFullYear() !== ano || d.getUTCMonth() !== mes - 1 || d.getUTCDate() !== dia) {
+		return null;
+	}
+	return d;
+}
+
+/**
  * Resolve o horário (dias) vigente em `data`: a versão de maior `vigenciaInicio`
  * que seja <= data. Se nenhuma (data anterior à 1ª versão), usa a versão mais
  * antiga — assim nenhum dia fica sem horário. Retorna null se não houver versões.

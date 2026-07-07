@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { prisma } from '@/lib/server/db';
-import { toJornadaDTO, dataHojeUTC } from '@/lib/server/jornada';
+import { toJornadaDTO, dataHojeUTC, parseDataUTC } from '@/lib/server/jornada';
 import { requireAdmin, requireUser, jsonError, jsonOk } from '../_lib/auth-helpers';
 
 export const GET: RequestHandler = async ({ request }) => {
@@ -27,7 +27,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		return response as Response;
 	}
 
-	let body: { nome?: string; dias?: unknown };
+	let body: { nome?: string; dias?: unknown; vigenciaInicio?: string };
 	try {
 		body = await request.json();
 	} catch {
@@ -38,11 +38,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		return jsonError('nome e dias são obrigatórios', 400);
 	}
 
+	const vigenciaInicio = body.vigenciaInicio ? parseDataUTC(body.vigenciaInicio) : dataHojeUTC();
+	if (!vigenciaInicio) {
+		return jsonError('Data de vigência inválida', 400);
+	}
+
 	const jornada = await prisma.jornada.create({
 		data: {
 			empresaId: admin.empresaId,
 			nome: body.nome,
-			versoes: { create: { dias: body.dias as object, vigenciaInicio: dataHojeUTC() } }
+			versoes: { create: { dias: body.dias as object, vigenciaInicio } }
 		},
 		include: { versoes: { orderBy: { vigenciaInicio: 'asc' } } }
 	});

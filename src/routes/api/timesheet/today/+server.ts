@@ -12,22 +12,34 @@ export const GET: RequestHandler = async ({ request }) => {
 	}
 
 	const now = new Date();
+	if (!user.colaboradorId) {
+		// Usuário sem vínculo de colaborador (admin puro) não tem ponto.
+		return jsonOk(buildSummary(dateKey(now), [], false));
+	}
+	const colaboradorId = user.colaboradorId;
+
 	const start = new Date(now);
 	start.setUTCHours(0, 0, 0, 0);
 	const end = new Date(now);
 	end.setUTCHours(23, 59, 59, 999);
 
-	const [registros, justificativas] = await Promise.all([
+	const [registros, ausencias] = await Promise.all([
 		prisma.registro.findMany({
-			where: { colaboradorId: user.id, timestamp: { gte: start, lte: end } },
-			orderBy: { timestamp: 'asc' },
+			where: { colaboradorId, marcadoEm: { gte: start, lte: end } },
+			orderBy: { marcadoEm: 'asc' },
 			include: { anulacao: true }
 		}),
-		prisma.justificativa.findMany({
-			where: { colaboradorId: user.id, status: 'approved', data: { gte: start, lte: end } }
+		// Ausência aprovada que cobre o dia (dataInicio ≤ fim do dia e dataFim ≥ início).
+		prisma.ausencia.findMany({
+			where: {
+				colaboradorId,
+				status: 'aprovada',
+				dataInicio: { lte: end },
+				dataFim: { gte: start }
+			}
 		})
 	]);
 
-	const abonado = justificativas.length > 0;
+	const abonado = ausencias.length > 0;
 	return jsonOk(buildSummary(dateKey(now), registros, abonado));
 };

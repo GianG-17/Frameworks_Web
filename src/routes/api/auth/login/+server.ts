@@ -26,19 +26,25 @@ export const POST: RequestHandler = async ({ request }) => {
 		? { email: identifier.trim().toLowerCase() }
 		: { cpf: identifier.replace(/\D/g, '') };
 
-	// Busca em ambas as tabelas: admin (Usuario) tem precedência sobre Colaborador.
-	const admin = await prisma.usuario.findFirst({ where });
-	const colaborador = admin
-		? null
-		: await prisma.colaborador.findFirst({ where: { ...where, deletedAt: null } });
+	// Login mora só em `usuarios` (identidade). O papel vem de `role`; o vínculo de
+	// colaborador (bater ponto) vem da existência da extensão `Colaborador`.
+	// NOTA: com unicidade por empresa, email/cpf podem colidir entre empresas — no
+	// MVP de empresa única, findFirst basta; multi-empresa exigirá discriminador
+	// de tenant no login (ex.: código/subdomínio da empresa).
+	const usuario = await prisma.usuario.findFirst({
+		where,
+		include: { colaborador: { select: { id: true, deletedAt: true } } }
+	});
 
-	const account = admin ?? colaborador;
-	if (!account) return jsonError('Credenciais inválidas', 401);
+	if (!usuario) return jsonError('Credenciais inválidas', 401);
 
-	const ok = await bcrypt.compare(password, account.password);
+	// Colaborador desligado (soft delete) não autentica.
+	if (usuario.colaborador?.deletedAt) return jsonError('Credenciais inválidas', 401);
+
+	const ok = await bcrypt.compare(password, usuario.senhaHash);
 	if (!ok) return jsonError('Credenciais inválidas', 401);
 
-	const payload = toPayload(account, admin ? 'admin' : 'colaborador');
+	const payload = toPayload(usuario, usuario.colaborador?.id ?? null);
 	const token = encodeToken(payload);
 
 	return jsonOk({ token, user: payload });

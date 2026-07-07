@@ -44,7 +44,7 @@
 
 	const initials = $derived(
 		$user
-			? $user.name
+			? $user.nome
 					.split(' ')
 					.filter(Boolean)
 					.slice(0, 2)
@@ -95,7 +95,7 @@
 				<div class="sidebar__user">
 					<Avatar {initials} size={34} />
 					<div class="sidebar__user-meta">
-						<div class="sidebar__user-name">{$user.name}</div>
+						<div class="sidebar__user-name">{$user.nome}</div>
 						<div class="sidebar__user-cargo">{cargo}</div>
 					</div>
 				</div>

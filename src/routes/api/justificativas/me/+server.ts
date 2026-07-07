@@ -1,5 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { prisma } from '@/lib/server/db';
+import { toJustificativaDTO, TIPO_JUSTIFICATIVA_PADRAO } from '@/lib/server/ausencia';
 import { requireUser, jsonError, jsonOk } from '../../_lib/auth-helpers';
 
 export const GET: RequestHandler = async ({ request }) => {
@@ -10,27 +11,18 @@ export const GET: RequestHandler = async ({ request }) => {
 		return response as Response;
 	}
 
-	const lista = await prisma.justificativa.findMany({
+	if (!user.colaboradorId) return jsonOk([]);
+
+	const lista = await prisma.ausencia.findMany({
 		where: {
 			empresaId: user.empresaId,
-			colaboradorId: user.id
+			colaboradorId: user.colaboradorId,
+			tipo: { not: 'ferias' }
 		},
-		orderBy: { data: 'desc' }
+		orderBy: { dataInicio: 'desc' }
 	});
 
-	return jsonOk(
-		lista.map((j) => ({
-			id: j.id,
-			colaboradorId: j.colaboradorId,
-			colaboradorNome: user.name,
-			data: j.data.toISOString(),
-			motivo: j.motivo,
-			anexoUrl: j.anexoUrl,
-			status: j.status,
-			approvedBy: j.approvedBy,
-			approvedAt: j.approvedAt?.toISOString()
-		}))
-	);
+	return jsonOk(lista.map((j) => toJustificativaDTO(j, user.nome)));
 };
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -39,6 +31,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		user = requireUser(request);
 	} catch (response) {
 		return response as Response;
+	}
+
+	if (!user.colaboradorId) {
+		return jsonError('Usuário sem vínculo de colaborador', 403);
 	}
 
 	let body: Partial<{ data: string; motivo: string; anexoUrl: string }>;
@@ -52,15 +48,19 @@ export const POST: RequestHandler = async ({ request }) => {
 		return jsonError('data e motivo são obrigatórios', 400);
 	}
 
-	const justificativa = await prisma.justificativa.create({
+	// Justificativa aberta pelo colaborador nasce pendente (status default no schema).
+	const dia = new Date(body.data);
+	const justificativa = await prisma.ausencia.create({
 		data: {
 			empresaId: user.empresaId,
-			colaboradorId: user.id,
-			data: new Date(body.data),
+			colaboradorId: user.colaboradorId,
+			tipo: TIPO_JUSTIFICATIVA_PADRAO,
+			dataInicio: dia,
+			dataFim: dia,
 			motivo: body.motivo,
 			anexoUrl: body.anexoUrl ?? null
 		}
 	});
 
-	return jsonOk(justificativa, 201);
+	return jsonOk(toJustificativaDTO(justificativa, user.nome), 201);
 };

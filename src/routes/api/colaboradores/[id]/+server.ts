@@ -14,7 +14,7 @@ export const GET: RequestHandler = async ({ request, params }) => {
 
 	const user = await prisma.colaborador.findFirst({
 		where: { id: params.id, deletedAt: null },
-		include: { departamento: true }
+		include: { departamento: true, usuario: { select: { nome: true, email: true, cpf: true } } }
 	});
 	if (!user || user.empresaId !== admin.empresaId) {
 		return jsonError('Colaborador não encontrado', 404);
@@ -68,28 +68,41 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 		}
 	}
 
-	if (data.email !== undefined && (await emailEmUso(data.email, params.id))) {
+	if (
+		data.email !== undefined &&
+		(await emailEmUso(data.email, admin.empresaId, existing.usuarioId))
+	) {
 		return jsonError('E-mail já cadastrado', 409, 'email');
 	}
-	if (data.cpf !== undefined && (await cpfEmUso(data.cpf, params.id))) {
+	if (data.cpf !== undefined && (await cpfEmUso(data.cpf, admin.empresaId, existing.usuarioId))) {
 		return jsonError('CPF já cadastrado', 409, 'cpf');
 	}
 
 	try {
-		const user = await prisma.colaborador.update({
-			where: { id: params.id },
-			data: {
-				name: data.nome,
-				email: data.email,
-				cpf: data.cpf,
-				cargo: data.cargo,
-				departamentoId: data.departamentoId,
-				telefone: data.telefone === undefined ? undefined : data.telefone || null,
-				dataAdmissao: data.dataAdmissao === undefined ? undefined : new Date(data.dataAdmissao),
-				status: data.status,
-				jornadaId: data.jornadaId
-			},
-			include: { departamento: true }
+		// Nome/e-mail/CPF vivem na identidade; o resto na extensão. Atualiza ambos
+		// na mesma transação.
+		const user = await prisma.$transaction(async (tx) => {
+			if (data.nome !== undefined || data.email !== undefined || data.cpf !== undefined) {
+				await tx.usuario.update({
+					where: { id: existing.usuarioId },
+					data: { nome: data.nome, email: data.email, cpf: data.cpf }
+				});
+			}
+			return tx.colaborador.update({
+				where: { id: params.id },
+				data: {
+					cargo: data.cargo,
+					departamentoId: data.departamentoId,
+					telefone: data.telefone === undefined ? undefined : data.telefone || null,
+					dataAdmissao: data.dataAdmissao === undefined ? undefined : new Date(data.dataAdmissao),
+					status: data.status,
+					jornadaId: data.jornadaId
+				},
+				include: {
+					departamento: true,
+					usuario: { select: { nome: true, email: true, cpf: true } }
+				}
+			});
 		});
 
 		return jsonOk(toColaboradorDTO(user));

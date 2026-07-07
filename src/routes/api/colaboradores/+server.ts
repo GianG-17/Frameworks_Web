@@ -19,8 +19,8 @@ export const GET: RequestHandler = async ({ request }) => {
 
 	const users = await prisma.colaborador.findMany({
 		where: { empresaId: admin.empresaId, deletedAt: null },
-		include: { departamento: true },
-		orderBy: { name: 'asc' }
+		include: { departamento: true, usuario: { select: { nome: true, email: true, cpf: true } } },
+		orderBy: { usuario: { nome: 'asc' } }
 	});
 
 	return jsonOk(users.map(toColaboradorDTO));
@@ -62,25 +62,40 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 	}
 
-	if (await emailEmUso(data.email)) return jsonError('E-mail já cadastrado', 409, 'email');
-	if (await cpfEmUso(data.cpf)) return jsonError('CPF já cadastrado', 409, 'cpf');
+	if (await emailEmUso(data.email, admin.empresaId))
+		return jsonError('E-mail já cadastrado', 409, 'email');
+	if (await cpfEmUso(data.cpf, admin.empresaId)) return jsonError('CPF já cadastrado', 409, 'cpf');
 
 	try {
-		const user = await prisma.colaborador.create({
-			data: {
-				empresaId: admin.empresaId,
-				name: data.nome,
-				email: data.email,
-				cpf: data.cpf,
-				password: await bcrypt.hash(SENHA_PADRAO, 10),
-				cargo: data.cargo,
-				departamentoId: data.departamentoId,
-				telefone: data.telefone || null,
-				dataAdmissao: new Date(data.dataAdmissao),
-				status: data.status,
-				jornadaId: data.jornadaId
-			},
-			include: { departamento: true }
+		// Identidade (login) + extensão de vínculo criadas na mesma transação.
+		const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+		const colaborador = await prisma.$transaction(async (tx) => {
+			const usuario = await tx.usuario.create({
+				data: {
+					empresaId: admin.empresaId,
+					nome: data.nome,
+					email: data.email,
+					cpf: data.cpf,
+					senhaHash,
+					role: 'colaborador'
+				}
+			});
+			return tx.colaborador.create({
+				data: {
+					usuarioId: usuario.id,
+					empresaId: admin.empresaId,
+					cargo: data.cargo,
+					departamentoId: data.departamentoId,
+					telefone: data.telefone || null,
+					dataAdmissao: new Date(data.dataAdmissao),
+					status: data.status,
+					jornadaId: data.jornadaId
+				},
+				include: {
+					departamento: true,
+					usuario: { select: { nome: true, email: true, cpf: true, senhaHash: true } }
+				}
+			});
 		});
 
 		// E-mail de boas-vindas com link para o colaborador definir a própria senha.
@@ -88,15 +103,23 @@ export const POST: RequestHandler = async ({ request }) => {
 		// impede o cadastro — a senha padrão continua valendo como fallback.
 		try {
 			const token = encodeResetToken(
-				{ id: user.id, role: 'colaborador', password: user.password },
+				{
+					id: colaborador.usuarioId,
+					role: 'colaborador',
+					senhaHash: colaborador.usuario.senhaHash
+				},
 				'3d'
 			);
-			await sendWelcomeEmail(user.email, user.name, buildResetUrl(token));
+			await sendWelcomeEmail(
+				colaborador.usuario.email,
+				colaborador.usuario.nome,
+				buildResetUrl(token)
+			);
 		} catch (e) {
 			console.error('Erro ao enviar e-mail de boas-vindas:', e);
 		}
 
-		return jsonOk(toColaboradorDTO(user), 201);
+		return jsonOk(toColaboradorDTO(colaborador), 201);
 	} catch (e) {
 		return mapPrismaError(e);
 	}

@@ -9,11 +9,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/server/db';
 import { isStrongPassword } from '@/utils/validators';
-import {
-	peekResetToken,
-	verifyResetToken,
-	findAccountByIdAndRole
-} from '@/lib/server/password-reset';
+import { peekResetToken, verifyResetToken, findAccountById } from '@/lib/server/password-reset';
 import { jsonError, jsonOk } from '../../_lib/auth-helpers';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -40,17 +36,14 @@ export const POST: RequestHandler = async ({ request }) => {
 	const peek = peekResetToken(token);
 	if (!peek) return jsonError('Token inválido ou expirado', 400);
 
-	const account = await findAccountByIdAndRole(peek.id, peek.role);
-	if (!account || !verifyResetToken(token, account.password)) {
+	const account = await findAccountById(peek.id);
+	if (!account || !verifyResetToken(token, account.senhaHash)) {
 		return jsonError('Token inválido ou expirado', 400);
 	}
 
+	// Login mora só em `usuarios`: a senha sempre é gravada na identidade.
 	const hashed = await bcrypt.hash(password, 10);
-	if (account.role === 'admin') {
-		await prisma.usuario.update({ where: { id: account.id }, data: { password: hashed } });
-	} else {
-		await prisma.colaborador.update({ where: { id: account.id }, data: { password: hashed } });
-	}
+	await prisma.usuario.update({ where: { id: account.id }, data: { senhaHash: hashed } });
 
 	return jsonOk({ message: 'Senha redefinida com sucesso.' });
 };

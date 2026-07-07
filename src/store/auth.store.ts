@@ -10,11 +10,12 @@ import { writable, derived } from 'svelte/store';
 
 export interface User {
 	id: string;
-	name: string;
+	nome: string;
 	email: string;
 	cpf: string;
 	role: 'admin' | 'colaborador';
 	empresaId: string;
+	colaboradorId: string | null;
 }
 
 export const user = writable<User | null>(null);
@@ -62,11 +63,12 @@ export function hydrateFromStorage(): void {
 		if (parsed && !expirado && (parsed.role === 'admin' || parsed.role === 'colaborador')) {
 			user.set({
 				id: parsed.id,
-				name: parsed.name,
+				nome: parsed.nome,
 				email: parsed.email,
 				cpf: parsed.cpf,
 				role: parsed.role,
-				empresaId: parsed.empresaId
+				empresaId: parsed.empresaId,
+				colaboradorId: parsed.colaboradorId ?? null
 			});
 			return;
 		}

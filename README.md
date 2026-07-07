@@ -13,7 +13,7 @@ Uma aplicação desenvolvida para permitir que empresas de qualquer porte regist
 
 Projeto desenvolvido para a disciplina de **Projeto de Desenvolvimento I** da **UniSenac - Campus Pelotas**.
 
-* **Angelo Fonseca** - Desenvolvedor [GitHub](https://github.com/angelofonseca)
+* **Angelo Fonseca** - Desenvolvedor - [GitHub](https://github.com/angelofonseca)
 * **Gian Garima** - Desenvolvedor - [GitHub](https://github.com/GianG-17)
 
 **Orientação:** Prof. Bruna Ribeiro & Prof. Gladimir Catarino.
@@ -21,8 +21,8 @@ Projeto desenvolvido para a disciplina de **Projeto de Desenvolvimento I** da **
 ---
 
 ## 🔗 Links Principais
-* 💻 **GitLab:** *https://gitlab.com/senac-projetos-de-desenvolvimento/2026-1-angelo-gian/controle_ponto*
 * 🌐 **Deploy da Aplicação:** *https://controle-ponto-6l0g.onrender.com/*
+* 💻 **GitLab:** *https://gitlab.com/senac-projetos-de-desenvolvimento/2026-1-angelo-gian/controle_ponto*
 * 🗂️ **Trello:** *https://trello.com/b/aX6doi72/controle-de-ponto-pd1*
 * 📊 **Apresentação:** *https://canva.link/l2whdkiic5za996*
 

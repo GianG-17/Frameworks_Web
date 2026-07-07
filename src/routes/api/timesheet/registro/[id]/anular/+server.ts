@@ -62,3 +62,48 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
 	return jsonOk(toRegistroDTO(atualizado!), 201);
 };
+
+/**
+ * @endpoint DELETE /api/timesheet/registro/[id]/anular
+ * @description Admin reverte uma anulação avulsa, fazendo a batida original voltar a contar.
+ *
+ * Conformidade Portaria 671/2021: a batida original nunca foi tocada — apenas
+ * remove-se a marca de tratamento (RegistroAnulacao). Restrito a anulações
+ * avulsas (`registroSubstitutoId` nulo): reverter um ajuste deixaria a original
+ * e a substituta contando ao mesmo tempo (batida duplicada).
+ */
+export const DELETE: RequestHandler = async ({ request, params }) => {
+	let admin;
+	try {
+		admin = requireAdmin(request);
+	} catch (response) {
+		return response as Response;
+	}
+
+	const registroId = params.id;
+	if (!registroId) return jsonError('id é obrigatório', 400);
+
+	const registro = await prisma.registro.findUnique({
+		where: { id: registroId },
+		include: { anulacao: true }
+	});
+
+	if (!registro || registro.empresaId !== admin.empresaId) {
+		return jsonError('Batida não encontrada', 404);
+	}
+	if (!registro.anulacao) {
+		return jsonError('Batida não está anulada', 400);
+	}
+	if (registro.anulacao.registroSubstitutoId != null) {
+		return jsonError('Não é possível reverter um ajuste; refaça o ajuste', 409);
+	}
+
+	await prisma.registroAnulacao.delete({ where: { id: registro.anulacao.id } });
+
+	const atualizado = await prisma.registro.findUnique({
+		where: { id: registroId },
+		include: { anulacao: true }
+	});
+
+	return jsonOk(toRegistroDTO(atualizado!), 200);
+};

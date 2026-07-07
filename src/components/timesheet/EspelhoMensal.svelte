@@ -17,6 +17,7 @@
 	import type { RegistroRecord, RegistroType } from '@/services/timesheet.service';
 	import RegistroManualModal from './RegistroManualModal.svelte';
 	import RegistroAjusteModal from './RegistroAjusteModal.svelte';
+	import ReverterAnulacaoModal from './ReverterAnulacaoModal.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 
 	interface Props {
@@ -45,6 +46,7 @@
 
 	let modalManualAberto = $state(false);
 	let modalAjusteAberto = $state(false);
+	let modalReverterAberto = $state(false);
 	let dataInicialModal = $state('');
 	let tipoInicialModal = $state<RegistroType>('entrada');
 	let registroSelecionado = $state<RegistroRecord | null>(null);
@@ -150,8 +152,20 @@
 		modalManualAberto = true;
 	}
 
-	function abrirModalAjuste(registro: RegistroRecord) {
-		if (!editavel || registro.anulacao) return; // leitura ou já anulada
+	/** Anulação avulsa (sem substituta) — a única revertível. */
+	function anulacaoAvulsa(registro: RegistroRecord): boolean {
+		return !!registro.anulacao && registro.anulacao.registroSubstitutoId == null;
+	}
+
+	/** Roteia o clique numa batida: reverter anulação avulsa ou abrir ajuste. */
+	function onClickBatida(registro: RegistroRecord) {
+		if (!editavel) return;
+		if (registro.anulacao) {
+			if (!anulacaoAvulsa(registro)) return; // anulada por ajuste: sem ação
+			registroSelecionado = registro;
+			modalReverterAberto = true;
+			return;
+		}
 		registroSelecionado = registro;
 		modalAjusteAberto = true;
 	}
@@ -174,6 +188,14 @@
 		if (!registroSelecionado) return;
 		await registroAdminService.anular(registroSelecionado.id, motivo);
 		modalAjusteAberto = false;
+		registroSelecionado = null;
+		await carregar();
+	}
+
+	async function confirmarReverter() {
+		if (!registroSelecionado) return;
+		await registroAdminService.reverterAnulacao(registroSelecionado.id);
+		modalReverterAberto = false;
 		registroSelecionado = null;
 		await carregar();
 	}
@@ -218,8 +240,11 @@
 								{#each TIPOS_ORDEM as tipo (tipo)}
 									{@const registro = picker(dia.summary, tipo)}
 									{#if registro}
+										{@const revertivel = interativo && anulacaoAvulsa(registro)}
 										{@const titulo = registro.anulacao
-											? `Ajustada/anulada: ${registro.anulacao.motivo}`
+											? revertivel
+												? `Anulada: ${registro.anulacao.motivo} — clique para reverter`
+												: `Ajustada/anulada: ${registro.anulacao.motivo}`
 											: (registro.createdReason ??
 												(interativo ? 'Clique para ajustar' : 'Ponto válido'))}
 										<td class="cel">
@@ -229,9 +254,10 @@
 													class="batida"
 													class:batida--manual={!!registro.createdBy}
 													class:batida--anulada={!!registro.anulacao}
+													class:batida--revertivel={revertivel}
 													title={titulo}
-													onclick={() => abrirModalAjuste(registro)}
-													disabled={!!registro.anulacao}
+													onclick={() => onClickBatida(registro)}
+													disabled={!!registro.anulacao && !revertivel}
 												>
 													{formatHora(registro.timestamp)}
 												</button>
@@ -317,6 +343,16 @@
 		}}
 		onAjustar={confirmarAjuste}
 		onAnular={confirmarAnular}
+	/>
+
+	<ReverterAnulacaoModal
+		aberto={modalReverterAberto}
+		registro={registroSelecionado}
+		onFechar={() => {
+			modalReverterAberto = false;
+			registroSelecionado = null;
+		}}
+		onReverter={confirmarReverter}
 	/>
 {/if}
 
@@ -483,6 +519,13 @@
 		border-color: #e2e8f0;
 		text-decoration: line-through;
 		cursor: not-allowed;
+	}
+	.batida--revertivel {
+		cursor: pointer;
+	}
+	.batida--revertivel:hover:not(:disabled) {
+		background: #e2e8f0;
+		color: #475569;
 	}
 	.vazia {
 		width: 100%;

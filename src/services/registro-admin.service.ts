@@ -5,11 +5,12 @@
  * Conformidade Portaria 671/2021: nenhuma operação altera ou remove batidas
  * existentes. `criarManual` adiciona um novo registro retroativo; `ajustar`
  * anula a batida original e cria a corrigida (vinculadas) numa só ação;
- * `anular` apenas invalida a batida (sem substituta). Em todos os casos a
- * original permanece visível para o AFD legal.
+ * `anular` apenas invalida a batida (sem substituta); `reverterAnulacao`
+ * desfaz uma anulação avulsa (a batida original volta a contar). Em todos os
+ * casos a original permanece visível para o AFD legal.
  */
 
-import { post } from './api';
+import { post, del } from './api';
 import type { RegistroRecord, RegistroType } from './timesheet.service';
 
 export const registroAdminService = {
@@ -24,5 +25,8 @@ export const registroAdminService = {
 		post<RegistroRecord>(`/timesheet/registro/${registroId}/ajustar`, data),
 
 	anular: (registroId: string, motivo: string) =>
-		post<RegistroRecord>(`/timesheet/registro/${registroId}/anular`, { motivo })
+		post<RegistroRecord>(`/timesheet/registro/${registroId}/anular`, { motivo }),
+
+	reverterAnulacao: (registroId: string) =>
+		del<RegistroRecord>(`/timesheet/registro/${registroId}/anular`)
 };
